@@ -762,13 +762,45 @@ void HtmlGenerator::init()
       t << mgr.getAsString("dynsections.js");
       if (Config_getBool(SOURCE_BROWSER) && Config_getBool(SOURCE_TOOLTIPS))
       {
-        t << endl <<
-          "$(document).ready(function() {\n"
-          "  $('.code,.codeRef').each(function() {\n"
-          "    $(this).data('powertip',$('#'+$(this).attr('href').replace(/.*\\//,'').replace(/[^a-z_A-Z0-9]/g,'_')).html());\n"
-          "    $(this).powerTip({ placement: 's', smartPlacement: true, mouseOnToPopup: true });\n"
-          "  });\n"
-          "});\n";
+        QCString tooltipsUrl = Config_getString("SOURCE_TOOLTIPS_URL");
+        if (tooltipsUrl!="")
+        {
+          t << endl <<
+            "$(document).ready(function() {\n"
+            "  $('.code,.codeRef').each(function() {\n"
+            "    var href = $(this).attr('href').replace(/.*.html#*/,'');\n"
+            "    $(this).powerTip({ placement: 's', smartPlacement: true, mouseOnToPopup: true })\n"
+            "    .on({\n"
+            "        powerTipPreRender: function() {\n"
+            "            var tooltip=$(this);\n"
+            "            var tooltipsUrl = '" << tooltipsUrl << "';\n"
+            "            $.ajax({\n"
+            "                url: tooltipsUrl,\n"
+            "                dataType: 'json',\n"
+            "                async: false,\n"
+            "                data: {href:href\n"
+            "                      },\n"
+            "                success: function(data) {\n"
+            "                     var html=jsonToHtml(data);\n"
+            "                     tooltip.data('powertip' , html);\n"
+            "                }\n"
+            "            });\n"
+            "        }\n"
+            "    });\n"
+            "  });\n"
+            "});\n"
+            ;
+        }
+        else
+        {
+          t << endl <<
+            "$(document).ready(function() {\n"
+            "  $('.code,.codeRef').each(function() {\n"
+            "    $(this).data('powertip',$('#'+$(this).attr('href').replace(/.*\\//,'').replace(/[^a-z_A-Z0-9]/g,'_')).html());\n"
+            "    $(this).powerTip({ placement: 's', smartPlacement: true, mouseOnToPopup: true });\n"
+            "  });\n"
+            "});\n";
+        }
       }
     }
   }

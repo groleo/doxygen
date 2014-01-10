@@ -117,4 +117,67 @@ function toggleInherit(id)
     $(img).attr('src',src.substring(0,src.length-10)+'open.png');
   }
 }
+
+
+function jsonToList(content) {
+  var i=0;
+  var str='<div><table class="directory">';
+  for (var pos in content) {
+    var child = content[pos];
+
+    str+='<tr id="row_'+i+'_" ><td class="even">';
+    str+='<div class="ttname">'+child['name']+'</div>';
+    str+='<div class="ttdeci">'+child['definition']+'</div>';
+    str+='<div class="ttdef">'+child['file']+':'+child['line']+'</div></td></tr>';
+    if ( child['documentation'] ) {
+    str+='<tr id="row_'+i+'_0_" class="entry"><td class="entry">'+
+        '<img id="arr_0_0_" src="ftv2pnode.png" alt="o" width="16" height="22" onclick="toggleFolder(\''+i+'_0_\')"/>'+
+        '<a class="el" href="namespaceandroid.html" target="_self">documentation</a></td>';
+    str+='<tr id="row_'+i+'_0_0_" style="display:none;"><td class="entry">'+
+        '<pre>'+child['documentation']+'</pre></td></tr>';
+    }
+
+    if ( child['xrefs'] ) {
+    str+='<tr id="row_'+i+'_1_" class="even"><td class="entry">'+
+        '<img id="arr_1_0_" src="ftv2pnode.png" alt="o" width="16" height="22" onclick="toggleFolder(\''+i+'_1_\')"/>'+
+        '<a class="el" href="namespaceandroid.html" target="_self">xrefs</a></td>';
+    str+='<tr id="row_'+i+'_1_0_" style="display:none;"><td class="entry">'+
+        '<pre>'+child['xrefs']+'</pre></td></tr>';
+    }
+
+    if ( child['base'] ) {
+    str+='<tr id="row_'+i+'_2_" class="even"><td class="entry">'+
+        '<img id="arr_2_0_" src="ftv2pnode.png" alt="o" width="16" height="22" onclick="toggleFolder(\''+i+'_2_\')"/>'+
+        '<a class="el" href="namespaceandroid.html" target="_self">base class</a></td>';
+    str+='<tr id="row_'+i+'_2_0_" style="display:none;"><td class="entry">'+
+        '<pre>'+child['base']+'</pre></td></tr>';
+    }
+
+    if ( child['members'] ) {
+    str+='<tr id="row_'+i+'_3_" class="even"><td class="entry">'+
+        '<img id="arr_2_0_" src="ftv2pnode.png" alt="o" width="16" height="22" onclick="toggleFolder(\''+i+'_3_\')"/>'+
+        '<a class="el" href="namespaceandroid.html" target="_self">members</a></td>';
+    str+='<tr id="row_'+i+'_3_0_" style="display:none;"><td class="entry">'+
+        '<pre>'+child['members']+'</pre></td></tr>';
+    }
+
+    i++;
+  }
+  str+='</table></div>';
+
+  return str;
+}
+
+function jsonToHtml(content) {
+  str = '';
+
+  if (content['result']) {
+    str += jsonToList(content['result']);
+  }
+  if (content['error']) {
+    str += jsonToList(content['error']);
+  }
+
+  return str;
+}
 /* @license-end */
