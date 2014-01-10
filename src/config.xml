@@ -1579,6 +1579,16 @@ to disable this feature.
 ]]>
       </docs>
     </option>
+    <option type='string' id='SOURCE_TOOLTIPS_URL' defval='' depends='SOURCE_TOOLTIPS'>
+      <docs>
+<![CDATA[
+ This tag specifies the URL pointing to the search.py script.
+ The information is obtained dynamically, through ajax calls; the response
+ from search.py comes formated as json.
+ (see addon/doxypysql/search.py).
+]]>
+      </docs>
+    </option>
     <option type='bool' id='USE_HTAGS' defval='0' depends='SOURCE_BROWSER'>
       <docs>
 <![CDATA[
