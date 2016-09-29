@@ -534,7 +534,7 @@ static void writeLineNumber(CodeOutputInterface &ol,FileDef *fd,uint line)
   {
     g_currentDefinition=d;
     g_currentLine=line;
-    MemberDef *md = fd->getSourceMember(line);
+    MemberDef *md = fd->getSourceMember(Location(line, column));
     if (md && md->isLinkable())  // link to member
     {
       if (g_currentMemberDef!=md) // new member, start search for body

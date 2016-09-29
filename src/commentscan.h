@@ -63,7 +63,7 @@ bool parseCommentBlock(ParserInterface *parser,
                        Entry *curEntry,
                        const QCString &comment,
 	               const QCString &fileName,
-		       int  &lineNr,
+		       Location  &loc,
 		       bool isBrief,
 		       bool isJavaDocStyle,
                        bool isInbody,
@@ -72,12 +72,12 @@ bool parseCommentBlock(ParserInterface *parser,
                        bool &newEntryNeeded
 		     );
 
-void groupEnterFile(const char *file,int line);
-void groupLeaveFile(const char *file,int line);
-void groupLeaveCompound(const char *file,int line,const char *name);
-void groupEnterCompound(const char *file,int line,const char *name);
-void openGroup(Entry *e,const char *file,int line);
-void closeGroup(Entry *,const char *file,int line,bool foundInline=FALSE);
+void groupEnterFile(const char *file,Location loc);
+void groupLeaveFile(const char *file,Location loc);
+void groupLeaveCompound(const char *file,Location loc,const char *name);
+void groupEnterCompound(const char *file,Location loc,const char *name);
+void openGroup(Entry *e,const char *file,Location loc);
+void closeGroup(Entry *,const char *file,Location loc,bool foundInline=FALSE);
 void initGroupInfo(Entry *e);
 
 

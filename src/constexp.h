@@ -22,7 +22,7 @@
 #include "cppvalue.h"
 #include <qcstring.h>
 
-extern bool parseconstexp(const char *fileName,int line,const QCString &s);
+extern bool parseconstexp(const char *fileName,int loc,const QCString &s);
 extern int constexpYYparse();
 extern int constexpYYdebug;
 extern QCString g_strToken;

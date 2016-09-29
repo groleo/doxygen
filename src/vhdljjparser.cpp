@@ -38,7 +38,7 @@ static ParserInterface *g_thisParser;
 static QCString         yyFileName;
 static int              yyLineNr      = 1;
 static int*             lineParse;
-static int              iDocLine      = -1;
+static Location         iDocLoc;
 static QCString         inputString;
 static Entry*           gBlock        = 0;
 static Entry*           previous      = 0;
@@ -77,15 +77,15 @@ static struct
   QCString doc;
   bool brief;
   bool pending;
-  int iDocLine;
+  Location iDocLoc;
 } str_doc;
 
 static bool doxComment=FALSE; // doxygen comment ?
 static QCString strComment;
 static int iCodeLen;
 
-bool  checkMultiComment(QCString& qcs,int line);
-QList<Entry>* getEntryAtLine(const Entry* ce,int line);
+bool  checkMultiComment(QCString& qcs,Location loc);
+QList<Entry>* getEntryAtLoc(const Entry* ce,Location loc);
 
 //-------------------------------------
 
@@ -114,8 +114,8 @@ void startCodeBlock(int index)
   else
     gBlock->name=name;
 
-  gBlock->startLine=yyLineNr;
-  gBlock->bodyLine=yyLineNr;
+  gBlock->startLoc=yyLineNr;
+  gBlock->bodyLoc=yyLineNr;
 
   strComment=strComment.left(index);
   VhdlDocGen::prepareComment(strComment);
@@ -133,7 +133,7 @@ void makeInlineDoc(int endCode)
   gBlock->section=Entry::VARIABLE_SEC;
   gBlock->spec=VhdlDocGen::MISCELLANEOUS;
   gBlock->fileName = yyFileName;
-  gBlock->endBodyLine=yyLineNr-1;
+  gBlock->endBodyLoc=yyLineNr-1;
   gBlock->lang=SrcLangExt_VHDL;
   Entry *temp=new Entry(*gBlock);
   Entry* compound=getVhdlCompound();
@@ -233,9 +233,9 @@ void isVhdlDocPending()
 
   str_doc.pending=FALSE;
   oldEntry=0; // prevents endless recursion
-  iDocLine=str_doc.iDocLine;
+  iDocLoc=str_doc.iDocLoc;
   VhdlParser::handleCommentBlock(str_doc.doc,str_doc.brief);
-  iDocLine=-1;
+  iDocLoc=-1;
 }
 
 void VhdlParser::initEntry(Entry *e)
@@ -344,9 +344,9 @@ void VhdlParser::handleCommentBlock(const char* doc1,bool brief)
 
   if (oldEntry==current)
   {
-    //printf("\n find pending message  < %s > at line: %d \n ",doc.data(),iDocLine);
+    //printf("\n find pending message  < %s > at line: %d \n ",doc.data(),iDocLoc);
     str_doc.doc=doc;
-    str_doc.iDocLine=iDocLine;
+    str_doc.iDocLoc=iDocLoc;
     str_doc.brief=brief;
     str_doc.pending=TRUE;
     return;
@@ -356,13 +356,13 @@ void VhdlParser::handleCommentBlock(const char* doc1,bool brief)
 
   if (brief)
   {
-    current->briefLine = yyLineNr;
+    current->briefLoc = yyLineNr;
   }
   else
   {
-    current->docLine = yyLineNr;
+    current->docLoc = yyLineNr;
   }
-  //  printf("parseCommentBlock file<%s>\n [%s]\n at line [%d] \n ",yyFileName.data(),doc.data(),iDocLine);
+  //  printf("parseCommentBlock file<%s>\n [%s]\n at line [%d] \n ",yyFileName.data(),doc.data(),iDocLoc);
 
   int j=doc.find("[plant]");
   if (j>=0)
@@ -376,7 +376,7 @@ void VhdlParser::handleCommentBlock(const char* doc1,bool brief)
         current,
         doc,        // text
         yyFileName, // file
-        iDocLine,   // line of block start
+        iDocLoc,   // line of block start
         brief,
         0,
         FALSE,
@@ -400,7 +400,7 @@ void VhdlParser::handleCommentBlock(const char* doc1,bool brief)
     }
     newEntry();
   }
-  iDocLine=-1;
+  iDocLoc=-1;
   strComment.resize(0);
 }
 
@@ -414,8 +414,8 @@ void VhdlParser::addCompInst(const char *n, const char* instName, const char* co
 {
   current->spec=VhdlDocGen::INSTANTIATION;
   current->section=Entry::VARIABLE_SEC;
-  current->startLine=iLine;
-  current->bodyLine=iLine;
+  current->startLoc=iLine;
+  current->bodyLoc=iLine;
   current->type=instName;                       // foo:instname e.g proto or work. proto(ttt)
   current->exception=genLabels.lower();         // |arch|label1:label2...
   current->name=n;                              // foo
@@ -451,7 +451,7 @@ void VhdlParser::addCompInst(const char *n, const char* instName, const char* co
   }
 }
 
-void VhdlParser::addVhdlType(const char *n,int startLine,int section,
+void VhdlParser::addVhdlType(const char *n,int startLoc,int section,
     uint64 spec,const char* args,const char* type,Protection prot)
 {
   QCString name(n);
@@ -467,8 +467,8 @@ void VhdlParser::addVhdlType(const char *n,int startLine,int section,
   for (uint u=0;u<ql.count();u++)
   {
     current->name=ql[u].utf8();
-    current->startLine=startLine;
-    current->bodyLine=startLine;
+    current->startLoc=startLoc;
+    current->bodyLoc=startLoc;
     current->section=section;
     current->spec=spec;
     current->fileName=yyFileName;
@@ -684,7 +684,7 @@ void VhdlParser::mapLibPackage( Entry* root)
       {
         if (VhdlDocGen::isVhdlClass(current))
         {
-          if (current->startLine > rt->startLine)
+          if (current->startLoc > rt->startLoc)
           {
             bFound=TRUE;
             current->addSubEntry(new Entry(*rt));
@@ -782,7 +782,7 @@ void VhdlParser::createFlow()
 
 void VhdlParser::setMultCommentLine()
 {
-  iDocLine=yyLineNr;
+  iDocLoc.line=yyLineNr;
 }
 
 void VhdlParser::oneLineComment(QCString qcs)
@@ -807,7 +807,7 @@ void VhdlParser::oneLineComment(QCString qcs)
   {
     int j=qcs.find("--!");
     qcs=qcs.right(qcs.length()-3-j);
-    if (!checkMultiComment(qcs,iDocLine))
+    if (!checkMultiComment(qcs,iDocLoc))
     {
       handleCommentBlock(qcs,TRUE);
     }
@@ -815,9 +815,9 @@ void VhdlParser::oneLineComment(QCString qcs)
 }
 
 
-bool  checkMultiComment(QCString& qcs,int line)
+bool  checkMultiComment(QCString& qcs,Location loc)
 {
-  QList<Entry> *pTemp=getEntryAtLine(VhdlParser::current_root,line);
+  QList<Entry> *pTemp=getEntryAtLoc(VhdlParser::current_root,loc);
 
   if (pTemp->isEmpty()) return false;
 
@@ -825,7 +825,7 @@ bool  checkMultiComment(QCString& qcs,int line)
   while (!pTemp->isEmpty())
   {
     Entry *e=(Entry*)pTemp->getFirst();
-    e->briefLine=line;
+    e->briefLoc=loc;
     e->brief+=qcs;
 
     pTemp->removeFirst();
@@ -834,18 +834,18 @@ bool  checkMultiComment(QCString& qcs,int line)
 }
 
 // returns the vhdl parsed types at line xxx
-QList<Entry>* getEntryAtLine(const Entry* ce,int line)
+QList<Entry>* getEntryAtLoc(const Entry* ce,Location loc)
 {
   EntryListIterator eli(*ce->children());
   Entry *rt;
   for (;(rt=eli.current());++eli)
   {
-    if (rt->bodyLine==line)
+    if (rt->bodyLoc==loc)
     {
       lineEntry.insert(0,rt);
     }
 
-    getEntryAtLine(rt,line);
+    getEntryAtLoc(rt,loc);
   }
   return &lineEntry;
 }

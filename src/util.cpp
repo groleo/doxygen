@@ -5995,7 +5995,7 @@ void addMembersToMemberGroup(MemberList *ml,
                     info->header,
                     info->doc,
                     info->docFile,
-                    info->docLine
+                    info->docLoc
                     );
                 (*ppMemberGroupSDict)->append(groupId,mg);
               }
@@ -6028,7 +6028,7 @@ void addMembersToMemberGroup(MemberList *ml,
               info->header,
               info->doc,
               info->docFile,
-              info->docLine
+              info->docLoc
               );
           (*ppMemberGroupSDict)->append(groupId,mg);
         }
@@ -6457,7 +6457,8 @@ found:
 PageDef *addRelatedPage(const char *name,const QCString &ptitle,
     const QCString &doc,
     QList<SectionInfo> * /*anchors*/,
-    const char *fileName,int startLine,
+    const char *fileName,
+    Location startLoc,
     const QList<ListItemInfo> *sli,
     GroupDef *gd,
     TagInfo *tagInfo,
@@ -6469,7 +6470,7 @@ PageDef *addRelatedPage(const char *name,const QCString &ptitle,
   if ((pd=Doxygen::pageSDict->find(name)) && !tagInfo)
   {
     // append documentation block to the page.
-    pd->setDocumentation(doc,fileName,startLine);
+    pd->setDocumentation(doc,fileName,startLoc);
     //printf("Adding page docs `%s' pi=%p name=%s\n",doc.data(),pd,name);
   }
   else // new page
@@ -6481,7 +6482,7 @@ PageDef *addRelatedPage(const char *name,const QCString &ptitle,
       baseName=baseName.left(baseName.length()-Doxygen::htmlFileExtension.length());
 
     QCString title=ptitle.stripWhiteSpace();
-    pd=new PageDef(fileName,startLine,baseName,doc,title);
+    pd=new PageDef(fileName,startLoc,baseName,doc,title);
 
     pd->setRefItems(sli);
     pd->setLanguage(lang);
@@ -6514,9 +6515,9 @@ PageDef *addRelatedPage(const char *name,const QCString &ptitle,
       SectionInfo *si = Doxygen::sectionDict->find(pd->name());
       if (si)
       {
-        if (si->lineNr != -1)
+        if (si->location != Location(0,0))
         {
-          warn(file,-1,"multiple use of section label '%s', (first occurrence: %s, line %d)",pd->name().data(),si->fileName.data(),si->lineNr);
+          warn(file,-1,"multiple use of section label '%s', (first occurrence: %s, line %d)",pd->name().data(),si->fileName.data(),si->location.line);
         }
         else
         {
@@ -6959,12 +6960,12 @@ bool findAndRemoveWord(QCString &s,const QCString &word)
 /** Special version of QCString::stripWhiteSpace() that only strips
  *  completely blank lines.
  *  @param s the string to be stripped
- *  @param docLine the line number corresponding to the start of the
+ *  @param docLoc the line number corresponding to the start of the
  *         string. This will be adjusted based on the number of lines stripped
  *         from the start.
  *  @returns The stripped string.
  */
-QCString stripLeadingAndTrailingEmptyLines(const QCString &s,int &docLine)
+QCString stripLeadingAndTrailingEmptyLines(const QCString &s,Location &docLoc)
 {
   const char *p = s.data();
   if (p==0) return 0;
@@ -6975,7 +6976,7 @@ QCString stripLeadingAndTrailingEmptyLines(const QCString &s,int &docLine)
   while ((c=*p++))
   {
     if (c==' ' || c=='\t' || c=='\r') i++;
-    else if (c=='\n') i++,li=i,docLine++;
+    else if (c=='\n') i++,li=i,docLoc.line++;
     else break;
   }
 
@@ -7334,12 +7335,12 @@ int nextUtf8CharPosition(const QCString &utf8Str,int len,int startPos)
 }
 
 QCString parseCommentAsText(const Definition *scope,const MemberDef *md,
-    const QCString &doc,const QCString &fileName,int lineNr)
+    const QCString &doc,const QCString &fileName,Location loc)
 {
   QGString s;
   if (doc.isEmpty()) return s.data();
   FTextStream t(&s);
-  DocNode *root = validatingParseDoc(fileName,lineNr,
+  DocNode *root = validatingParseDoc(fileName,loc,
       (Definition*)scope,(MemberDef*)md,doc,FALSE,FALSE);
   TextDocVisitor *visitor = new TextDocVisitor(t);
   root->accept(visitor);
@@ -7691,7 +7692,7 @@ void writeTypeConstraints(OutputList &ol,Definition *d,ArgumentList *al)
     linkifyText(TextGeneratorOLImpl(ol),d,0,0,a->type);
     ol.endConstraintType();
     ol.startConstraintDocs();
-    ol.generateDoc(d->docFile(),d->docLine(),d,0,a->docs,TRUE,FALSE);
+    ol.generateDoc(d->docFile(),d->docLoc(),d,0,a->docs,TRUE,FALSE);
     ol.endConstraintDocs();
   }
   ol.endConstraintList();

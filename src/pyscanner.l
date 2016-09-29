@@ -288,12 +288,12 @@ static void startCommentBlock(bool brief)
   if (brief)
   {
     current->briefFile = yyFileName;
-    current->briefLine = yyLineNr;
+    current->briefLoc.line = yyLineNr;
   }
   else
   {
     current->docFile = yyFileName;
-    current->docLine = yyLineNr;
+    current->docLoc.line = yyLineNr;
   }
 }
 
@@ -321,13 +321,13 @@ static void handleCommentBlock(const QCString &doc,bool brief)
 
   int position = 0;
   bool needsEntry;
-  int lineNr = brief ? current->briefLine : current->docLine;
+  Location& loc = brief ? current->briefLoc : current->docLoc;
   while (parseCommentBlock(
 	g_thisParser,
 	(docBlockInBody && previous) ? previous : current,
 	doc,     // text
 	yyFileName, // file
-	lineNr,
+	loc,
 	docBlockInBody ? FALSE : brief, 
     docBlockJavaStyle, // javadoc style // or FALSE,
 	docBlockInBody,
@@ -353,7 +353,7 @@ static void endOfDef(int correction=0)
   //printf("endOfDef at=%d\n",yyLineNr);
   if (bodyEntry)
   {
-    bodyEntry->endBodyLine  = yyLineNr-correction;
+    bodyEntry->endBodyLoc.line  = yyLineNr-correction;
     bodyEntry = 0;
   }
   newEntry();
@@ -400,8 +400,8 @@ static void initSpecialBlock()
 static void searchFoundDef()
 {
   current->fileName  = yyFileName;
-  current->startLine = yyLineNr;
-  current->bodyLine  = yyLineNr;
+  current->startLoc = Location(yyLineNr,0);
+  current->bodyLoc  = Location(yyLineNr,0);
   current->section = Entry::FUNCTION_SEC;
   current->lang = SrcLangExt_Python;
   current->virt = Normal;
@@ -422,8 +422,8 @@ static void searchFoundClass()
   current->argList->clear();
   current->type += "class" ;
   current->fileName  = yyFileName;
-  current->startLine  = yyLineNr;
-  current->bodyLine  = yyLineNr;
+  current->startLoc.line  = yyLineNr;
+  current->bodyLoc.line  = yyLineNr;
   g_packageCommentAllowed = FALSE;
 }
 
@@ -582,8 +582,8 @@ STARTDOCSYMS      "##"
   			current->mtype     = Property;
 			current->name      = QCString(yytext).stripWhiteSpace();
 			current->fileName  = yyFileName;
-			current->startLine = yyLineNr;
-			current->bodyLine  = yyLineNr;
+			current->startLoc.line = yyLineNr;
+			current->bodyLoc.line  = yyLineNr;
 			g_packageCommentAllowed = FALSE;
 			BEGIN(VariableDec);
        	              }
@@ -593,8 +593,8 @@ STARTDOCSYMS      "##"
       			current->section   = Entry::VARIABLE_SEC;
 			current->name      = QCString(yytext).stripWhiteSpace();
 			current->fileName  = yyFileName;
-			current->startLine = yyLineNr;
-			current->bodyLine  = yyLineNr;
+			current->startLoc.line = yyLineNr;
+			current->bodyLoc.line  = yyLineNr;
 			g_packageCommentAllowed = FALSE;
 			BEGIN(VariableDec);
       		      }
@@ -607,8 +607,8 @@ STARTDOCSYMS      "##"
       			current->section   = Entry::VARIABLE_SEC;
 			current->name      = QCString(yytext).stripWhiteSpace();
 			current->fileName  = yyFileName;
-			current->startLine = yyLineNr;
-			current->bodyLine  = yyLineNr;
+			current->startLoc.line = yyLineNr;
+			current->bodyLoc.line  = yyLineNr;
 			g_packageCommentAllowed = FALSE;
 			newVariable();
       		      }
@@ -770,8 +770,8 @@ STARTDOCSYMS      "##"
 			current->name=&yytext[5];
 			current->section=Entry::VARIABLE_SEC;
 			current->fileName  = yyFileName;
-			current->startLine = yyLineNr;
-			current->bodyLine  = yyLineNr;
+			current->startLoc.line = yyLineNr;
+			current->bodyLoc.line  = yyLineNr;
 			current->type.resize(0);
 			if (current->name.at(0)=='_') // mark as private
 			{
@@ -784,8 +784,8 @@ STARTDOCSYMS      "##"
 			current->name=&yytext[4];
 			current->section=Entry::VARIABLE_SEC;
 			current->fileName  = yyFileName;
-			current->startLine = yyLineNr;
-			current->bodyLine  = yyLineNr;
+			current->startLoc.line = yyLineNr;
+			current->bodyLoc.line  = yyLineNr;
 			current->type.resize(0);
 			if (current->name.at(0)=='_') // mark as private
 			{
@@ -947,7 +947,7 @@ STARTDOCSYMS      "##"
     {B}":"		    { // function without arguments
 			      g_specialBlock = TRUE; // expecting a docstring
 			      bodyEntry = current;
-                              current->bodyLine  = yyLineNr;
+                              current->bodyLoc.line  = yyLineNr;
                               BEGIN( FunctionBody );
 			    }
 
@@ -982,7 +982,7 @@ STARTDOCSYMS      "##"
      ":"{B}             {
 			  g_specialBlock = TRUE; // expecting a docstring
 			  bodyEntry = current;
-                          current->bodyLine  = yyLineNr;
+                          current->bodyLoc.line  = yyLineNr;
                           BEGIN( FunctionBody );
                         }
     {POUNDCOMMENT}	{ // a comment
@@ -1142,7 +1142,7 @@ STARTDOCSYMS      "##"
 
     ":"                { // begin of the class definition
 			 g_specialBlock = TRUE; // expecting a docstring
-                         current->bodyLine  = yyLineNr;
+                         current->bodyLoc.line  = yyLineNr;
 			 current->program.resize(0);
       			 BEGIN(ClassCaptureIndent);
                        }
@@ -1177,7 +1177,7 @@ STARTDOCSYMS      "##"
 
     ^{BB} 		       {
       				 current->program+=yytext;
-			         //current->startLine = yyLineNr;
+			         //current->startLoc.line = yyLineNr;
 				 g_curIndent=computeIndent(yytext);
 				 bodyEntry = current;
 				 DBG_CTX((stderr,"setting indent %d\n",g_curIndent));
@@ -1420,7 +1420,7 @@ STARTDOCSYMS      "##"
 			    }
                             //if (g_hideClassDocs)
 			    //{
-                            //  current->startLine = yyLineNr;
+                            //  current->startLoc.line = yyLineNr;
 			    //}
 			    //g_hideClassDocs=FALSE;
 			    BEGIN(docBlockContext);
@@ -1610,7 +1610,7 @@ static void parseCompounds(Entry *rt)
 	BEGIN( SearchMemVars );
       }
       yyFileName = ce->fileName;
-      yyLineNr   = ce->bodyLine ;
+      yyLineNr   = ce->bodyLoc.line ;
       if (current) delete current;
       current = new Entry;
       initEntry();
@@ -1673,8 +1673,8 @@ static void parseMain(const char *fileName,const char *fileBuf,Entry *rt)
     current->section   = Entry::NAMESPACE_SEC;
     current->type      = "namespace";
     current->fileName  = yyFileName;
-    current->startLine = yyLineNr;
-    current->bodyLine  = yyLineNr;
+    current->startLoc.line = yyLineNr;
+    current->bodyLoc.line  = yyLineNr;
 
     rt->addSubEntry(current);
 
@@ -1792,8 +1792,8 @@ void PythonLanguageScanner::parseCode(CodeOutputInterface &codeOutIntf,
     bool isExampleBlock,
     const char *exampleName,
     FileDef *fileDef,
-    int startLine,
-    int endLine,
+    Location startLoc,
+    Location endLoc,
     bool inlineFragment,
     MemberDef *memberDef,
     bool showLineNumbers,
@@ -1802,7 +1802,7 @@ void PythonLanguageScanner::parseCode(CodeOutputInterface &codeOutIntf,
     )
 {
   ::parsePythonCode(codeOutIntf,scopeName,input,isExampleBlock,exampleName,
-                    fileDef,startLine,endLine,inlineFragment,memberDef,
+                    fileDef,startLoc,endLoc,inlineFragment,memberDef,
                     showLineNumbers,searchCtx,collectXRefs);
 }
 

@@ -429,7 +429,7 @@ void MemberList::writePlainDeclarations(OutputList &ol,
               if (!md->briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
               {
                 DocRoot *rootNode = validatingParseDoc(
-                    md->briefFile(),md->briefLine(),
+                    md->briefFile(),md->briefLoc(),
                     cd,md,
                     md->briefDescription(),
                     TRUE,FALSE,0,TRUE,FALSE
@@ -644,7 +644,7 @@ void MemberList::writeDeclarations(OutputList &ol,
           {
             //printf("Member group has docs!\n");
             ol.startMemberGroupDocs();
-            ol.generateDoc(mg->docFile(),mg->docLine(),ctx,0,mg->documentation()+"\n",FALSE,FALSE);
+            ol.generateDoc(mg->docFile(),mg->docLoc(),ctx,0,mg->documentation()+"\n",FALSE,FALSE);
             ol.endMemberGroupDocs();
           }
           ol.startMemberGroup();

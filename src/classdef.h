@@ -35,7 +35,6 @@ class FileDef;
 class FileList;
 class BaseClassList;
 class NamespaceDef;
-class MemberDef;
 class ExampleSDict;
 class MemberNameInfoSDict;
 class UsesClassDict;
@@ -91,7 +90,7 @@ class ClassDef : public Definition
      *                    I didn't add this to CompoundType to avoid having
      *                    to adapt all translators.
      */
-    ClassDef(const char *fileName,int startLine,int startColumn,
+    ClassDef(const char *fileName,Location loc,
              const char *name,CompoundType ct,
              const char *ref=0,const char *fName=0,
              bool isSymbol=TRUE,bool isJavaEnum=FALSE);
@@ -349,9 +348,9 @@ class ClassDef : public Definition
     void setFileDef(FileDef *fd);
     void setSubGrouping(bool enabled);
     void setProtection(Protection p);
-    void setGroupDefForAllMembers(GroupDef *g,Grouping::GroupPri_t pri,const QCString &fileName,int startLine,bool hasDocs);
+    void setGroupDefForAllMembers(GroupDef *g,Grouping::GroupPri_t pri,const QCString &fileName,Location startLoc,bool hasDocs);
     void addInnerCompound(Definition *d);
-    ClassDef *insertTemplateInstance(const QCString &fileName,int startLine,int startColumn,
+    ClassDef *insertTemplateInstance(const QCString &fileName, Location startLoc,
                                 const QCString &templSpec,bool &freshInstance);
     void addUsedClass(ClassDef *cd,const char *accessName,Protection prot);
     void addUsedByClass(ClassDef *cd,const char *accessName,Protection prot);

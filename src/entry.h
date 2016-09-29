@@ -19,6 +19,7 @@
 #define ENTRY_H
 
 #include "types.h"
+#include "location.h"
 
 #include <qlist.h>
 #include <qgstring.h>
@@ -258,13 +259,13 @@ class Entry
     QCString     includeFile; //!< include file (2 arg of \\class, must be unique)
     QCString     includeName; //!< include name (3 arg of \\class)
     QCString     doc;         //!< documentation block (partly parsed)
-    int          docLine;     //!< line number at which the documentation was found
+    Location     docLoc;      //!< line number at which the documentation was found
     QCString     docFile;     //!< file in which the documentation was found
     QCString     brief;       //!< brief description (doc block)
-    int          briefLine;   //!< line number at which the brief desc. was found
+    Location     briefLoc;    //!< line number at which the brief desc. was found
     QCString     briefFile;   //!< file in which the brief desc. was found
     QCString     inbodyDocs;  //!< documentation inside the body of a function
-    int          inbodyLine;  //!< line number at which the body doc was found
+    Location     inbodyLoc;   //!< line number at which the body doc was found
     QCString     inbodyFile;  //!< file in which the body doc was found
     QCString     relates;     //!< related class (doc block)
     RelatesType  relatesType; //!< how relates is handled
@@ -273,15 +274,14 @@ class Entry
     QCString     inside;      //!< name of the class in which documents are found
     QCString     exception;   //!< throw specification
     ArgumentList *typeConstr; //!< where clause (C#) for type constraints
-    int          bodyLine;    //!< line number of the definition in the source
-    int          endBodyLine; //!< line number where the definition ends
+    Location     bodyLoc;     //!< line number of the definition in the source
+    Location     endBodyLoc;  //!< line number where the definition ends
     int          mGrpId;      //!< member group id
     QList<BaseInfo> *extends; //!< list of base classes    
     QList<Grouping> *groups;  //!< list of groups this entry belongs to
     QList<SectionInfo> *anchors; //!< list of anchors defined in this entry
     QCString	fileName;     //!< file this entry was extracted from
-    int		startLine;    //!< start line of entry in the source
-    int		startColumn;  //!< start column of entry in the source
+    Location    startLoc;     //!< start location of entry in the source
     QList<ListItemInfo> *sli; //!< special lists (test/todo/bug/deprecated/..) this entry is in
     SrcLangExt  lang;         //!< programming language in which this entry was found
     bool        hidden;       //!< does this represent an entity that is hidden from the output

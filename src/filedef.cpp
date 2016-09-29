@@ -77,7 +77,7 @@ class DevNullCodeDocInterface : public CodeOutputInterface
 */
 FileDef::FileDef(const char *p,const char *nm,
                  const char *lref,const char *dn)
-   : Definition((QCString)p+nm,1,1,nm)
+   : Definition((QCString)p+nm,Location(1,1),nm)
 {
   m_path=p;
   m_filePath=m_path+nm;
@@ -182,7 +182,7 @@ bool FileDef::hasDetailedDescription() const
   static bool sourceBrowser = Config_getBool(SOURCE_BROWSER);
   return ((!briefDescription().isEmpty() && repeatBrief) || 
           !documentation().stripWhiteSpace().isEmpty() || // avail empty section
-          (sourceBrowser && getStartBodyLine()!=-1 && getBodyDef())
+          (sourceBrowser && getStartBodyLoc()!=Location(0,0) && getBodyDef())
          );
 }
 
@@ -311,7 +311,7 @@ void FileDef::writeDetailedDescription(OutputList &ol,const QCString &title)
     ol.startTextBlock();
     if (!briefDescription().isEmpty() && Config_getBool(REPEAT_BRIEF))
     {
-      ol.generateDoc(briefFile(),briefLine(),this,0,briefDescription(),FALSE,FALSE);
+      ol.generateDoc(briefFile(),briefLoc(),this,0,briefDescription(),FALSE,FALSE);
     }
     if (!briefDescription().isEmpty() && Config_getBool(REPEAT_BRIEF) && 
         !documentation().isEmpty())
@@ -328,7 +328,7 @@ void FileDef::writeDetailedDescription(OutputList &ol,const QCString &title)
     }
     if (!documentation().isEmpty())
     {
-      ol.generateDoc(docFile(),docLine(),this,0,documentation()+"\n",TRUE,FALSE);
+      ol.generateDoc(docFile(),docLoc(),this,0,documentation()+"\n",TRUE,FALSE);
     }
     //printf("Writing source ref for file %s\n",name().data());
     if (Config_getBool(SOURCE_BROWSER)) 
@@ -367,7 +367,7 @@ void FileDef::writeBriefDescription(OutputList &ol)
 {
   if (!briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
   {
-    DocRoot *rootNode = validatingParseDoc(briefFile(),briefLine(),this,0,
+    DocRoot *rootNode = validatingParseDoc(briefFile(),briefLoc(),this,0,
                        briefDescription(),TRUE,FALSE,0,TRUE,FALSE);
 
     if (rootNode && !rootNode->isEmpty())
@@ -1015,8 +1015,8 @@ void FileDef::writeSource(OutputList &ol,bool sameTu,QStrList &filesInSameTu)
         FALSE,              // isExampleBlock
         0,                  // exampleName
         this,               // fileDef
-        -1,                 // startLine
-        -1,                 // endLine
+        Location(0,0),      // startLine
+        Location(0,0),      // endLine
         FALSE,              // inlineFragment
         0,                  // memberDef
         TRUE,               // showLineNumbers
@@ -1204,37 +1204,37 @@ QCString FileDef::name() const
     return Definition::name(); 
 } 
 
-void FileDef::addSourceRef(int line,Definition *d,MemberDef *md)
+void FileDef::addSourceRef(Location loc, Definition *d,MemberDef *md)
 {
   //printf("FileDef::addSourceDef(%d,%p,%p)\n",line,d,md);
   if (d)
   {
     if (m_srcDefDict==0)    m_srcDefDict    = new QIntDict<Definition>(257);
     if (m_srcMemberDict==0) m_srcMemberDict = new QIntDict<MemberDef>(257);
-    m_srcDefDict->insert(line,d);
-    if (md) m_srcMemberDict->insert(line,md);
+    m_srcDefDict->insert(loc,d);
+    if (md) m_srcMemberDict->insert(loc,md);
     //printf("Adding member %s with anchor %s at line %d to file %s\n",
     //    md?md->name().data():"<none>",md?md->anchor().data():"<none>",line,name().data());
   }
 }
 
-Definition *FileDef::getSourceDefinition(int lineNr) const
+Definition *FileDef::getSourceDefinition(Location loc) const
 {
   Definition *result=0;
   if (m_srcDefDict)
   {
-    result = m_srcDefDict->find(lineNr);
+    result = m_srcDefDict->find(loc);
   }
   //printf("%s::getSourceDefinition(%d)=%s\n",name().data(),lineNr,result?result->name().data():"none");
   return result;
 }
 
-MemberDef *FileDef::getSourceMember(int lineNr) const
+MemberDef *FileDef::getSourceMember(Location loc) const
 {
   MemberDef *result=0;
   if (m_srcMemberDict)
   {
-    result = m_srcMemberDict->find(lineNr);
+    result = m_srcMemberDict->find(loc);
   }
   //printf("%s::getSourceMember(%d)=%s\n",name().data(),lineNr,result?result->name().data():"none");
   return result;

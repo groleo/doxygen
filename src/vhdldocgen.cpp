@@ -297,13 +297,13 @@ static QCString formatBriefNote(const QCString &brief,ClassDef * cd)
   QCString repl("<BR ALIGN=\"LEFT\"/>");
   QCString file=cd->getDefFileName();
 
-  int k=cd->briefLine();
+  int k=cd->briefLoc();
 
   QStringList qsl=QStringList::split(ep,brief);
   for(uint j=0;j<qsl.count();j++)
   {
     QCString qcs=qsl[j].data();
-    vForm+=parseCommentAsText(cd,NULL,qcs,file,k);
+    vForm+=parseCommentAsText(cd,NULL,qcs,file,Location(k,0));
     k++;
     vForm+='\n';
   }
@@ -2265,7 +2265,7 @@ void VhdlDocGen::writeVHDLDeclaration(MemberDef* mdef,OutputList &ol,
   {
  	 QCString s=mdef->briefDescription();
 	 ol.startMemberDescription(mdef->anchor());
-    ol.generateDoc(mdef->briefFile(),mdef->briefLine(),
+    ol.generateDoc(mdef->briefFile(),mdef->briefLoc(),
         mdef->getOuterScope()?mdef->getOuterScope():d,
         mdef,s.data(),TRUE,FALSE,0,TRUE,FALSE);
     if (detailsVisible)
@@ -2610,8 +2610,8 @@ void VhdlDocGen::writeSource(MemberDef *mdef,OutputList& ol,QCString & cname)
                        FALSE,            // isExample
                        0,               // exampleName
                        mdef->getFileDef(),            // fileDef
-                       mdef->getStartBodyLine(),      // startLine
-                       mdef->getEndBodyLine(),        // endLine
+                       mdef->getStartBodyLoc(),      // startLoc
+                       mdef->getEndBodyLoc(),        // endLoc
                        TRUE,             // inlineFragment
                        mdef,             // memberDef
                        TRUE              // show line numbers
@@ -2736,7 +2736,7 @@ static void initUCF(Entry* root,const char*  type,QCString &  qcs,int line,QCStr
   Entry* current=new Entry;
   current->spec=VhdlDocGen::UCF_CONST;
   current->section=Entry::VARIABLE_SEC;
-  current->bodyLine=line;
+  current->bodyLoc=line;
   current->fileName=fileName;
   current->type="ucf_const";
   current->args+=qcs;
@@ -2755,7 +2755,7 @@ static void initUCF(Entry* root,const char*  type,QCString &  qcs,int line,QCStr
   if (!brief.isEmpty())
   {
     current->brief=brief;
-    current->briefLine=line;
+    current->briefLoc=line;
     current->briefFile=fileName;
     brief.resize(0);
   }
@@ -3097,7 +3097,7 @@ void VhdlDocGen::computeVhdlComponentRelations()
     }
 
     // if (classEntity==0)
-    //   err("%s:%d:Entity:%s%s",cur->fileName.data(),cur->startLine,entity.data()," could not be found");
+    //   err("%s:%d:Entity:%s%s",cur->fileName.data(),cur->startLoc,entity.data()," could not be found");
 
     addInstance(classEntity,ar,cd,cur);
   }
@@ -3142,7 +3142,7 @@ static void addInstance(ClassDef* classEntity, ClassDef* ar,
 ferr:
   QCString uu=cur->name;
   MemberDef *md=new MemberDef(
-      ar->getDefFileName(), cur->startLine,cur->startColumn,
+      ar->getDefFileName(), cur->startLoc,
       n1,uu,uu, 0,
       Public, Normal, cur->stat,Member,
       MemberType_Variable,
@@ -3162,9 +3162,9 @@ ferr:
 
   md->setLanguage(SrcLangExt_VHDL);
   md->setMemberSpecifiers(VhdlDocGen::INSTANTIATION);
-  md->setBriefDescription(cur->brief,cur->briefFile,cur->briefLine);
-  md->setBodySegment(cur->startLine,-1) ;
-  md->setDocumentation(cur->doc.data(),cur->docFile.data(),cur->docLine);
+  md->setBriefDescription(cur->brief,cur->briefFile,cur->briefLoc);
+  md->setBodySegment(cur->startLoc,-1) ;
+  md->setDocumentation(cur->doc.data(),cur->docFile.data(),cur->docLoc);
   FileDef *fd=ar->getFileDef();
   md->setBodyDef(fd);
 
@@ -3176,7 +3176,7 @@ ferr:
   QCString label=cur->type+":"+cur->write+":"+cur->name;
   label.replace(epr,":");
   info+=label;
-  fprintf(stderr,"\n[%s:%d:%s]\n",fd->fileName().data(),cur->startLine,info.data());
+  fprintf(stderr,"\n[%s:%d:%s]\n",fd->fileName().data(),cur->startLoc,info.data());
 
 
   ar->insertMember(md);
@@ -3307,7 +3307,7 @@ static MemberDef* findMemFlow(const MemberDef* mdef)
   for(uint j=0;j<mdList.count();j++)
   {
     MemberDef* md=(MemberDef*)mdList.at(j);
-    if (md->name()==mdef->name() &&  md->getStartBodyLine()==mdef->getStartBodyLine())
+    if (md->name()==mdef->name() &&  md->getStartBodyLoc()==mdef->getStartBodyLoc())
       return md;
   }
   return 0;
@@ -3332,8 +3332,8 @@ void VhdlDocGen::createFlowChart(const MemberDef *mdef)
 
   //fprintf(stderr,"\n create flow mem %s %p\n",mdef->name().data(),mdef);
 
-  int actualStart= mdef->getStartBodyLine();
-  int actualEnd=mdef->getEndBodyLine();
+  Location actualStart= mdef->getStartBodyLoc();
+  Location actualEnd=mdef->getEndBodyLoc();
   FileDef* fd=mdef->getFileDef();
   bool b=readCodeFragment( fd->absFilePath().data(), actualStart,actualEnd,codeFragment);
   if (!b) return;
@@ -4527,8 +4527,8 @@ void VHDLLanguageScanner::parseCode(CodeOutputInterface &codeOutIntf,
     bool isExampleBlock,
     const char *exampleName,
     FileDef *fileDef,
-    int startLine,
-    int endLine,
+    Location startLoc,
+    Location endLoc,
     bool inlineFragment,
     MemberDef *memberDef,
     bool showLineNumbers,
@@ -4543,8 +4543,8 @@ parseVhdlCode(codeOutIntf,
                   isExampleBlock,
                   exampleName,
                   fileDef,
-                  startLine,
-                  endLine,
+                  startLoc,
+                  endLoc,
                   inlineFragment,
                   memberDef,
                   showLineNumbers,

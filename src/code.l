@@ -70,8 +70,7 @@ static QCString      g_parmName;
 static const char *  g_inputString;     //!< the code fragment as text
 static int	     g_inputPosition;   //!< read offset during parsing 
 static int           g_inputLines;      //!< number of line in the code fragment
-static int	     g_yyLineNr;        //!< current line number
-static int	     g_yyColNr;         //!< current column number
+static Location      g_yyLocation;      //!< current location
 static bool          g_needsTermination;
 
 static bool          g_exampleBlock;
@@ -492,15 +491,15 @@ static void startCodeLine()
   if (g_sourceFileDef && g_lineNumbers)
   {
     //QCString lineNumber,lineAnchor;
-    //lineNumber.sprintf("%05d",g_yyLineNr);
-    //lineAnchor.sprintf("l%05d",g_yyLineNr);
+    //lineNumber.sprintf("%05d",g_yyLocation);
+    //lineAnchor.sprintf("l%05d",g_yyLocation);
    
-    Definition *d   = g_sourceFileDef->getSourceDefinition(g_yyLineNr);
-    //printf("%s:startCodeLine(%d)=%p\n",g_sourceFileDef->name().data(),g_yyLineNr,d);
+    Definition *d   = g_sourceFileDef->getSourceDefinition(g_yyLocation);
+    //printf("%s:startCodeLine(%d)=%p\n",g_sourceFileDef->name().data(),g_yyLocation,d);
     if (!g_includeCodeFragment && d)
     {
       g_currentDefinition = d;
-      g_currentMemberDef = g_sourceFileDef->getSourceMember(g_yyLineNr);
+      g_currentMemberDef = g_sourceFileDef->getSourceMember(g_yyLocation);
       g_insideBody = FALSE;
       g_searchingForBody = TRUE;
       g_realScope = d->name();
@@ -513,28 +512,28 @@ static void startCodeLine()
       //printf("Real scope: `%s'\n",g_realScope.data());
       g_bodyCurlyCount = 0;
       QCString lineAnchor;
-      lineAnchor.sprintf("l%05d",g_yyLineNr);
+      lineAnchor.sprintf("l%05d",g_yyLocation.line);
       if (g_currentMemberDef)
       {
         g_code->writeLineNumber(g_currentMemberDef->getReference(),
 	                        g_currentMemberDef->getOutputFileBase(),
-	                        g_currentMemberDef->anchor(),g_yyLineNr);
+	                        g_currentMemberDef->anchor(),g_yyLocation.line);
         setCurrentDoc(lineAnchor);
       }
       else if (d->isLinkableInProject())
       {
         g_code->writeLineNumber(d->getReference(),
 	                        d->getOutputFileBase(),
-	                        0,g_yyLineNr);
+	                        0,g_yyLocation.line);
         setCurrentDoc(lineAnchor);
       }
     }
     else
     {
-      g_code->writeLineNumber(0,0,0,g_yyLineNr);
+      g_code->writeLineNumber(0,0,0,g_yyLocation.line);
     }
   }
-  DBG_CTX((stderr,"startCodeLine(%d)\n",g_yyLineNr));
+  DBG_CTX((stderr,"startCodeLine(%d)\n",g_yyLocation.line));
   g_code->startCodeLine(g_sourceFileDef && g_lineNumbers); 
   if (g_currentFontClass)
   {
@@ -548,7 +547,7 @@ static void startFontClass(const char *s);
 
 static void endCodeLine()
 {
-  DBG_CTX((stderr,"endCodeLine(%d)\n",g_yyLineNr));
+  DBG_CTX((stderr,"endCodeLine(%d)\n",g_yyLocation.line));
   endFontClass();
   g_code->endCodeLine();
 }
@@ -557,7 +556,7 @@ static void nextCodeLine()
 {
   const char * fc = g_currentFontClass;
   endCodeLine();
-  if (g_yyLineNr<g_inputLines) 
+  if (g_yyLocation.line<g_inputLines)
   {
     g_currentFontClass = fc;
     startCodeLine();
@@ -569,18 +568,18 @@ static void nextCodeLine()
  */
 static void codifyLines(const char *text)
 {
-  //printf("codifyLines(%d,\"%s\")\n",g_yyLineNr,text);
+  //printf("codifyLines(%d,\"%s\")\n",g_yyLocation,text);
   const char *p=text,*sp=p;
   char c;
   bool done=FALSE;
   while (!done)
   {
     sp=p;
-    while ((c=*p++) && c!='\n') { g_yyColNr++; }
+    while ((c=*p++) && c!='\n') { g_yyLocation.column++; }
     if (c=='\n')
     {
-      g_yyLineNr++;
-      g_yyColNr=1;
+      g_yyLocation.line++;
+      g_yyLocation.column=1;
       //*(p-1)='\0';
       int l = (int)(p-sp-1);
       char *tmp = (char*)malloc(l+1);
@@ -625,7 +624,7 @@ static void writeMultiLineCodeLink(CodeOutputInterface &ol,
     while ((c=*p++) && c!='\n') { }
     if (c=='\n')
     {
-      g_yyLineNr++;
+      g_yyLocation.line++;
       *(p-1)='\0';
       //printf("writeCodeLink(%s,%s,%s,%s)\n",ref,file,anchor,sp);
       ol.writeCodeLink(ref,file,anchor,sp,tooltip);
@@ -1330,7 +1329,7 @@ static void generateFunctionLink(CodeOutputInterface &ol,const char *funcName)
   int i=locFunc.findRev("::");
   if (g_currentMemberDef && g_currentMemberDef->getClassDef() &&
       funcName==g_currentMemberDef->localName() && 
-      g_currentMemberDef->getDefLine()==g_yyLineNr &&
+      g_currentMemberDef->getDefLoc()==g_yyLocation &&
       generateClassMemberLink(ol,g_currentMemberDef,funcName)
      )
   {
@@ -2068,7 +2067,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					}
 <Body,FuncCall>"}"			{ 
                                           g_theVarContext.popScope();
-					  g_yyColNr++;
+					  g_yyLocation.column++;
 					  g_code->codify(yytext);
 					}
 <Body,FuncCall>"{"			{ 
@@ -2188,7 +2187,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					  g_code->codify(yytext);
                                           BEGIN( AlignAsEnd );
                                         }
-<AlignAs>\n                             { g_yyLineNr++; 
+<AlignAs>\n                             { g_yyLocation.line++; 
                                           codifyLines(yytext);
                                         }
 <AlignAs>.                              { g_code->codify(yytext); }
@@ -2202,7 +2201,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
                                             BEGIN(ClassName);
                                           }
                                         }
-<AlignAsEnd>\n                          { g_yyLineNr++; 
+<AlignAsEnd>\n                          { g_yyLocation.line++; 
                                           codifyLines(yytext); 
                                         }
 <AlignAsEnd>.                           { g_code->codify(yytext); }
@@ -2285,7 +2284,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					    if (getResolvedClass(g_currentDefinition,g_sourceFileDef,g_curClassName)==0)
 					    {
 					      DBG_CTX((stderr,"Adding new class %s\n",g_curClassName.data()));
-					      ClassDef *ncd=new ClassDef("<code>",1,1,
+					      ClassDef *ncd=new ClassDef("<code>",Location(1,1),
 				 		  g_curClassName,ClassDef::Class,0,0,FALSE);
 					      g_codeClassSDict->append(g_curClassName,ncd);
 					      // insert base classes.
@@ -3309,10 +3308,10 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
   					  g_code->codify(yytext);
   					}
 <RemoveSpecialCComment>"*/"{B}*\n({B}*\n)*({B}*(("//@"[{}])|("/*@"[{}]"*/")){B}*\n)?{B}*"/*"[*!]/[^/*] {
-  					  g_yyLineNr+=QCString(yytext).contains('\n');
+  					  g_yyLocation.line+=QCString(yytext).contains('\n');
 					}
 <RemoveSpecialCComment>"*/"{B}*\n({B}*\n)*({B}*(("//@"[{}])|("/*@"[{}]"*/")){B}*\n)? {
-  					  g_yyLineNr+=QCString(yytext).contains('\n');
+  					  g_yyLocation.line+=QCString(yytext).contains('\n');
 					  nextCodeLine();
 					  if (g_lastSpecialCContext==SkipCxxComment)
 					  { // force end of C++ comment here
@@ -3329,7 +3328,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
   					}
 <RemoveSpecialCComment>[^*\n]+
 <RemoveSpecialCComment>"//"|"/*"
-<RemoveSpecialCComment>\n  { g_yyLineNr++; }
+<RemoveSpecialCComment>\n  { g_yyLocation.line++; }
 <RemoveSpecialCComment>.
 <MemberCall>[^a-z_A-Z0-9(\n]		{ 
   					  g_code->codify(yytext);
@@ -3341,7 +3340,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					  if (YY_START==SkipCPP) REJECT;
   					  if (Config_getBool(STRIP_CODE_COMMENTS))
 					  {
-					    g_yyLineNr+=((QCString)yytext).contains('\n');
+					    g_yyLocation.line+=((QCString)yytext).contains('\n');
 					    nextCodeLine();
 					  }
 					  else
@@ -3364,7 +3363,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 <*>\n{B}*"//@"[{}].*\n			{ // remove one-line group marker
   					  if (Config_getBool(STRIP_CODE_COMMENTS))
 					  {
-					    g_yyLineNr+=2;
+					    g_yyLocation.line+=2;
 					    nextCodeLine();
 					  }
 					  else
@@ -3383,7 +3382,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					  if (Config_getBool(STRIP_CODE_COMMENTS))
   					  {
 					    g_lastSpecialCContext = YY_START;
-					    g_yyLineNr++;
+					    g_yyLocation.line++;
 					    BEGIN(RemoveSpecialCComment);
 					  }
 					  else
@@ -3401,7 +3400,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 <*>^{B}*"//@"[{}].*\n			{ // remove one-line group marker
   					  if (Config_getBool(STRIP_CODE_COMMENTS))
 					  {
-					    g_yyLineNr++;
+					    g_yyLocation.line++;
 					    nextCodeLine();
 					  }
 					  else
@@ -3432,7 +3431,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 <*>^{B}*"//"[!/][^\n]*\n		{ // remove special one-line comment
   					  if (Config_getBool(STRIP_CODE_COMMENTS))
 					  {
-					    g_yyLineNr++;
+					    g_yyLocation.line++;
 					    //nextCodeLine();
 					  }
 					  else
@@ -3466,7 +3465,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					  if (Config_getBool(STRIP_CODE_COMMENTS))
   					  {
 					    g_lastSpecialCContext = YY_START;
-					    g_yyLineNr++;
+					    g_yyLocation.line++;
 					    BEGIN(RemoveSpecialCComment);
 					  }
 					  else
@@ -3558,18 +3557,18 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					  g_theCallContext.popScope();
   					}
 <*>\n					{
-					  g_yyColNr++;
+					  g_yyLocation.column++;
   					  codifyLines(yytext); 
   					}
 <*>.					{
-					  g_yyColNr++;
+					  g_yyLocation.column++;
   					  g_code->codify(yytext);
 					}
   /*
 <*>([ \t\n]*"\n"){2,}			{ // combine multiple blank lines
   					  //QCString sepLine=yytext;
   					  //g_code->codify("\n\n");
-  					  //g_yyLineNr+=sepLine.contains('\n'); 
+  					  //g_yyLocation.line+=sepLine.contains('\n'); 
   					  //char sepLine[3]="\n\n";
   					  codifyLines(yytext);
 					}
@@ -3643,7 +3642,7 @@ void resetCCodeParserState()
 
 void parseCCode(CodeOutputInterface &od,const char *className,const QCString &s, 
                 SrcLangExt lang,bool exBlock, const char *exName,FileDef *fd,
-		int startLine,int endLine,bool inlineFragment,
+		Location startLoc,Location endLoc,bool inlineFragment,
 		MemberDef *memberDef,bool showLineNumbers,Definition *searchCtx,
                 bool collectXRefs)
 {
@@ -3668,15 +3667,15 @@ void parseCCode(CodeOutputInterface &od,const char *className,const QCString &s,
   g_collectXRefs = collectXRefs;
   g_inFunctionTryBlock = FALSE;
 
-  if (startLine!=-1)
-    g_yyLineNr    = startLine;
+  if (startLoc!=Location(0,0))
+    g_yyLocation    = startLoc;
   else
-    g_yyLineNr    = 1;
+    g_yyLocation    = 1;
 
-  if (endLine!=-1)
-    g_inputLines  = endLine+1;
+  if (endLoc!=Location(0,0))
+    g_inputLines  = endLoc.line+1;
   else
-    g_inputLines  = g_yyLineNr + countLines() - 1;
+    g_inputLines  = g_yyLocation.line + countLines() - 1;
 
   g_curlyCount    = 0;
   g_bodyCurlyCount    = 0;
@@ -3732,7 +3731,7 @@ void parseCCode(CodeOutputInterface &od,const char *className,const QCString &s,
   if (g_needsTermination)
   {
     endFontClass();
-    DBG_CTX((stderr,"endCodeLine(%d)\n",g_yyLineNr));
+    DBG_CTX((stderr,"endCodeLine(%d)\n",g_yyLocation.line));
     g_code->endCodeLine();
   }
   if (fd)

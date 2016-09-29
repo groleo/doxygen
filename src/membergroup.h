@@ -21,6 +21,7 @@
 #include <qlist.h>
 #include "sortdict.h"
 #include "types.h"
+#include "location.h"
 
 #define DOX_NOGROUP -1
 
@@ -42,7 +43,7 @@ class MemberGroup
   public:
     MemberGroup();
     MemberGroup(Definition *parent,int id,const char *header,
-                const char *docs,const char *docFile,int docLine);
+                const char *docs,const char *docFile,Location docLoc);
    ~MemberGroup();
     QCString header() const { return grpHeader; }
     int groupId() const { return grpId; }
@@ -90,7 +91,7 @@ class MemberGroup
     QCString anchor() const;
 
     QCString docFile() const { return m_docFile; }
-    int docLine() const { return m_docLine; }
+    Location docLoc() const { return m_docLoc; }
 
     void marshal(StorageIntf *s);
     void unmarshal(StorageIntf *s);
@@ -108,7 +109,7 @@ class MemberGroup
     int  m_numDocMembers;
     Definition *m_parent;
     QCString m_docFile;
-    int m_docLine;
+    Location m_docLoc;
     QList<ListItemInfo> *m_xrefListItems;
 };
 
@@ -141,13 +142,13 @@ class MemberGroupSDict : public SIntDict<MemberGroup>
 /** Data collected for a member group */
 struct MemberGroupInfo
 {
-  MemberGroupInfo() : docLine(-1), m_sli(0) {}
+  MemberGroupInfo() : m_sli(0) {}
  ~MemberGroupInfo() { delete m_sli; m_sli=0; }
   void setRefItems(const QList<ListItemInfo> *sli);
   QCString header;
   QCString doc;
   QCString docFile;
-  int docLine;
+  Location docLoc;
   QCString compoundName;
   QList<ListItemInfo> *m_sli;
 };

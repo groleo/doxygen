@@ -47,7 +47,7 @@ static QCString      g_parmName;
 static const char *  g_inputString;     //!< the code fragment as text
 static int           g_inputPosition;   //!< read offset during parsing 
 static int           g_inputLines;      //!< number of line in the code fragment
-static int           g_yyLineNr;        //!< current line number
+static Location      g_yyLocation;      //!< current location
 static bool          g_needsTermination;
 static Definition   *g_searchCtx;
 
@@ -96,34 +96,34 @@ static void startCodeLine()
 {
   if (g_sourceFileDef)
   {   
-    Definition *d   = g_sourceFileDef->getSourceDefinition(g_yyLineNr);
+    Definition *d   = g_sourceFileDef->getSourceDefinition(g_yyLocation);
     
     if (!g_includeCodeFragment && d && d->isLinkableInProject())
     {
       g_currentDefinition = d;
-      g_currentMemberDef = g_sourceFileDef->getSourceMember(g_yyLineNr);
+      g_currentMemberDef = g_sourceFileDef->getSourceMember(g_yyLocation);
       //g_insideBody = FALSE;
       g_classScope = d->name().copy();
       QCString lineAnchor;
-      lineAnchor.sprintf("l%05d",g_yyLineNr);
+      lineAnchor.sprintf("l%05d",g_yyLocation);
       if (g_currentMemberDef)
       {
         g_code->writeLineNumber(g_currentMemberDef->getReference(),
                             g_currentMemberDef->getOutputFileBase(),
-                            g_currentMemberDef->anchor(),g_yyLineNr);
+                            g_currentMemberDef->anchor(),g_yyLocation.line);
         setCurrentDoc(lineAnchor);
       }
       else
       {
         g_code->writeLineNumber(d->getReference(),
                             d->getOutputFileBase(),
-                            0,g_yyLineNr);
+                            0,g_yyLocation.line);
         setCurrentDoc(lineAnchor);
       }
     }
     else
     {
-      g_code->writeLineNumber(0,0,0,g_yyLineNr);
+      g_code->writeLineNumber(0,0,0,g_yyLocation.line);
     }
   }
   
@@ -154,7 +154,7 @@ static void nextCodeLine()
 {
   const char *fc = g_currentFontClass;
   endCodeLine();
-  if (g_yyLineNr<g_inputLines) 
+  if (g_yyLocation.line<g_inputLines) 
   {
     g_currentFontClass = fc;
     startCodeLine();
@@ -175,7 +175,7 @@ static void codifyLines(char *text)
     
     if (c=='\n')
     {
-      g_yyLineNr++;
+      g_yyLocation.line++;
       *(p-1)='\0';
       g_code->codify(sp);
       nextCodeLine();
@@ -329,8 +329,8 @@ void parseXmlCode(
     bool exBlock,
     const char *exName,
     FileDef *fd,
-    int startLine,
-    int endLine,
+    Location startLoc,
+    Location endLoc,
     bool inlineFragment,
     MemberDef *,
     bool,Definition *searchCtx,
@@ -348,15 +348,15 @@ void parseXmlCode(
   g_needsTermination = FALSE;
   g_searchCtx=searchCtx;
   
-  if (startLine!=-1)
-    g_yyLineNr    = startLine;
+  if (startLoc!=Location(0,0))
+    g_yyLocation    = startLoc;
   else
-    g_yyLineNr    = 1;
+    g_yyLocation    = 1;
   
-  if (endLine!=-1)
-    g_inputLines  = endLine+1;
+  if (endLoc!=Location(0,0))
+    g_inputLines  = endLoc.line+1;
   else
-    g_inputLines  = g_yyLineNr + countLines() - 1;
+    g_inputLines  = g_yyLocation.line + countLines() - 1;
   
   g_exampleBlock  = exBlock; 
   g_exampleName   = exName;

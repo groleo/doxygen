@@ -534,7 +534,7 @@ class MemberDefImpl
     GroupDef *group;          // group in which this member is in
     Grouping::GroupPri_t grouppri; // priority of this definition
     QCString groupFileName;   // file where this grouping was defined
-    int groupStartLine;       // line  "      "      "     "     "
+    Location groupStartLoc;       // line  "      "      "     "     "
     MemberDef *groupMember;
 
     bool isTypedefValCached;
@@ -543,7 +543,7 @@ class MemberDefImpl
     QCString cachedResolvedType;
 
     // inbody documentation
-    //int inbodyLine;
+    //int inbodyLoc;
     //QCString inbodyFile;
     //QCString inbodyDocs;
 
@@ -697,7 +697,7 @@ void MemberDefImpl::init(Definition *def,
   docsForDefinition = TRUE;
   isTypedefValCached = FALSE;
   cachedTypedefValue = 0;
-  //inbodyLine = -1;
+  //inbodyLoc = -1;
   implOnly=FALSE;
   groupMember = 0;
   hasDocumentedParams = FALSE;
@@ -733,11 +733,11 @@ void MemberDefImpl::init(Definition *def,
  *            the string past as argument \a a.
  */
 
-MemberDef::MemberDef(const char *df,int dl,int dc,
+MemberDef::MemberDef(const char *df, Location dl,
                      const char *t,const char *na,const char *a,const char *e,
                      Protection p,Specifier v,bool s,Relationship r,MemberType mt,
                      const ArgumentList *tal,const ArgumentList *al
-                    ) : Definition(df,dl,dc,removeRedundantWhiteSpace(na)), visited(FALSE)
+                    ) : Definition(df,dl,removeRedundantWhiteSpace(na)), visited(FALSE)
 {
   //printf("MemberDef::MemberDef(%s)\n",na);
   m_impl = new MemberDefImpl;
@@ -1123,21 +1123,21 @@ void MemberDef::_computeLinkableInProject()
   return; // linkable!
 }
 
-void MemberDef::setDocumentation(const char *d,const char *docFile,int docLine,bool stripWhiteSpace)
+void MemberDef::setDocumentation(const char *d,const char *docFile,Location docLoc,bool stripWhiteSpace)
 {
-  Definition::setDocumentation(d,docFile,docLine,stripWhiteSpace);
+  Definition::setDocumentation(d,docFile,docLoc,stripWhiteSpace);
   m_isLinkableCached = 0;
 }
 
-void MemberDef::setBriefDescription(const char *b,const char *briefFile,int briefLine)
+void MemberDef::setBriefDescription(const char *b,const char *briefFile,Location briefLoc)
 {
-  Definition::setBriefDescription(b,briefFile,briefLine);
+  Definition::setBriefDescription(b,briefFile,briefLoc);
   m_isLinkableCached = 0;
 }
 
-void MemberDef::setInbodyDocumentation(const char *d,const char *inbodyFile,int inbodyLine)
+void MemberDef::setInbodyDocumentation(const char *d,const char *inbodyFile,Location inbodyLoc)
 {
-  Definition::setInbodyDocumentation(d,inbodyFile,inbodyLine);
+  Definition::setInbodyDocumentation(d,inbodyFile,inbodyLoc);
   m_isLinkableCached = 0;
 }
 
@@ -1810,7 +1810,7 @@ void MemberDef::writeDeclaration(OutputList &ol,
       /* && !annMemb */
      )
   {
-    DocRoot *rootNode = validatingParseDoc(briefFile(),briefLine(),
+    DocRoot *rootNode = validatingParseDoc(briefFile(),briefLoc(),
                 getOuterScope()?getOuterScope():d,this,briefDescription(),
                 TRUE,FALSE,0,TRUE,FALSE);
 
@@ -2375,7 +2375,7 @@ void MemberDef::_writeEnumValues(OutputList &ol,Definition *container,
 
           if (hasBrief)
           {
-            ol.generateDoc(fmd->briefFile(),fmd->briefLine(),
+            ol.generateDoc(fmd->briefFile(),fmd->briefLoc(),
                 getOuterScope()?getOuterScope():container,
                 fmd,fmd->briefDescription(),TRUE,FALSE);
           }
@@ -2387,7 +2387,7 @@ void MemberDef::_writeEnumValues(OutputList &ol,Definition *container,
           //}
           if (hasDetails)
           {
-            ol.generateDoc(fmd->docFile(),fmd->docLine(),
+            ol.generateDoc(fmd->docFile(),fmd->docLoc(),
                 getOuterScope()?getOuterScope():container,
                 fmd,fmd->documentation()+"\n",TRUE,FALSE);
           }
@@ -2908,7 +2908,7 @@ void MemberDef::writeDocumentation(MemberList *ml,
      )
   {
     ol.startParagraph();
-    ol.generateDoc(briefFile(),briefLine(),
+    ol.generateDoc(briefFile(),briefLoc(),
                 scopedContainer,this,
                 brief,FALSE,FALSE,0,TRUE,FALSE);
     ol.endParagraph();
@@ -2926,12 +2926,12 @@ void MemberDef::writeDocumentation(MemberList *ml,
     }
     else
     {
-      ol.generateDoc(docFile(),docLine(),scopedContainer,this,detailed+"\n",TRUE,FALSE);
+      ol.generateDoc(docFile(),docLoc(),scopedContainer,this,detailed+"\n",TRUE,FALSE);
     }
 
     if (!inbodyDocumentation().isEmpty())
     {
-      ol.generateDoc(inbodyFile(),inbodyLine(),
+      ol.generateDoc(inbodyFile(),inbodyLoc(),
                   scopedContainer,this,
                   inbodyDocumentation()+"\n",TRUE,FALSE);
     }
@@ -2941,7 +2941,7 @@ void MemberDef::writeDocumentation(MemberList *ml,
   {
     if (!inbodyDocumentation().isEmpty())
     {
-      ol.generateDoc(inbodyFile(),inbodyLine(),scopedContainer,this,inbodyDocumentation()+"\n",TRUE,FALSE);
+      ol.generateDoc(inbodyFile(),inbodyLoc(),scopedContainer,this,inbodyDocumentation()+"\n",TRUE,FALSE);
     }
   }
 
@@ -2965,7 +2965,7 @@ void MemberDef::writeDocumentation(MemberList *ml,
     }
     // feed the result to the documentation parser
     ol.generateDoc(
-        docFile(),docLine(),
+        docFile(),docLoc(),
         scopedContainer,
         this,         // memberDef
         paramDocs,    // docStr
@@ -3182,7 +3182,7 @@ void MemberDef::writeMemberDocSimple(OutputList &ol, Definition *container)
   /* write brief description */
   if (!brief.isEmpty())
   {
-    ol.generateDoc(briefFile(),briefLine(),
+    ol.generateDoc(briefFile(),briefLoc(),
                 getOuterScope()?getOuterScope():container,this,
                 brief,FALSE,FALSE,0,TRUE,FALSE);
   }
@@ -3190,7 +3190,7 @@ void MemberDef::writeMemberDocSimple(OutputList &ol, Definition *container)
   /* write detailed description */
   if (!detailed.isEmpty())
   {
-    ol.generateDoc(docFile(),docLine(),
+    ol.generateDoc(docFile(),docLoc(),
                 getOuterScope()?getOuterScope():container,this,
                 detailed+"\n",FALSE,FALSE,0,FALSE,FALSE);
 
@@ -3375,14 +3375,14 @@ void MemberDef::setAnchor()
 }
 
 void MemberDef::setGroupDef(GroupDef *gd,Grouping::GroupPri_t pri,
-                            const QCString &fileName,int startLine,
+                            const QCString &fileName,Location startLoc,
                             bool hasDocs,MemberDef *member)
 {
   //printf("%s MemberDef::setGroupDef(%s)\n",name().data(),gd->name().data());
   m_impl->group=gd;
   m_impl->grouppri=pri;
   m_impl->groupFileName=fileName;
-  m_impl->groupStartLine=startLine;
+  m_impl->groupStartLoc=startLoc;
   m_impl->groupHasDocs=hasDocs;
   m_impl->groupMember=member;
   m_isLinkableCached = 0;
@@ -3397,7 +3397,7 @@ void MemberDef::setEnumScope(MemberDef *md,bool livesInsideEnum)
     m_impl->group=md->getGroupDef();
     m_impl->grouppri=md->getGroupPri();
     m_impl->groupFileName=md->getGroupFileName();
-    m_impl->groupStartLine=md->getGroupStartLine();
+    m_impl->groupStartLoc=md->getGroupStartLoc();
     m_impl->groupHasDocs=md->getGroupHasDocs();
     m_isLinkableCached = 0;
   }
@@ -3444,7 +3444,7 @@ MemberDef *MemberDef::createTemplateInstanceMember(
   }
 
   MemberDef *imd = new MemberDef(
-                       getDefFileName(),getDefLine(),getDefColumn(),
+                       getDefFileName(),getDefLoc(),
                        substituteTemplateArgumentsInString(m_impl->type,formalArgs,actualArgs),
                        methodName,
                        substituteTemplateArgumentsInString(m_impl->args,formalArgs,actualArgs),
@@ -3454,7 +3454,7 @@ MemberDef *MemberDef::createTemplateInstanceMember(
   imd->setArgumentList(actualArgList);
   imd->setDefinition(substituteTemplateArgumentsInString(m_impl->def,formalArgs,actualArgs));
   imd->setBodyDef(getBodyDef());
-  imd->setBodySegment(getStartBodyLine(),getEndBodyLine());
+  imd->setBodySegment(getStartBodyLoc(),getEndBodyLoc());
   //imd->setBodyMember(this);
 
   // TODO: init other member variables (if needed).
@@ -3958,11 +3958,11 @@ bool MemberDef::protectionVisible() const
 
 #if 0
 void MemberDef::setInbodyDocumentation(const char *docs,
-                  const char *docFile,int docLine)
+                  const char *docFile,int docLoc)
 {
   m_impl->inbodyDocs = docs;
   m_impl->inbodyDocs = m_impl->inbodyDocs.stripWhiteSpace();
-  m_impl->inbodyLine = docLine;
+  m_impl->inbodyLoc = docLoc;
   m_impl->inbodyFile = docFile;
 }
 #endif
@@ -4121,9 +4121,9 @@ const char *MemberDef::getGroupFileName() const
   return m_impl->groupFileName;
 }
 
-int MemberDef::getGroupStartLine() const
+Location MemberDef::getGroupStartLoc() const
 {
-  return m_impl->groupStartLine;
+  return m_impl->groupStartLoc;
 }
 
 bool MemberDef::getGroupHasDocs() const
@@ -4989,16 +4989,16 @@ void combineDeclarationAndDefinition(MemberDef *mdec,MemberDef *mdef)
       /* copy documentation between function definition and declaration */
       if (!mdec->briefDescription().isEmpty())
       {
-        mdef->setBriefDescription(mdec->briefDescription(),mdec->briefFile(),mdec->briefLine());
+        mdef->setBriefDescription(mdec->briefDescription(),mdec->briefFile(),mdec->briefLoc());
       }
       else if (!mdef->briefDescription().isEmpty())
       {
-        mdec->setBriefDescription(mdef->briefDescription(),mdef->briefFile(),mdef->briefLine());
+        mdec->setBriefDescription(mdef->briefDescription(),mdef->briefFile(),mdef->briefLoc());
       }
       if (!mdef->documentation().isEmpty())
       {
         //printf("transferring docs mdef->mdec (%s->%s)\n",mdef->argsString(),mdec->argsString());
-        mdec->setDocumentation(mdef->documentation(),mdef->docFile(),mdef->docLine());
+        mdec->setDocumentation(mdef->documentation(),mdef->docFile(),mdef->docLoc());
         mdec->setDocsForDefinition(mdef->isDocsForDefinition());
         if (mdefAl!=0)
         {
@@ -5011,7 +5011,7 @@ void combineDeclarationAndDefinition(MemberDef *mdec,MemberDef *mdef)
       else if (!mdec->documentation().isEmpty())
       {
         //printf("transferring docs mdec->mdef (%s->%s)\n",mdec->argsString(),mdef->argsString());
-        mdef->setDocumentation(mdec->documentation(),mdec->docFile(),mdec->docLine());
+        mdef->setDocumentation(mdec->documentation(),mdec->docFile(),mdec->docLoc());
         mdef->setDocsForDefinition(mdec->isDocsForDefinition());
         if (mdecAl!=0)
         {
@@ -5023,23 +5023,23 @@ void combineDeclarationAndDefinition(MemberDef *mdec,MemberDef *mdef)
       }
       if (!mdef->inbodyDocumentation().isEmpty())
       {
-        mdec->setInbodyDocumentation(mdef->inbodyDocumentation(),mdef->inbodyFile(),mdef->inbodyLine());
+        mdec->setInbodyDocumentation(mdef->inbodyDocumentation(),mdef->inbodyFile(),mdef->inbodyLoc());
       }
       else if (!mdec->inbodyDocumentation().isEmpty())
       {
-        mdef->setInbodyDocumentation(mdec->inbodyDocumentation(),mdec->inbodyFile(),mdec->inbodyLine());
+        mdef->setInbodyDocumentation(mdec->inbodyDocumentation(),mdec->inbodyFile(),mdec->inbodyLoc());
       }
-      if (mdec->getStartBodyLine()!=-1 && mdef->getStartBodyLine()==-1)
+      if (mdec->getStartBodyLoc()!=Location(0,0) && mdef->getStartBodyLoc()==Location(0,0))
       {
-        //printf("body mdec->mdef %d-%d\n",mdec->getStartBodyLine(),mdef->getEndBodyLine());
-        mdef->setBodySegment(mdec->getStartBodyLine(),mdec->getEndBodyLine());
+        //printf("body mdec->mdef %d-%d\n",mdec->getStartBodyLoc(),mdef->getEndBodyLoc());
+        mdef->setBodySegment(mdec->getStartBodyLoc(),mdec->getEndBodyLoc());
         mdef->setBodyDef(mdec->getBodyDef());
         //mdef->setBodyMember(mdec);
       }
-      else if (mdef->getStartBodyLine()!=-1 && mdec->getStartBodyLine()==-1)
+      else if (mdef->getStartBodyLoc()!=Location(0,0) && mdec->getStartBodyLoc()==Location(0,0))
       {
-        //printf("body mdef->mdec %d-%d\n",mdef->getStartBodyLine(),mdec->getEndBodyLine());
-        mdec->setBodySegment(mdef->getStartBodyLine(),mdef->getEndBodyLine());
+        //printf("body mdef->mdec %d-%d\n",mdef->getStartBodyLoc(),mdec->getEndBodyLoc());
+        mdec->setBodySegment(mdef->getStartBodyLoc(),mdef->getEndBodyLoc());
         mdec->setBodyDef(mdef->getBodyDef());
         //mdec->setBodyMember(mdef);
       }
@@ -5053,7 +5053,7 @@ void combineDeclarationAndDefinition(MemberDef *mdec,MemberDef *mdef)
         mdec->setGroupDef(mdef->getGroupDef(),
             mdef->getGroupPri(),
             mdef->docFile(),
-            mdef->docLine(),
+            mdef->docLoc(),
             mdef->hasDocumentation(),
             mdef
             );
@@ -5063,7 +5063,7 @@ void combineDeclarationAndDefinition(MemberDef *mdec,MemberDef *mdef)
         mdef->setGroupDef(mdec->getGroupDef(),
             mdec->getGroupPri(),
             mdec->docFile(),
-            mdec->docLine(),
+            mdec->docLoc(),
             mdec->hasDocumentation(),
             mdec
             );

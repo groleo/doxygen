@@ -33,11 +33,11 @@
 
 //------------------------------------------------------------------
 
-NamespaceDef::NamespaceDef(const char *df,int dl,int dc,
+NamespaceDef::NamespaceDef(const char *df,Location dl,
                            const char *name,const char *lref,
                            const char *fName, const char*type,
                            bool isPublished) :
-   Definition(df,dl,dc,name)
+   Definition(df,dl,name)
   ,m_isPublished(isPublished)
 {
   if (fName)
@@ -376,7 +376,7 @@ void NamespaceDef::writeDetailedDescription(OutputList &ol,const QCString &title
     ol.startTextBlock();
     if (!briefDescription().isEmpty() && Config_getBool(REPEAT_BRIEF))
     {
-      ol.generateDoc(briefFile(),briefLine(),this,0,briefDescription(),FALSE,FALSE);
+      ol.generateDoc(briefFile(),briefLoc(),this,0,briefDescription(),FALSE,FALSE);
     }
     if (!briefDescription().isEmpty() && Config_getBool(REPEAT_BRIEF) &&
         !documentation().isEmpty())
@@ -393,7 +393,7 @@ void NamespaceDef::writeDetailedDescription(OutputList &ol,const QCString &title
     }
     if (!documentation().isEmpty())
     {
-      ol.generateDoc(docFile(),docLine(),this,0,documentation()+"\n",TRUE,FALSE);
+      ol.generateDoc(docFile(),docLoc(),this,0,documentation()+"\n",TRUE,FALSE);
     }
     ol.endTextBlock();
   }
@@ -403,7 +403,7 @@ void NamespaceDef::writeBriefDescription(OutputList &ol)
 {
   if (hasBriefDescription())
   {
-    DocRoot *rootNode = validatingParseDoc(briefFile(),briefLine(),this,0,
+    DocRoot *rootNode = validatingParseDoc(briefFile(),briefLoc(),this,0,
                         briefDescription(),TRUE,FALSE,0,TRUE,FALSE);
     if (rootNode && !rootNode->isEmpty())
     {
@@ -1015,7 +1015,7 @@ void NamespaceSDict::writeDeclaration(OutputList &ol,const char *title,
       if (!nd->briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
       {
         ol.startMemberDescription(nd->getOutputFileBase());
-        ol.generateDoc(nd->briefFile(),nd->briefLine(),nd,0,nd->briefDescription(),FALSE,FALSE,0,TRUE);
+        ol.generateDoc(nd->briefFile(),nd->briefLoc(),nd,0,nd->briefDescription(),FALSE,FALSE,0,TRUE);
         ol.endMemberDescription();
       }
       ol.endMemberDeclaration(0,0);

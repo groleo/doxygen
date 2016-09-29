@@ -23,8 +23,8 @@ void FileParser::parseCode(CodeOutputInterface &codeOutIntf,
                bool,             // isExampleBlock
                const char *,     // exampleName
                FileDef *            fileDef,
-               int                  startLine,
-               int                  endLine,
+               Location             startLoc,
+               Location             endLoc,
                bool,             // inlineFragment
                MemberDef *,      // memberDef
                bool                 showLineNumbers,
@@ -32,10 +32,10 @@ void FileParser::parseCode(CodeOutputInterface &codeOutIntf,
                bool              // collectXRefs
               )
 {
-  int lineNr = startLine!=-1 ? startLine : 1;
+  int lineNr = startLoc.line !=0 ? startLoc.line : 1;
   int length = input.length();
   int i=0;
-  while (i<length && (endLine==-1 || lineNr<=endLine))
+  while (i<length && (endLoc==Location(0,0) || lineNr<=endLoc.line))
   {
     int j=i;
     while (j<length && input[j]!='\n') j++;
@@ -48,4 +48,3 @@ void FileParser::parseCode(CodeOutputInterface &codeOutIntf,
     i=j+1;
   }
 }
-

@@ -43,8 +43,8 @@
 
 //---------------------------------------------------------------------------
 
-GroupDef::GroupDef(const char *df,int dl,const char *na,const char *t,
-                   const char *refFileName) : Definition(df,dl,1,na)
+GroupDef::GroupDef(const char *df,Location dl,const char *na,const char *t,
+                   const char *refFileName) : Definition(df,dl,na)
 {
   fileList = new FileList;
   classSDict = new ClassSDict(17);
@@ -729,7 +729,7 @@ void GroupDef::writeDetailedDescription(OutputList &ol,const QCString &title)
     // repeat brief description
     if (!briefDescription().isEmpty() && Config_getBool(REPEAT_BRIEF))
     {
-      ol.generateDoc(briefFile(),briefLine(),this,0,briefDescription(),FALSE,FALSE);
+      ol.generateDoc(briefFile(),briefLoc(),this,0,briefDescription(),FALSE,FALSE);
     }
     // write separator between brief and details
     if (!briefDescription().isEmpty() && Config_getBool(REPEAT_BRIEF) &&
@@ -749,13 +749,13 @@ void GroupDef::writeDetailedDescription(OutputList &ol,const QCString &title)
     // write detailed documentation
     if (!documentation().isEmpty())
     {
-      ol.generateDoc(docFile(),docLine(),this,0,documentation()+"\n",TRUE,FALSE);
+      ol.generateDoc(docFile(),docLoc(),this,0,documentation()+"\n",TRUE,FALSE);
     }
 
     // write inbody documentation
     if (!inbodyDocumentation().isEmpty())
     {
-      ol.generateDoc(inbodyFile(),inbodyLine(),this,0,inbodyDocumentation()+"\n",TRUE,FALSE);
+      ol.generateDoc(inbodyFile(),inbodyLoc(),this,0,inbodyDocumentation()+"\n",TRUE,FALSE);
     }
   }
 }
@@ -764,7 +764,7 @@ void GroupDef::writeBriefDescription(OutputList &ol)
 {
   if (!briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
   {
-    DocRoot *rootNode = validatingParseDoc(briefFile(),briefLine(),this,0,
+    DocRoot *rootNode = validatingParseDoc(briefFile(),briefLoc(),this,0,
                                 briefDescription(),TRUE,FALSE,0,TRUE,FALSE);
     if (rootNode && !rootNode->isEmpty())
     {
@@ -834,7 +834,7 @@ void GroupDef::writeFiles(OutputList &ol,const QCString &title)
       if (!fd->briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
       {
         ol.startMemberDescription(fd->getOutputFileBase());
-        ol.generateDoc(briefFile(),briefLine(),fd,0,fd->briefDescription(),FALSE,FALSE,0,TRUE,FALSE);
+        ol.generateDoc(briefFile(),briefLoc(),fd,0,fd->briefDescription(),FALSE,FALSE,0,TRUE,FALSE);
         ol.endMemberDescription();
       }
       ol.endMemberDeclaration(0,0);
@@ -889,7 +889,7 @@ void GroupDef::writeNestedGroups(OutputList &ol,const QCString &title)
         if (!gd->briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
         {
           ol.startMemberDescription(gd->getOutputFileBase());
-          ol.generateDoc(briefFile(),briefLine(),gd,0,gd->briefDescription(),FALSE,FALSE,0,TRUE,FALSE);
+          ol.generateDoc(briefFile(),briefLoc(),gd,0,gd->briefDescription(),FALSE,FALSE,0,TRUE,FALSE);
           ol.endMemberDescription();
         }
         ol.endMemberDeclaration(0,0);
@@ -922,7 +922,7 @@ void GroupDef::writeDirs(OutputList &ol,const QCString &title)
       if (!dd->briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
       {
         ol.startMemberDescription(dd->getOutputFileBase());
-        ol.generateDoc(briefFile(),briefLine(),dd,0,dd->briefDescription(),FALSE,FALSE,0,TRUE,FALSE);
+        ol.generateDoc(briefFile(),briefLoc(),dd,0,dd->briefDescription(),FALSE,FALSE,0,TRUE,FALSE);
         ol.endMemberDescription();
       }
       ol.endMemberDeclaration(0,0);
@@ -960,7 +960,7 @@ void GroupDef::writePageDocumentation(OutputList &ol)
         ol.endSection(si->label,SectionInfo::Subsection);
       }
       ol.startTextBlock();
-      ol.generateDoc(pd->docFile(),pd->docLine(),pd,0,pd->documentation()+pd->inbodyDocumentation(),TRUE,FALSE,0,TRUE,FALSE);
+      ol.generateDoc(pd->docFile(),pd->docLoc(),pd,0,pd->documentation()+pd->inbodyDocumentation(),TRUE,FALSE,0,TRUE,FALSE);
       ol.endTextBlock();
     }
   }
@@ -1369,12 +1369,12 @@ void addGroupToGroups(Entry *root,GroupDef *subGroup)
     {
       if (gd==subGroup)
       {
-        warn(root->fileName,root->startLine,"Refusing to add group %s to itself",
+        warn(root->fileName,root->startLoc.line,"Refusing to add group %s to itself",
             gd->name().data());
       }
       else if (subGroup->findGroup(gd))
       {
-        warn(root->fileName,root->startLine,"Refusing to add group %s to group %s, since the latter is already a "
+        warn(root->fileName,root->startLoc.line,"Refusing to add group %s to group %s, since the latter is already a "
                                             "subgroup of the former\n", subGroup->name().data(),gd->name().data());
       }
       else if (!gd->findGroup(subGroup))
@@ -1406,7 +1406,7 @@ void addMemberToGroups(Entry *root,MemberDef *md)
     {
       if (fgd && gd!=fgd && g->pri==pri) 
       {
-        warn(root->fileName.data(), root->startLine,
+        warn(root->fileName.data(), root->startLoc.line,
             "Member %s found in multiple %s groups! "
             "The member will be put in group %s, and not in group %s",
             md->name().data(), Grouping::getGroupPriName( pri ),
@@ -1451,11 +1451,11 @@ void addMemberToGroups(Entry *root,MemberDef *md)
           }
           else if (!root->doc.isEmpty() && md->getGroupHasDocs())
           {
-            warn(md->getGroupFileName(),md->getGroupStartLine(),
+            warn(md->getGroupFileName(),md->getGroupStartLoc().line,
                 "Member documentation for %s found several times in %s groups!\n"
                 "%s:%d: The member will remain in group %s, and won't be put into group %s",
                 md->name().data(), Grouping::getGroupPriName( pri ),
-                root->fileName.data(), root->startLine,
+                root->fileName.data(), root->startLoc,
                 mgd->name().data(),
                 fgd->name().data()
                 );
@@ -1480,12 +1480,12 @@ void addMemberToGroups(Entry *root,MemberDef *md)
       if (success)
       {
         //printf("insertMember successful\n");
-        md->setGroupDef(fgd,pri,root->fileName,root->startLine,
+        md->setGroupDef(fgd,pri,root->fileName,root->startLoc,
             !root->doc.isEmpty());
         ClassDef *cd = md->getClassDefOfAnonymousType();
         if (cd) 
         {
-          cd->setGroupDefForAllMembers(fgd,pri,root->fileName,root->startLine,root->doc.length() != 0);
+          cd->setGroupDefForAllMembers(fgd,pri,root->fileName,root->startLoc,root->doc.length() != 0);
         }
       }
     }

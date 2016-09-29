@@ -20,6 +20,7 @@
 #define SECTION_H
 
 #include "sortdict.h"
+#include "location.h"
 
 class Definition;
 
@@ -34,10 +35,10 @@ struct SectionInfo
                      Anchor        = 5,
                      Table         = 6
                    };
-  SectionInfo(const char *f,const int lin,const char *l,const char *t,
+  SectionInfo(const char *f,const Location loc,const char *l,const char *t,
               SectionType st,int lev,const char *r=0) :
     label(l), title(t), type(st), ref(r), definition(0),
-    fileName(f), lineNr(lin), generated(FALSE), level(lev)
+    fileName(f), location(loc), generated(FALSE), level(lev)
   {
   }
   SectionInfo(const SectionInfo &s)
@@ -48,7 +49,7 @@ struct SectionInfo
     ref=s.ref.copy();
     definition=s.definition;
     fileName=s.fileName.copy();
-    lineNr=s.lineNr;
+    location=s.location;
     generated=s.generated;
     level=s.level;
   }
@@ -59,7 +60,7 @@ struct SectionInfo
   QCString ref;
   Definition *definition;
   QCString fileName;
-  int lineNr;
+  Location location;
   bool generated;
   int level;
 };

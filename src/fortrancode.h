@@ -28,7 +28,7 @@ class Definition;
 
 void parseFortranCode(CodeOutputInterface &,const char *,const QCString &, 
             bool ,const char *,FileDef *fd,
-            int startLine,int endLine,bool inlineFragment,
+            Location startLoc,Location endLoc,bool inlineFragment,
             MemberDef *memberDef,bool showLineNumbers,Definition *searchCtx,
             bool collectRefs, FortranFormat format);
 void resetFortranCodeParserState();

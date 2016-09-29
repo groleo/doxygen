@@ -22,6 +22,7 @@
 #include <qdict.h>
 
 #include "types.h"
+#include "location.h"
 
 class FileDef;
 class OutputList;
@@ -35,29 +36,30 @@ struct SectionInfo;
 class Definition;
 class DefinitionImpl;
 class FTextStream;
-  
+
+
 /** Data associated with a detailed description. */
 struct DocInfo
 {
-    QCString doc;  
-    int      line;
+    QCString doc;
+    Location loc;
     QCString file;
 };
 
 /** Data associated with a brief description. */
 struct BriefInfo
 {
-    QCString doc;  
-    QCString tooltip;  
-    int      line;
+    QCString doc;
+    QCString tooltip;
+    Location loc;
     QCString file;
 };
 
 /** Data associated with description found in the body. */
 struct BodyInfo
 {
-    int      startLine;   //!< line number of the start of the definition
-    int      endLine;     //!< line number of the end of the definition
+    Location startLoc;    //!< location of the start of the definition
+    Location endLoc;      //!< location of the end of the definition
     FileDef *fileDef;     //!< file definition containing the function body
 };
     
@@ -99,7 +101,7 @@ class Definition : public DefinitionIntf
 
     /*! Create a new definition */
     Definition(
-        const char *defFileName,int defLine,int defColumn,
+        const char *defFileName,Location defLoc,
         const char *name,const char *b=0,const char *d=0,
         bool isSymbol=TRUE);
 
@@ -145,7 +147,7 @@ class Definition : public DefinitionIntf
     virtual QCString documentation() const;
 
     /*! Returns the line number at which the detailed documentation was found. */
-    int docLine() const;
+    int docLoc() const;
 
     /*! Returns the file in which the detailed documentation block was found.
      *  This can differ from getDefFileName().
@@ -161,7 +163,7 @@ class Definition : public DefinitionIntf
     QCString briefDescriptionAsTooltip() const;
 
     /*! Returns the line number at which the brief description was found. */
-    int briefLine() const;
+    int briefLoc() const;
 
     /*! Returns the documentation found inside the body of a member */
     QCString inbodyDocumentation() const;
@@ -171,7 +173,7 @@ class Definition : public DefinitionIntf
 
     /*! Returns the line at which the first in body documentation 
         part was found */
-    int inbodyLine() const;
+    int inbodyLoc() const;
 
     /*! Returns the file in which the brief description was found. 
      *  This can differ from getDefFileName().
@@ -185,7 +187,10 @@ class Definition : public DefinitionIntf
     QCString getDefFileExtension() const;
 
     /*! returns the line number at which the definition was found */
-    int getDefLine() const { return m_defLine; }
+    Location getDefLoc() const { return m_defLoc; }
+
+    /*! returns the line number at which the definition was found */
+    int getDefLine() const { return m_defLoc.line; }
 
     /*! returns the column number at which the definition was found */
     int getDefColumn() const { return m_defColumn; }
@@ -241,12 +246,12 @@ class Definition : public DefinitionIntf
     /*! Returns the first line of the body of this item (applicable to classes and 
      *  functions).
      */
-    int getStartBodyLine() const;
+    Location getStartBodyLoc() const;
 
     /*! Returns the last line of the body of this item (applicable to classes and 
      *  functions).
      */
-    int getEndBodyLine() const;
+    Location getEndBodyLoc() const;
 
     /*! Returns the file in which the body of this item is located or 0 if no
      *  body is available.
@@ -286,18 +291,18 @@ class Definition : public DefinitionIntf
     void setId(const char *name);
 
     /*! Sets the documentation of this definition to \a d. */
-    virtual void setDocumentation(const char *d,const char *docFile,int docLine,bool stripWhiteSpace=TRUE);
+    virtual void setDocumentation(const char *d,const char *docFile,Location docLoc,bool stripWhiteSpace=TRUE);
 
     /*! Sets the brief description of this definition to \a b.
      *  A dot is added to the sentence if not available.
      */
-    virtual void setBriefDescription(const char *b,const char *briefFile,int briefLine);
+    virtual void setBriefDescription(const char *b,const char *briefFile,Location briefLoc);
 
     /*! Set the documentation that was found inside the body of an item.
      *  If there was already some documentation set, the new documentation
      *  will be appended.
      */
-    virtual void setInbodyDocumentation(const char *d,const char *docFile,int docLine);
+    virtual void setInbodyDocumentation(const char *d,const char *docFile,Location docLoc);
 
     /*! Sets the tag file id via which this definition was imported. */
     void setReference(const char *r);
@@ -308,7 +313,7 @@ class Definition : public DefinitionIntf
     void addSectionsToDefinition(QList<SectionInfo> *anchorList);
 
     // source references
-    void setBodySegment(int bls,int ble);
+    void setBodySegment(Location bls,Location ble);
     void setBodyDef(FileDef *fd);
     void addSourceReferencedBy(MemberDef *d);
     void addSourceReferences(MemberDef *d);
@@ -364,15 +369,15 @@ class Definition : public DefinitionIntf
     int  _getXRefListId(const char *listName) const;
     void _writeSourceRefList(OutputList &ol,const char *scopeName,
                        const QCString &text,MemberSDict *members,bool);
-    void _setBriefDescription(const char *b,const char *briefFile,int briefLine);
-    void _setDocumentation(const char *d,const char *docFile,int docLine,bool stripWhiteSpace,bool atTop);
-    void _setInbodyDocumentation(const char *d,const char *docFile,int docLine);
+    void _setBriefDescription(const char *b,const char *briefFile,Location briefLoc);
+    void _setDocumentation(const char *d,const char *docFile,Location docLoc,bool stripWhiteSpace,bool atTop);
+    void _setInbodyDocumentation(const char *d,const char *docFile,Location docLoc);
     bool _docsAlreadyAdded(const QCString &doc,QCString &sigList);
     DefinitionImpl *m_impl; // internal structure holding all private data
     QCString m_name;
     bool m_isSymbol;
     QCString m_symbolName;
-    int m_defLine;
+    Location m_defLoc;
     int m_defColumn;
     Cookie *m_cookie;
 };
@@ -399,12 +404,12 @@ class DefinitionListIterator : public QListIterator<Definition>
     ~DefinitionListIterator() {}
 };
 
-/** Reads a fragment from file \a fileName starting with line \a startLine
- *  and ending with line \a endLine. The result is returned as a string 
+/** Reads a fragment from file \a fileName starting with line \a startLoc
+ *  and ending with line \a endLoc. The result is returned as a string 
  *  via \a result. The function returns TRUE if successful and FALSE 
  *  in case of an error.
  */
 bool readCodeFragment(const char *fileName, 
-                      int &startLine,int &endLine,
+                      Location &startLoc,Location &endLoc,
                       QCString &result);
 #endif

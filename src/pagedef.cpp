@@ -26,11 +26,11 @@
 #include "namespacedef.h"
 #include "reflist.h"
 
-PageDef::PageDef(const char *f,int l,const char *n,
+PageDef::PageDef(const char *f,Location loc,const char *n,
                  const char *d,const char *t)
- : Definition(f,l,1,n), m_title(t)
+ : Definition(f,loc,n), m_title(t)
 {
-  setDocumentation(d,f,l);
+  setDocumentation(d,f,loc);
   m_subPageDict = new PageSDict(7);
   m_pageScope = 0;
   m_nestingLevel = 0;
@@ -169,7 +169,7 @@ void PageDef::writeDocumentation(OutputList &ol)
   ol.endTitleHead(manPageName, manPageName);
   if (si)
   {
-    ol.generateDoc(docFile(),docLine(),this,0,si->title,TRUE,FALSE,0,TRUE,FALSE);
+    ol.generateDoc(docFile(),docLoc(),this,0,si->title,TRUE,FALSE,0,TRUE,FALSE);
     ol.endSection(si->label,si->type);
   }
   ol.popGeneratorState();
@@ -185,7 +185,7 @@ void PageDef::writeDocumentation(OutputList &ol)
   {
     //ol.startSection(si->label,si->title,si->type);
     startTitle(ol,getOutputFileBase(),this);
-    ol.generateDoc(docFile(),docLine(),this,0,si->title,TRUE,FALSE,0,TRUE,FALSE);
+    ol.generateDoc(docFile(),docLoc(),this,0,si->title,TRUE,FALSE,0,TRUE,FALSE);
     //stringToSearchIndex(getOutputFileBase(),
     //                    theTranslator->trPage(TRUE,TRUE)+" "+si->title,
     //                    si->title);
@@ -231,7 +231,7 @@ void PageDef::writePageDocumentation(OutputList &ol)
   ol.startTextBlock();
   ol.generateDoc(
       docFile(),           // fileName
-      docLine(),           // startLine
+      docLoc(),           // startLine
       this,                // context
       0,                   // memberdef
       documentation()+inbodyDocumentation(), // docStr

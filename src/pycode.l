@@ -66,7 +66,7 @@ static bool          g_needsTermination;
 static Definition   *g_searchCtx;
 static bool          g_collectXRefs;
 static int           g_inputLines;      //!< number of line in the code fragment
-static int	     g_yyLineNr;        //!< current line number
+static Location      g_yyLocation;        //!< current location
 static FileDef *     g_sourceFileDef;
 static Definition *  g_currentDefinition;
 static MemberDef *   g_currentMemberDef;
@@ -360,17 +360,17 @@ static void startCodeLine()
   if (g_sourceFileDef)
   {
     //QCString lineNumber,lineAnchor;
-    //lineNumber.sprintf("%05d",g_yyLineNr);
-    //lineAnchor.sprintf("l%05d",g_yyLineNr);
+    //lineNumber.sprintf("%05d",g_yyLocation.line);
+    //lineAnchor.sprintf("l%05d",g_yyLocation.line);
    
-    Definition *d   = g_sourceFileDef->getSourceDefinition(g_yyLineNr);
-    //printf("startCodeLine %d d=%p\n",g_yyLineNr,d);
+    Definition *d   = g_sourceFileDef->getSourceDefinition(g_yyLocation);
+    //printf("startCodeLine %d d=%p\n",g_yyLocation.line,d);
     //g_code->startLineNumber();
 
     if (!g_includeCodeFragment && d && d->isLinkableInProject())
     {
       g_currentDefinition = d;
-      g_currentMemberDef = g_sourceFileDef->getSourceMember(g_yyLineNr);
+      g_currentMemberDef = g_sourceFileDef->getSourceMember(g_yyLocation);
       //g_insideBody = FALSE;
       g_endComment = FALSE;
       g_searchingForBody = TRUE;
@@ -379,26 +379,26 @@ static void startCodeLine()
       //printf("Real scope: `%s'\n",g_realScope.data());
       g_bodyCurlyCount = 0;
       QCString lineAnchor;
-      lineAnchor.sprintf("l%05d",g_yyLineNr);
+      lineAnchor.sprintf("l%05d",g_yyLocation.line);
       if (g_currentMemberDef)
       {
         g_code->writeLineNumber(g_currentMemberDef->getReference(),
 	                        g_currentMemberDef->getOutputFileBase(),
-	                        g_currentMemberDef->anchor(),g_yyLineNr);
+	                        g_currentMemberDef->anchor(),g_yyLocation.line);
         setCurrentDoc(lineAnchor);
       }
       else
       {
         g_code->writeLineNumber(d->getReference(),
 	                        d->getOutputFileBase(),
-	                        0,g_yyLineNr);
+	                        0,g_yyLocation.line);
         setCurrentDoc(lineAnchor);
       }
     }
     else
     {
       //g_code->codify(lineNumber);
-      g_code->writeLineNumber(0,0,0,g_yyLineNr);
+      g_code->writeLineNumber(0,0,0,g_yyLocation.line);
     }
     //g_code->endLineNumber();
   }
@@ -424,7 +424,7 @@ static void nextCodeLine()
 {
   const char *fc = g_currentFontClass;
   endCodeLine();
-  if (g_yyLineNr<g_inputLines) 
+  if (g_yyLocation.line<g_inputLines) 
   {
     g_currentFontClass = fc;
     startCodeLine();
@@ -459,7 +459,7 @@ static void writeMultiLineCodeLink(CodeOutputInterface &ol,
     while ((c=*p++) && c!='\n') { }
     if (c=='\n')
     {
-      g_yyLineNr++;
+      g_yyLocation.line++;
       *(p-1)='\0';
       //printf("writeCodeLink(%s,%s,%s,%s)\n",ref,file,anchor,sp);
       ol.writeCodeLink(ref,file,anchor,sp,tooltip);
@@ -497,7 +497,7 @@ static void endFontClass()
 
 static void codifyLines(char *text)
 {
-  //printf("codifyLines(%d,\"%s\")\n",g_yyLineNr,text);
+  //printf("codifyLines(%d,\"%s\")\n",g_yyLocation.line,text);
   char *p=text,*sp=p;
   char c;
   bool done=FALSE;
@@ -508,11 +508,11 @@ static void codifyLines(char *text)
     while ((c=*p++) && c!='\n') { }
     if (c=='\n')
     {
-      g_yyLineNr++;
+      g_yyLocation.line++;
       *(p-1)='\0';
       g_code->codify(sp);
       endCodeLine();
-      if (g_yyLineNr<g_inputLines)
+      if (g_yyLocation.line<g_inputLines)
       {
         startCodeLine();
       }
@@ -1086,7 +1086,7 @@ TARGET           ({IDENTIFIER}|"("{TARGET_LIST}")"|"["{TARGET_LIST}"]"|{ATTRIBUT
 
                                       // Push a class scope
 
-                                      ClassDef *classDefToAdd = new ClassDef("<code>",1,1,g_curClassName,ClassDef::Class,0,0,FALSE);
+                                      ClassDef *classDefToAdd = new ClassDef("<code>",Location(1,1),g_curClassName,ClassDef::Class,0,0,FALSE);
                                       g_codeClassSDict.append(g_curClassName,classDefToAdd);
                                       char *s=g_curClassBases.first();
                                       while (s) 
@@ -1240,7 +1240,7 @@ TARGET           ({IDENTIFIER}|"("{TARGET_LIST}")"|"["{TARGET_LIST}"]"|{ATTRIBUT
 					  codifyLines(yytext);
 					  if ( g_noSuiteFound ) 
 					  {
-                                            // printf("New suite to capture! [%d]\n", g_yyLineNr);
+                                            // printf("New suite to capture! [%d]\n", g_yyLocation.line);
 					    BEGIN ( SuiteCaptureIndent );
 					  }
                                        }
@@ -1259,7 +1259,7 @@ TARGET           ({IDENTIFIER}|"("{TARGET_LIST}")"|"["{TARGET_LIST}"]"|{ATTRIBUT
                                  // used.
 				 codifyLines(yytext);
 				 g_indents.push(yyleng);
-                                 // printf("Captured indent of %d [line %d]\n", yyleng, g_yyLineNr);
+                                 // printf("Captured indent of %d [line %d]\n", yyleng, g_yyLocation.line);
 				 BEGIN( Suite );
                                }
 }
@@ -1375,7 +1375,7 @@ TARGET           ({IDENTIFIER}|"("{TARGET_LIST}")"|"["{TARGET_LIST}"]"|{ATTRIBUT
 <*>({NONEMPTY}|{EXPCHAR}|{BB})           { // This should go one character at a time.
   		                 codify(yytext);
 				 // printf("[pycode] '%s' [ state %d ]  [line %d] no match\n",
-				 //       yytext, YY_START, g_yyLineNr);
+				 //       yytext, YY_START, g_yyLocation.line);
 
 				 //endFontClass();
 				 BEGIN(Body);					
@@ -1412,7 +1412,7 @@ TARGET           ({IDENTIFIER}|"("{TARGET_LIST}")"|"["{TARGET_LIST}"]"|{ATTRIBUT
                                  // remove special comment (default config)
 				 if (Config_getBool(STRIP_CODE_COMMENTS))
 				 {
-				    g_yyLineNr+=((QCString)g_docBlock).contains('\n');
+				    g_yyLocation.line+=((QCString)g_docBlock).contains('\n');
 				    g_endComment=TRUE;
 				  }
 				  else // do not remove comment
@@ -1458,7 +1458,7 @@ TARGET           ({IDENTIFIER}|"("{TARGET_LIST}")"|"["{TARGET_LIST}"]"|{ATTRIBUT
 				    codifyLines(yytext);
 				  }
 				 //printf("[pycode] %d NEWLINE [line %d] no match\n",
-				 //       YY_START, g_yyLineNr);
+				 //       YY_START, g_yyLocation.line);
 
 				 //endFontClass();
 				 BEGIN(Body);
@@ -1471,7 +1471,7 @@ TARGET           ({IDENTIFIER}|"("{TARGET_LIST}")"|"["{TARGET_LIST}"]"|{ATTRIBUT
 <*>.                           {
   		                 codify(yytext);
 				 // printf("[pycode] '%s' [ state %d ]  [line %d] no match\n",
-				 //        yytext, YY_START, g_yyLineNr);
+				 //        yytext, YY_START, g_yyLocation.line);
 
 				 //endFontClass();
 				 BEGIN(Body);					
@@ -1536,7 +1536,7 @@ static void adjustScopesAndSuites(unsigned indentLength)
 
 void parsePythonCode(CodeOutputInterface &od,const char * /*className*/,
                  const QCString &s,bool exBlock, const char *exName,
-                 FileDef *fd,int startLine,int endLine,bool inlineFragment,
+                 FileDef *fd,Location startLoc,Location endLoc,bool inlineFragment,
                  MemberDef *,bool,Definition *searchCtx,bool collectXRefs) 
 {
 
@@ -1553,16 +1553,17 @@ void parsePythonCode(CodeOutputInterface &od,const char * /*className*/,
   g_needsTermination = FALSE;
   g_searchCtx=searchCtx;
   g_collectXRefs=collectXRefs;
-  if (startLine!=-1)
-    g_yyLineNr    = startLine;
+
+  if (startLoc!=Location(0,0))
+    g_yyLocation    = startLoc;
   else
-    g_yyLineNr    = 1;
-  if (endLine!=-1)
-    g_inputLines  = endLine+1;
+    g_yyLocation.line    = 1;
+
+  if (endLoc!=Location(0,0))
+    g_inputLines  = endLoc.line+1;
   else
-    g_inputLines  = g_yyLineNr + countLines() - 1;
-  
-  
+    g_inputLines  = g_yyLocation.line + countLines() - 1;
+
   g_exampleBlock  = exBlock; 
   g_exampleName   = exName;
   g_sourceFileDef = fd;

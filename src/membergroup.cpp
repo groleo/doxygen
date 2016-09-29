@@ -42,7 +42,7 @@ MemberGroup::MemberGroup()
 }
 
 MemberGroup::MemberGroup(Definition *parent,
-      int id,const char *hdr,const char *d,const char *docFile,int docLine)
+      int id,const char *hdr,const char *d,const char *docFile,Location docLoc)
 {
   //printf("New member group id=%d header=%s desc=%s\n",id,hdr,d);
   memberList      = new MemberList(MemberListType_memberGroup);
@@ -56,7 +56,7 @@ MemberGroup::MemberGroup(Definition *parent,
   m_numDocMembers = -1;
   m_parent        = parent;
   m_docFile       = docFile;
-  m_docLine       = docLine;
+  m_docLoc       = docLoc;
   m_xrefListItems = 0;
   //printf("Member group docs=`%s'\n",doc.data());
 }
@@ -94,7 +94,7 @@ void MemberGroup::insertMember(MemberDef *md)
   if (firstMd && (gd=firstMd->getGroupDef()))
   {
     md->setGroupDef(gd, firstMd->getGroupPri(), 
-                    firstMd->getGroupFileName(), firstMd->getGroupStartLine(), 
+                    firstMd->getGroupFileName(), firstMd->getGroupStartLoc(), 
                     firstMd->getGroupHasDocs());
     gd->insertMember(md);
   }
@@ -245,9 +245,9 @@ void MemberGroup::distributeMemberGroupDocumentation()
          )
       {
         //printf("Copying documentation to member %s\n",omd->name().data());
-        omd->setBriefDescription(md->briefDescription(),md->briefFile(),md->briefLine());
-        omd->setDocumentation(md->documentation(),md->docFile(),md->docLine());
-        omd->setInbodyDocumentation(md->inbodyDocumentation(),md->inbodyFile(),md->inbodyLine());
+        omd->setBriefDescription(md->briefDescription(),md->briefFile(),md->briefLoc());
+        omd->setDocumentation(md->documentation(),md->docFile(),md->docLoc());
+        omd->setInbodyDocumentation(md->inbodyDocumentation(),md->inbodyFile(),md->inbodyLoc());
       }
     }
   }

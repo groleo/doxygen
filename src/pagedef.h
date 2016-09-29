@@ -29,7 +29,7 @@ class FTextStream;
 class PageDef : public Definition
 {
   public:
-    PageDef(const char *f,int l,const char *n,const char *d,const char *t);
+    PageDef(const char *f,Location loc,const char *n,const char *d,const char *t);
    ~PageDef();
 
     // setters

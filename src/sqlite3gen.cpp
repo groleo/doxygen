@@ -530,7 +530,7 @@ static int insertRefid(sqlite3 *db, const char *refid)
 
 
 static void insertMemberReference(sqlite3 *db, int refid_src, int refid_dst,
-                                  int id_file, int line, int column)
+                                  int id_file, Location loc)
 {
   if (id_file==-1||refid_src==-1||refid_dst==-1)
     return;
@@ -538,8 +538,8 @@ static void insertMemberReference(sqlite3 *db, int refid_src, int refid_dst,
   bindIntParameter(xrefs_insert,":refid_src",refid_src);
   bindIntParameter(xrefs_insert,":refid_dst",refid_dst);
   bindIntParameter(xrefs_insert,":id_file",id_file);
-  bindIntParameter(xrefs_insert,":line",line);
-  bindIntParameter(xrefs_insert,":column",column);
+  bindIntParameter(xrefs_insert,":line",loc.line);
+  bindIntParameter(xrefs_insert,":column",loc.column);
   step(db,xrefs_insert);
 }
 
@@ -547,12 +547,12 @@ static void insertMemberReference(sqlite3 *db, MemberDef *src, MemberDef *dst)
 {
   QCString qrefid_dst = dst->getOutputFileBase() + "_1" + dst->anchor();
   QCString qrefid_src = src->getOutputFileBase() + "_1" + src->anchor();
-  if (dst->getStartBodyLine()!=-1 && dst->getBodyDef())
+  if (dst->getStartBodyLoc()!=Location(0,0) && dst->getBodyDef())
   {
     int refid_src = insertRefid(db,qrefid_src.data());
     int refid_dst = insertRefid(db,qrefid_dst.data());
     int id_file = insertFile(db,"no-file"); // TODO: replace no-file with proper file
-    insertMemberReference(db,refid_src,refid_dst,id_file,dst->getStartBodyLine(),-1);
+    insertMemberReference(db,refid_src,refid_dst,id_file,dst->getStartBodyLoc());
   }
 }
 
@@ -587,7 +587,7 @@ static void insertMemberFunctionParams(sqlite3 *db,int id_memberdef,MemberDef *m
           int refid_src = insertRefid(db,qrefid_src.data());
           int refid_dst = insertRefid(db,s->data());
           int id_file = insertFile(db,stripFromPath(def->getDefFileName()));
-          insertMemberReference(db,refid_src,refid_dst,id_file,md->getDefLine(),-1);
+          insertMemberReference(db,refid_src,refid_dst,id_file,Location(md->getDefLine(),0));
           ++li;
         }
         bindTextParameter(params_select,":type",a->type.data());
@@ -1012,12 +1012,12 @@ static void generateSqlite3ForMember(sqlite3*db,MemberDef *md,Definition *def)
               md->anchor().data(),
               s->data(),
               md->getBodyDef()->getDefFileName().data(),
-              md->getStartBodyLine()));
+              md->getStartBodyLoc()));
         QCString qrefid_src = md->getOutputFileBase() + "_1" + md->anchor();
         int refid_src = insertRefid(db,qrefid_src.data());
         int refid_dst = insertRefid(db,s->data());
         int id_file = insertFile(db,stripFromPath(md->getBodyDef()->getDefFileName()));
-        insertMemberReference(db,refid_src,refid_dst,id_file,md->getStartBodyLine(),-1);
+        insertMemberReference(db,refid_src,refid_dst,id_file,md->getStartBodyLoc());
       }
       ++li;
     }
@@ -1034,7 +1034,7 @@ static void generateSqlite3ForMember(sqlite3*db,MemberDef *md,Definition *def)
   bindTextParameter(memberdef_insert,":inbodydescription",md->inbodyDocumentation(),FALSE);
 
   // File location
-  if (md->getDefLine() != -1)
+  if (md->getDefLine() != 0)
   {
     int id_file = insertFile(db,stripFromPath(md->getDefFileName()));
     if (id_file!=-1)
@@ -1043,7 +1043,7 @@ static void generateSqlite3ForMember(sqlite3*db,MemberDef *md,Definition *def)
       bindIntParameter(memberdef_insert,":line",md->getDefLine());
       bindIntParameter(memberdef_insert,":column",md->getDefColumn());
 
-      if (md->getStartBodyLine()!=-1)
+      if (md->getStartBodyLoc()!=Location(0,0))
       {
         int id_bodyfile = insertFile(db,stripFromPath(md->getBodyDef()->absFilePath()));
         if (id_bodyfile == -1)
@@ -1053,8 +1053,8 @@ static void generateSqlite3ForMember(sqlite3*db,MemberDef *md,Definition *def)
         else
         {
             bindIntParameter(memberdef_insert,":id_bodyfile",id_bodyfile);
-            bindIntParameter(memberdef_insert,":bodystart",md->getStartBodyLine());
-            bindIntParameter(memberdef_insert,":bodyend",md->getEndBodyLine());
+            bindIntParameter(memberdef_insert,":bodystart",md->getStartBodyLoc().line);
+            bindIntParameter(memberdef_insert,":bodyend",md->getEndBodyLoc().line);
         }
       }
     }

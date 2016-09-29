@@ -22,7 +22,7 @@
 class Entry;
 
 /** processes string \a s and converts markdown into doxygen/html commands. */
-QCString processMarkdown(const QCString &fileName,const int lineNr,Entry *e,const QCString &s);
+QCString processMarkdown(const QCString &fileName,const Location location,Entry *e,const QCString &s);
 QCString markdownFileNameToId(const QCString &fileName);
 
 class MarkdownFileParser : public ParserInterface
@@ -44,8 +44,8 @@ class MarkdownFileParser : public ParserInterface
                    bool isExampleBlock,
                    const char *exampleName=0,
                    FileDef *fileDef=0,
-                   int startLine=-1,
-                   int endLine=-1,
+                   Location startLoc=Location(0,0),
+                   Location endLoc=Location(0,0),
                    bool inlineFragment=FALSE,
                    MemberDef *memberDef=0,
                    bool showLineNumbers=TRUE,

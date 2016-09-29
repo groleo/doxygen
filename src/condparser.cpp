@@ -31,7 +31,7 @@
  * - On error, an error message is returned.
  * - On success, the result of the expression is either "1" or "0".
  */
-bool CondParser::parse(const char *fileName,int lineNr,const char *expr)
+bool CondParser::parse(const char *fileName,Location loc,const char *expr)
 {
   m_expr      = expr;
   m_tokenType = NOTHING;
@@ -75,7 +75,7 @@ bool CondParser::parse(const char *fileName,int lineNr,const char *expr)
   }
   if (m_err)
   {
-    warn(fileName,lineNr,"problem evaluating expression '%s': %s",
+    warn(fileName,loc.line,"problem evaluating expression '%s': %s",
         expr,m_err.data());
   }
   //printf("expr='%s' answer=%d\n",expr,answer);

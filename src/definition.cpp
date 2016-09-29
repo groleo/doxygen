@@ -280,13 +280,12 @@ void Definition::removeFromMap(Definition *d)
   }
 }
 
-Definition::Definition(const char *df,int dl,int dc,
+Definition::Definition(const char *df,Location dl,
                        const char *name,const char *b,
                        const char *d,bool isSymbol) : m_cookie(0)
 {
   m_name = name;
-  m_defLine = dl;
-  m_defColumn = dc;
+  m_defLoc = dl;
   m_impl = new DefinitionImpl;
   m_impl->init(df,name);
   m_isSymbol = isSymbol;
@@ -302,7 +301,7 @@ Definition::Definition(const char *df,int dl,int dc,
 Definition::Definition(const Definition &d) : DefinitionIntf(), m_cookie(0)
 {
   m_name = d.m_name;
-  m_defLine = d.m_defLine;
+  m_defLoc = d.m_defLoc;
   m_impl = new DefinitionImpl;
   *m_impl = *d.m_impl;
   m_impl->sectionDict = 0;
@@ -563,15 +562,15 @@ bool Definition::_docsAlreadyAdded(const QCString &doc,QCString &sigList)
   }
 }
 
-void Definition::_setDocumentation(const char *d,const char *docFile,int docLine,
+void Definition::_setDocumentation(const char *d,const char *docFile,Location docLoc,
                                    bool stripWhiteSpace,bool atTop)
 {
-  //printf("%s::setDocumentation(%s,%s,%d,%d)\n",name().data(),d,docFile,docLine,stripWhiteSpace);
+  //printf("%s::setDocumentation(%s,%s,%d,%d)\n",name().data(),d,docFile,docLoc,stripWhiteSpace);
   if (d==0) return;
   QCString doc = d;
   if (stripWhiteSpace)
   {
-    doc = stripLeadingAndTrailingEmptyLines(doc,docLine);
+    doc = stripLeadingAndTrailingEmptyLines(doc,docLoc);
   }
   else // don't strip whitespace
   {
@@ -596,23 +595,23 @@ void Definition::_setDocumentation(const char *d,const char *docFile,int docLine
     {
       m_impl->details->doc += "\n\n"+doc;
     }
-    if (docLine!=-1) // store location if valid
+    if (docLoc!=Location(0,0)) // store location if valid
     {
       m_impl->details->file = docFile;
-      m_impl->details->line = docLine;
+      m_impl->details->loc = docLoc;
     }
     else
     {
       m_impl->details->file = docFile;
-      m_impl->details->line = 1;
+      m_impl->details->loc.line = 1;
     }
   }
 }
 
-void Definition::setDocumentation(const char *d,const char *docFile,int docLine,bool stripWhiteSpace)
+void Definition::setDocumentation(const char *d,const char *docFile,Location docLoc,bool stripWhiteSpace)
 {
   if (d==0) return;
-  _setDocumentation(d,docFile,docLine,stripWhiteSpace,FALSE);
+  _setDocumentation(d,docFile,docLoc,stripWhiteSpace,FALSE);
 }
 
 #define uni_isupper(c) (QChar(c).category()==QChar::Letter_Uppercase)
@@ -629,7 +628,7 @@ static bool lastCharIsMultibyte(const QCString &s)
   return TRUE;
 }
 
-void Definition::_setBriefDescription(const char *b,const char *briefFile,int briefLine)
+void Definition::_setBriefDescription(const char *b,const char *briefFile,Location briefLoc)
 {
   static QCString outputLanguage = Config_getEnum(OUTPUT_LANGUAGE);
   static bool needsDot = outputLanguage!="Japanese" && 
@@ -656,25 +655,25 @@ void Definition::_setBriefDescription(const char *b,const char *briefFile,int br
     if (m_impl->brief && !m_impl->brief->doc.isEmpty())
     {
        //printf("adding to details\n");
-       _setDocumentation(brief,briefFile,briefLine,FALSE,TRUE);
+       _setDocumentation(brief,briefFile,briefLoc,FALSE,TRUE);
     }
     else
     {
-      //fprintf(stderr,"Definition::setBriefDescription(%s,%s,%d)\n",b,briefFile,briefLine);
+      //fprintf(stderr,"Definition::setBriefDescription(%s,%s,%d)\n",b,briefFile,briefLoc);
       if (m_impl->brief==0)
       {
         m_impl->brief = new BriefInfo;
       }
       m_impl->brief->doc=brief;
-      if (briefLine!=-1)
+      if (briefLoc!=Location(0,0))
       {
         m_impl->brief->file = briefFile;
-        m_impl->brief->line = briefLine;
+        m_impl->brief->loc  = briefLoc;
       }
       else
       {
         m_impl->brief->file = briefFile;
-        m_impl->brief->line = 1;
+        m_impl->brief->loc.line = 1;
       }
     }
   }
@@ -684,13 +683,13 @@ void Definition::_setBriefDescription(const char *b,const char *briefFile,int br
   }
 }
 
-void Definition::setBriefDescription(const char *b,const char *briefFile,int briefLine) 
+void Definition::setBriefDescription(const char *b,const char *briefFile,Location briefLoc) 
 { 
   if (b==0) return;
-  _setBriefDescription(b,briefFile,briefLine);
+  _setBriefDescription(b,briefFile,briefLoc);
 }
 
-void Definition::_setInbodyDocumentation(const char *doc,const char *inbodyFile,int inbodyLine)
+void Definition::_setInbodyDocumentation(const char *doc,const char *inbodyFile,Location inbodyLoc)
 {
   if (m_impl->inbodyDocs==0)
   {
@@ -700,7 +699,7 @@ void Definition::_setInbodyDocumentation(const char *doc,const char *inbodyFile,
   {
     m_impl->inbodyDocs->doc  = doc;
     m_impl->inbodyDocs->file = inbodyFile;
-    m_impl->inbodyDocs->line = inbodyLine;
+    m_impl->inbodyDocs->loc  = inbodyLoc;
   }
   else // another inbody documentation fragment, append this to the end
   {
@@ -708,29 +707,29 @@ void Definition::_setInbodyDocumentation(const char *doc,const char *inbodyFile,
   }
 }
 
-void Definition::setInbodyDocumentation(const char *d,const char *inbodyFile,int inbodyLine)
+void Definition::setInbodyDocumentation(const char *d,const char *inbodyFile,Location inbodyLoc)
 {
   if (d==0) return;
-  _setInbodyDocumentation(d,inbodyFile,inbodyLine);
+  _setInbodyDocumentation(d,inbodyFile,inbodyLoc);
 }
 
 /*! Reads a fragment of code from file \a fileName starting at 
- * line \a startLine and ending at line \a endLine (inclusive). The fragment is
+ * line \a startLoc.line and ending at line \a endLoc.line (inclusive). The fragment is
  * stored in \a result. If FALSE is returned the code fragment could not be
  * found.
  *
- * The file is scanned for a opening bracket ('{') from \a startLine onward
- * The line actually containing the bracket is returned via startLine.
- * The file is scanned for a closing bracket ('}') from \a endLine backward.
- * The line actually containing the bracket is returned via endLine.
+ * The file is scanned for a opening bracket ('{') from \a startLoc.line onward
+ * The line actually containing the bracket is returned via startLoc.line.
+ * The file is scanned for a closing bracket ('}') from \a endLoc.line backward.
+ * The line actually containing the bracket is returned via endLoc.line.
  * Note that for VHDL code the bracket search is not done.
  */
 bool readCodeFragment(const char *fileName,
-                      int &startLine,int &endLine,QCString &result)
+                      Location &startLoc,Location &endLoc,QCString &result)
 {
   static bool filterSourceFiles = Config_getBool(FILTER_SOURCE_FILES);
   static int tabSize = Config_getInt(TAB_SIZE);
-  //printf("readCodeFragment(%s,%d,%d)\n",fileName,startLine,endLine);
+  //printf("readCodeFragment(%s,%d,%d)\n",fileName,startLoc.line,endLoc.line);
   if (fileName==0 || fileName[0]==0) return FALSE; // not a valid file name
   QCString filter = getFileFilter(fileName,TRUE);
   FILE *f=0;
@@ -756,8 +755,8 @@ bool readCodeFragment(const char *fileName,
     int c=0;
     int col=0;
     int lineNr=1;
-    // skip until the startLine has reached
-    while (lineNr<startLine && !feof(f))
+    // skip until the startLoc.line has reached
+    while (lineNr<startLoc.line && !feof(f))
     {
       while ((c=fgetc(f))!='\n' && c!=EOF) /* skip */;
       lineNr++; 
@@ -767,7 +766,7 @@ bool readCodeFragment(const char *fileName,
     {
       // skip until the opening bracket or lonely : is found
       char cn=0;
-      while (lineNr<=endLine && !feof(f) && !found)
+      while (lineNr<=endLoc.line && !feof(f) && !found)
       {
         int pc=0;
         while ((c=fgetc(f))!='{' && c!=':' && c!=EOF)  // } so vi matching brackets has no problem
@@ -810,13 +809,13 @@ bool readCodeFragment(const char *fileName,
           found=TRUE;
         }
       }
-      //printf(" -> readCodeFragment(%s,%d,%d) lineNr=%d\n",fileName,startLine,endLine,lineNr);
+      //printf(" -> readCodeFragment(%s,%d,%d) lineNr=%d\n",fileName,startLoc.line,endLoc.line,lineNr);
       if (found) 
       {
         // For code with more than one line,
         // fill the line with spaces until we are at the right column
         // so that the opening brace lines up with the closing brace
-        if (endLine!=startLine)
+        if (endLoc.line!=startLoc.line)
         {
           QCString spaces;
           spaces.fill(' ',col);
@@ -824,7 +823,7 @@ bool readCodeFragment(const char *fileName,
         }
         // copy until end of line
         if (c) result+=c;
-        startLine=lineNr;
+        startLoc.line=lineNr;
         if (c==':') 
         {
           result+=cn;
@@ -834,7 +833,7 @@ bool readCodeFragment(const char *fileName,
         char lineStr[maxLineLength];
         do 
         {
-          //printf("reading line %d in range %d-%d\n",lineNr,startLine,endLine);
+          //printf("reading line %d in range %d-%d\n",lineNr,startLoc.line,endLoc.line);
           int size_read;
           do 
           {
@@ -854,7 +853,7 @@ bool readCodeFragment(const char *fileName,
           } while (size_read == (maxLineLength-1));
 
           lineNr++; 
-        } while (lineNr<=endLine && !feof(f));
+        } while (lineNr<=endLoc.line && !feof(f));
 
         // strip stuff after closing bracket
         int newLineIndex = result.findRev('\n');
@@ -863,7 +862,7 @@ bool readCodeFragment(const char *fileName,
         {
           result.truncate(braceIndex+1);
         }
-        endLine=lineNr-1;
+        endLoc.line=lineNr-1;
       }
     }
     if (usePipe) 
@@ -879,7 +878,7 @@ bool readCodeFragment(const char *fileName,
   }
   result = transcodeCharacterStringToUTF8(result);
   if (!result.isEmpty() && result.at(result.length()-1)!='\n') result += "\n";
-  //fprintf(stderr,"readCodeFragement(%d-%d)=%s\n",startLine,endLine,result.data());
+  //fprintf(stderr,"readCodeFragement(%d-%d)=%s\n",startLoc.line,endLoc.line,result.data());
   return found;
 }
 
@@ -889,7 +888,7 @@ QCString Definition::getSourceFileBase() const
   QCString fn;
   static bool sourceBrowser = Config_getBool(SOURCE_BROWSER);
   if (sourceBrowser && 
-      m_impl->body && m_impl->body->startLine!=-1 && m_impl->body->fileDef)
+      m_impl->body && m_impl->body->startLoc.line!=-1 && m_impl->body->fileDef)
   {
     fn = m_impl->body->fileDef->getSourceFileBase();
   }
@@ -901,15 +900,15 @@ QCString Definition::getSourceAnchor() const
   const int maxAnchorStrLen = 20;
   char anchorStr[maxAnchorStrLen];
   anchorStr[0]='\0';
-  if (m_impl->body && m_impl->body->startLine!=-1)
+  if (m_impl->body && m_impl->body->startLoc.line!=-1)
   {
     if (Htags::useHtags)
     {
-      qsnprintf(anchorStr,maxAnchorStrLen,"L%d",m_impl->body->startLine);
+      qsnprintf(anchorStr,maxAnchorStrLen,"L%d",m_impl->body->startLoc.line);
     }
     else
     {
-      qsnprintf(anchorStr,maxAnchorStrLen,"l%05d",m_impl->body->startLine);
+      qsnprintf(anchorStr,maxAnchorStrLen,"l%05d",m_impl->body->startLoc.line);
     }
   }
   return anchorStr;
@@ -931,7 +930,7 @@ void Definition::writeSourceDef(OutputList &ol,const char *)
     if (lineMarkerPos!=-1 && fileMarkerPos!=-1) // should always pass this.
     {
       QCString lineStr;
-      lineStr.sprintf("%d",m_impl->body->startLine);
+      lineStr.sprintf("%d",m_impl->body->startLoc.line);
       QCString anchorStr = getSourceAnchor();
       ol.startParagraph();
       if (lineMarkerPos<fileMarkerPos) // line marker before file marker
@@ -1073,12 +1072,12 @@ void Definition::writeSourceDef(OutputList &ol,const char *)
   ol.popGeneratorState();
 }
 
-void Definition::setBodySegment(int bls,int ble) 
+void Definition::setBodySegment(Location bls,Location ble) 
 {
   //printf("setBodySegment(%d,%d) for %s\n",bls,ble,name().data());
   if (m_impl->body==0) m_impl->body = new BodyInfo;
-  m_impl->body->startLine=bls; 
-  m_impl->body->endLine=ble; 
+  m_impl->body->startLoc=bls;
+  m_impl->body->endLoc=ble;
 }
 
 void Definition::setBodyDef(FileDef *fd)         
@@ -1089,8 +1088,8 @@ void Definition::setBodyDef(FileDef *fd)
 
 bool Definition::hasSources() const
 {
-  return m_impl->body && m_impl->body->startLine!=-1 &&
-         m_impl->body->endLine>=m_impl->body->startLine &&
+  return m_impl->body && m_impl->body->startLoc.line!=0 &&
+         m_impl->body->endLoc.line>=m_impl->body->startLoc.line &&
          m_impl->body->fileDef;
 }
 
@@ -1104,7 +1103,8 @@ void Definition::writeInlineCode(OutputList &ol,const char *scopeName)
   if (inlineSources && hasSources())
   {
     QCString codeFragment;
-    int actualStart=m_impl->body->startLine,actualEnd=m_impl->body->endLine;
+    Location actualStart=m_impl->body->startLoc;
+    Location actualEnd=m_impl->body->endLoc;
     if (readCodeFragment(m_impl->body->fileDef->absFilePath(),
           actualStart,actualEnd,codeFragment)
        )
@@ -1125,8 +1125,8 @@ void Definition::writeInlineCode(OutputList &ol,const char *scopeName)
                        FALSE,            // isExample
                        0,                // exampleName
                        m_impl->body->fileDef,  // fileDef
-                       actualStart,      // startLine
-                       actualEnd,        // endLine
+                       actualStart,      // startLoc
+                       actualEnd,        // endLoc
                        TRUE,             // inlineFragment
                        thisMd,           // memberDef
                        TRUE              // show line numbers
@@ -1188,7 +1188,7 @@ void Definition::_writeSourceRefList(OutputList &ol,const char *scopeName,
         //if (d==Doxygen::globalScope) d=md->getBodyDef();
         if (sourceBrowser &&
             !(md->isLinkable() && !refLinkSource) && 
-            md->getStartBodyLine()!=-1 && 
+            md->getStartBodyLoc()!=Location(0,0) && 
             md->getBodyDef()
            )
         {
@@ -1208,7 +1208,7 @@ void Definition::_writeSourceRefList(OutputList &ol,const char *scopeName,
           }
           const int maxLineNrStr = 10;
           char anchorStr[maxLineNrStr];
-          qsnprintf(anchorStr,maxLineNrStr,"l%05d",md->getStartBodyLine());
+          qsnprintf(anchorStr,maxLineNrStr,"l%05d",md->getStartBodyLoc());
           //printf("Write object link to %s\n",md->getBodyDef()->getSourceFileBase().data());
           ol.writeObjectLink(0,md->getBodyDef()->getSourceFileBase(),anchorStr,name);
           ol.popGeneratorState();
@@ -1301,7 +1301,7 @@ bool Definition::hasDocumentation() const
          (m_impl->inbodyDocs && !m_impl->inbodyDocs->doc.isEmpty()) || // has inbody docs
          extractAll //||                   // extract everything
   //       (sourceBrowser && m_impl->body && 
-  //        m_impl->body->startLine!=-1 && m_impl->body->fileDef)
+  //        m_impl->body->startLoc.line!=-1 && m_impl->body->fileDef)
          ; // link to definition
   return hasDocs;
 }
@@ -1692,9 +1692,9 @@ QCString Definition::documentation() const
   return m_impl->details ? m_impl->details->doc : QCString(""); 
 }
 
-int Definition::docLine() const 
+int Definition::docLoc() const 
 { 
-  return m_impl->details ? m_impl->details->line : 1; 
+  return m_impl->details ? m_impl->details->loc.line : 1; 
 }
 
 QCString Definition::docFile() const 
@@ -1777,7 +1777,7 @@ QCString Definition::briefDescriptionAsTooltip() const
             scope,md,
             m_impl->brief->doc,
             m_impl->brief->file,
-            m_impl->brief->line);
+            m_impl->brief->loc);
         reentering=FALSE;
       }
     }
@@ -1786,9 +1786,9 @@ QCString Definition::briefDescriptionAsTooltip() const
   return QCString("");
 }
 
-int Definition::briefLine() const 
+int Definition::briefLoc() const 
 { 
-  return m_impl->brief ? m_impl->brief->line : 1; 
+  return m_impl->brief ? m_impl->brief->loc.line : 1; 
 }
 
 QCString Definition::briefFile() const 
@@ -1803,9 +1803,9 @@ QCString Definition::inbodyDocumentation() const
   return m_impl->inbodyDocs ? m_impl->inbodyDocs->doc : QCString(""); 
 }
 
-int Definition::inbodyLine() const 
+int Definition::inbodyLoc() const 
 { 
-  return m_impl->inbodyDocs ? m_impl->inbodyDocs->line : 1; 
+  return m_impl->inbodyDocs ? m_impl->inbodyDocs->loc.line : 1; 
 }
 
 QCString Definition::inbodyFile() const 
@@ -1856,14 +1856,14 @@ bool Definition::isReference() const
   return !m_impl->ref.isEmpty(); 
 }
 
-int Definition::getStartBodyLine() const         
+Location Definition::getStartBodyLoc() const         
 { 
-  return m_impl->body ? m_impl->body->startLine : -1; 
+  return m_impl->body ? m_impl->body->startLoc : Location(0,0); 
 }
 
-int Definition::getEndBodyLine() const           
+Location Definition::getEndBodyLoc() const           
 { 
-  return m_impl->body ? m_impl->body->endLine : -1; 
+  return m_impl->body ? m_impl->body->endLoc : Location(0,0); 
 }
 
 FileDef *Definition::getBodyDef() const

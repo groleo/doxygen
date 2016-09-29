@@ -1279,7 +1279,7 @@ static TemplateVariant parseDoc(Definition *def,const QCString &file,int line,
 }
 
 static TemplateVariant parseCode(MemberDef *md,const QCString &scopeName,const QCString &relPath,
-                                 const QCString &code,int startLine=-1,int endLine=-1,bool showLineNumbers=FALSE)
+                                 const QCString &code,Location startLoc=Location(0,0),Location endLoc=Location(0,0),bool showLineNumbers=FALSE)
 {
   ParserInterface *pIntf = Doxygen::parserManager->getParser(md->getDefFileExtension());
   pIntf->resetCodeParserState();
@@ -1291,14 +1291,14 @@ static TemplateVariant parseCode(MemberDef *md,const QCString &scopeName,const Q
       {
         HtmlCodeGenerator codeGen(t,relPath);
         pIntf->parseCode(codeGen,scopeName,code,md->getLanguage(),FALSE,0,md->getBodyDef(),
-            startLine,endLine,TRUE,md,showLineNumbers,md);
+            startLoc,endLoc,TRUE,md,showLineNumbers,md);
       }
       break;
     case ContextOutputFormat_Latex:
       {
         LatexCodeGenerator codeGen(t,relPath,md->docFile());
         pIntf->parseCode(codeGen,scopeName,code,md->getLanguage(),FALSE,0,md->getBodyDef(),
-            startLine,endLine,TRUE,md,showLineNumbers,md);
+            startLoc,endLoc,TRUE,md,showLineNumbers,md);
       }
       break;
     // TODO: support other generators
@@ -1327,8 +1327,8 @@ static TemplateVariant parseCode(FileDef *fd,const QCString &relPath)
               FALSE,              // isExampleBlock
               0,                  // exampleName
               fd,                 // fileDef
-              -1,                 // startLine
-              -1,                 // endLine
+              -1,                 // startLoc
+              -1,                 // endLoc
               FALSE,              // inlineFragment
               0,                  // memberDef
               TRUE,               // showLineNumbers
@@ -1346,8 +1346,8 @@ static TemplateVariant parseCode(FileDef *fd,const QCString &relPath)
               FALSE,              // isExampleBlock
               0,                  // exampleName
               fd,                 // fileDef
-              -1,                 // startLine
-              -1,                 // endLine
+              -1,                 // startLoc
+              -1,                 // endLoc
               FALSE,              // inlineFragment
               0,                  // memberDef
               TRUE,               // showLineNumbers
@@ -1457,7 +1457,7 @@ class DefinitionContext
       Cachable &cache = getCache();
       if (!cache.details || g_globals.outputFormat!=cache.detailsOutputFormat)
       {
-        cache.details.reset(new TemplateVariant(parseDoc(m_def,m_def->docFile(),m_def->docLine(),
+        cache.details.reset(new TemplateVariant(parseDoc(m_def,m_def->docFile(),m_def->docLoc(),
                                             relPathAsString(),m_def->documentation(),FALSE)));
         cache.detailsOutputFormat = g_globals.outputFormat;
       }
@@ -1470,7 +1470,7 @@ class DefinitionContext
       {
         if (m_def->hasBriefDescription())
         {
-          cache.brief.reset(new TemplateVariant(parseDoc(m_def,m_def->briefFile(),m_def->briefLine(),
+          cache.brief.reset(new TemplateVariant(parseDoc(m_def,m_def->briefFile(),m_def->briefLoc(),
                              relPathAsString(),m_def->briefDescription(),TRUE)));
           cache.briefOutputFormat = g_globals.outputFormat;
         }
@@ -1488,7 +1488,7 @@ class DefinitionContext
       {
         if (!m_def->inbodyDocumentation().isEmpty())
         {
-          cache.inbodyDocs.reset(new TemplateVariant(parseDoc(m_def,m_def->inbodyFile(),m_def->inbodyLine(),
+          cache.inbodyDocs.reset(new TemplateVariant(parseDoc(m_def,m_def->inbodyFile(),m_def->inbodyLoc(),
                                            relPathAsString(),m_def->inbodyDocumentation(),FALSE)));
           cache.inbodyDocsOutputFormat = g_globals.outputFormat;
         }
@@ -1611,7 +1611,7 @@ class DefinitionContext
 
         if (def && !def->getSourceFileBase().isEmpty())
         {
-          lineLink->set("text",def->getStartBodyLine());
+          lineLink->set("text",def->getStartBodyLoc());
           lineLink->set("isLinkable",TRUE);
           lineLink->set("fileName",def->getSourceFileBase());
           lineLink->set("anchor",def->getSourceAnchor());
@@ -3659,7 +3659,7 @@ class PageContext::Private : public DefinitionContext<PageContext::Private>
         if (!cache.example || g_globals.outputFormat!=cache.exampleOutputFormat)
         {
           cache.example.reset(new TemplateVariant(
-                parseDoc(m_pageDef,m_pageDef->docFile(),m_pageDef->docLine(),
+                parseDoc(m_pageDef,m_pageDef->docFile(),m_pageDef->docLoc(),
                   relPathAsString(),"\\include "+m_pageDef->name(),FALSE)));
           cache.exampleOutputFormat = g_globals.outputFormat;
         }
@@ -4681,7 +4681,7 @@ class MemberContext::Private : public DefinitionContext<MemberContext::Private>
             }
           }
           cache.paramDocs.reset(new TemplateVariant(parseDoc(m_memberDef,
-                                           m_memberDef->docFile(),m_memberDef->docLine(),
+                                           m_memberDef->docFile(),m_memberDef->docLoc(),
                                            relPathAsString(),paramDocs,FALSE)));
         }
         else
@@ -4864,10 +4864,10 @@ class MemberContext::Private : public DefinitionContext<MemberContext::Private>
       {
         QCString codeFragment;
         FileDef *fd   = m_memberDef->getBodyDef();
-        int startLine = m_memberDef->getStartBodyLine();
-        int endLine   = m_memberDef->getEndBodyLine();
+        Location startLoc(m_memberDef->getStartBodyLoc());
+        Location endLoc(m_memberDef->getEndBodyLoc());
         if (fd && readCodeFragment(fd->absFilePath(),
-              startLine,endLine,codeFragment)
+              startLoc,endLoc,codeFragment)
            )
         {
           QCString scopeName;
@@ -4879,7 +4879,7 @@ class MemberContext::Private : public DefinitionContext<MemberContext::Private>
           {
             scopeName = m_memberDef->getNamespaceDef()->name();
           }
-          cache.sourceCode = parseCode(m_memberDef,scopeName,relPathAsString(),codeFragment,startLine,endLine,TRUE);
+          cache.sourceCode = parseCode(m_memberDef,scopeName,relPathAsString(),codeFragment,startLoc,endLoc,TRUE);
           cache.sourceCodeParsed = TRUE;
         }
       }
@@ -6251,7 +6251,7 @@ class NestingNodeContext::Private
       {
         if (m_def->hasBriefDescription())
         {
-          m_cache.brief.reset(new TemplateVariant(parseDoc(m_def,m_def->briefFile(),m_def->briefLine(),
+          m_cache.brief.reset(new TemplateVariant(parseDoc(m_def,m_def->briefFile(),m_def->briefLoc(),
                               "",m_def->briefDescription(),TRUE)));
         }
         else
@@ -9310,7 +9310,7 @@ class ArgumentContext::Private
         if (!m_argument->docs.isEmpty())
         {
           m_cache.docs.reset(new TemplateVariant(
-                             parseDoc(m_def,m_def->docFile(),m_def->docLine(),
+                             parseDoc(m_def,m_def->docFile(),m_def->docLoc(),
                              m_relPath,m_argument->docs,TRUE)));
         }
         else

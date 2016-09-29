@@ -311,7 +311,7 @@ static void generateBriefDoc(FTextStream &t,Definition *def)
   //printf("*** %p: generateBriefDoc(%s)='%s'\n",def,def->name().data(),brief.data());
   if (!brief.isEmpty())
   {
-    DocNode *root = validatingParseDoc(def->briefFile(),def->briefLine(),
+    DocNode *root = validatingParseDoc(def->briefFile(),def->briefLoc(),
         def,0,brief,FALSE,FALSE,0,TRUE,TRUE);
     QCString relPath = relativePathToRoot(def->getOutputFileBase());
     HtmlCodeGenerator htmlGen(t,relPath);

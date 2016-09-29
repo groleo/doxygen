@@ -44,7 +44,7 @@ class MemberDef : public Definition
 {
   public:
     
-    MemberDef(const char *defFileName,int defLine,int defColumn,
+    MemberDef(const char *defFileName,Location defLoc,
               const char *type,const char *name,const char *args,
               const char *excp,Protection prot,Specifier virt,bool stat,
               Relationship related,MemberType t,const ArgumentList *tal,
@@ -91,7 +91,7 @@ class MemberDef : public Definition
     GroupDef *getGroupDef() const;
     Grouping::GroupPri_t getGroupPri() const;
     const char *getGroupFileName() const;
-    int getGroupStartLine() const;
+    Location getGroupStartLoc() const;
     bool getGroupHasDocs() const;
     QCString qualifiedName() const;
     QCString objCMethodName(bool localLink,bool showStatic) const; 
@@ -200,7 +200,7 @@ class MemberDef : public Definition
     MemberList *reimplementedBy() const;
     bool isReimplementedBy(ClassDef *cd) const;
 
-    //int inbodyLine() const;
+    //int inbodyLoc() const;
     //QCString inbodyFile() const;
     //const QCString &inbodyDocumentation() const;
 
@@ -286,7 +286,7 @@ class MemberDef : public Definition
     void setMemberClass(ClassDef *cd);
     void setSectionList(Definition *d,MemberList *sl);
     void setGroupDef(GroupDef *gd,Grouping::GroupPri_t pri,
-                     const QCString &fileName,int startLine,bool hasDocs,
+                     const QCString &fileName,Location startLoc,bool hasDocs,
                      MemberDef *member=0);
     void setExplicitExternal(bool b);
     void setReadAccessor(const char *r);
@@ -366,9 +366,9 @@ class MemberDef : public Definition
     void setCategory(ClassDef *);
     void setCategoryRelation(MemberDef *);
 
-    void setDocumentation(const char *d,const char *docFile,int docLine,bool stripWhiteSpace=TRUE);
-    void setBriefDescription(const char *b,const char *briefFile,int briefLine);
-    void setInbodyDocumentation(const char *d,const char *inbodyFile,int inbodyLine);
+    void setDocumentation(const char *d,const char *docFile,Location docLoc,bool stripWhiteSpace=TRUE);
+    void setBriefDescription(const char *b,const char *briefFile,Location briefLoc);
+    void setInbodyDocumentation(const char *d,const char *inbodyFile,Location inbodyLoc);
 
     void setHidden(bool b);
 

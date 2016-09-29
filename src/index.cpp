@@ -1145,7 +1145,7 @@ static void writeSingleFileIndex(OutputList &ol,FileDef *fd)
     {
       //ol.docify(" (");
       ol.generateDoc(
-          fd->briefFile(),fd->briefLine(),
+          fd->briefFile(),fd->briefLoc(),
           fd,0,
           fd->briefDescription(TRUE),
           FALSE, // index words
@@ -1500,7 +1500,7 @@ static void writeNamespaceIndex(OutputList &ol)
       {
         //ol.docify(" (");
         ol.generateDoc(
-                 nd->briefFile(),nd->briefLine(),
+                 nd->briefFile(),nd->briefLoc(),
                  nd,0,
                  nd->briefDescription(TRUE),
                  FALSE, // index words
@@ -1616,7 +1616,7 @@ static void writeAnnotatedClassList(OutputList &ol)
       if (hasBrief)
       {
         ol.generateDoc(
-                 cd->briefFile(),cd->briefLine(),
+                 cd->briefFile(),cd->briefLoc(),
                  cd,0,
                  cd->briefDescription(TRUE),
                  FALSE,  // indexWords
@@ -3786,7 +3786,7 @@ static void writeIndex(OutputList &ol)
   QCString defFileName = 
     Doxygen::mainPage ? Doxygen::mainPage->docFile().data() : "[generated]";
   int defLine =
-    Doxygen::mainPage ? Doxygen::mainPage->docLine() : -1;
+    Doxygen::mainPage ? Doxygen::mainPage->docLoc() : -1;
 
   QCString title;
   if (!mainPageHasTitle())
@@ -3830,7 +3830,7 @@ static void writeIndex(OutputList &ol)
     {
       ol.startHeaderSection();
       ol.startTitleHead(0);
-      ol.generateDoc(Doxygen::mainPage->docFile(),Doxygen::mainPage->docLine(),
+      ol.generateDoc(Doxygen::mainPage->docFile(),Doxygen::mainPage->docLoc(),
                   Doxygen::mainPage,0,Doxygen::mainPage->title(),
                   TRUE,FALSE,0,TRUE,FALSE);
       headerWritten = TRUE;

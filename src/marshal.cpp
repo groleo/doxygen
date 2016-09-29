@@ -139,7 +139,8 @@ void marshalSectionInfoList(StorageIntf *s, QList<SectionInfo> *anchors)
       marshalQCString(s,si->ref);
       marshalInt(s,(int)si->type);
       marshalQCString(s,si->fileName);
-      marshalInt(s,si->lineNr);
+      marshalInt(s,si->location.line);
+      marshalInt(s,si->location.column);
       marshalInt(s,si->level);
     }
   }
@@ -223,7 +224,7 @@ void marshalDocInfo(StorageIntf *s,DocInfo *docInfo)
   {
     marshalUInt(s,1); 
     marshalQCString(s,docInfo->doc);
-    marshalInt(s,docInfo->line);
+    marshalInt(s,docInfo->loc.line);
     marshalQCString(s,docInfo->file);
   }
 }
@@ -239,7 +240,7 @@ void marshalBriefInfo(StorageIntf *s,BriefInfo *briefInfo)
     marshalUInt(s,1); 
     marshalQCString(s,briefInfo->doc);
     marshalQCString(s,briefInfo->tooltip);
-    marshalInt(s,briefInfo->line);
+    marshalInt(s,briefInfo->loc.line);
     marshalQCString(s,briefInfo->file);
   }
 }
@@ -253,8 +254,8 @@ void marshalBodyInfo(StorageIntf *s,BodyInfo *bodyInfo)
   else
   {
     marshalUInt(s,1); 
-    marshalInt(s,bodyInfo->startLine);
-    marshalInt(s,bodyInfo->endLine);
+    marshalInt(s,bodyInfo->startLoc.line);
+    marshalInt(s,bodyInfo->endLoc.line);
     marshalObjPointer(s,bodyInfo->fileDef);
   }
 }
@@ -370,13 +371,16 @@ void marshalEntry(StorageIntf *s,Entry *e)
   marshalQCString(s,e->includeFile);
   marshalQCString(s,e->includeName);
   marshalQCString(s,e->doc);
-  marshalInt(s,e->docLine);
+  marshalInt(s,e->docLoc.line);
+  marshalInt(s,e->docLoc.column);
   marshalQCString(s,e->docFile);
   marshalQCString(s,e->brief);
-  marshalInt(s,e->briefLine);
+  marshalInt(s,e->briefLoc.line);
+  marshalInt(s,e->briefLoc.column);
   marshalQCString(s,e->briefFile);
   marshalQCString(s,e->inbodyDocs);
-  marshalInt(s,e->inbodyLine);
+  marshalInt(s,e->inbodyLoc.line);
+  marshalInt(s,e->inbodyLoc.column);
   marshalQCString(s,e->inbodyFile);
   marshalQCString(s,e->relates);
   marshalInt(s,e->relatesType);
@@ -385,14 +389,17 @@ void marshalEntry(StorageIntf *s,Entry *e)
   marshalQCString(s,e->inside);
   marshalQCString(s,e->exception);
   marshalArgumentList(s,e->typeConstr);
-  marshalInt(s,e->bodyLine);
-  marshalInt(s,e->endBodyLine);
+  marshalInt(s,e->bodyLoc.line);
+  marshalInt(s,e->bodyLoc.column);
+  marshalInt(s,e->endBodyLoc.line);
+  marshalInt(s,e->endBodyLoc.column);
   marshalInt(s,e->mGrpId);
   marshalBaseInfoList(s,e->extends);
   marshalGroupingList(s,e->groups);
   marshalSectionInfoList(s,e->anchors);
   marshalQCString(s,e->fileName);
-  marshalInt(s,e->startLine);
+  marshalInt(s,e->startLoc.line);
+  marshalInt(s,e->startLoc.column);
   marshalItemInfoList(s,e->sli);
   marshalInt(s,(int)e->lang);
   marshalBool(s,e->hidden);
@@ -630,7 +637,7 @@ DocInfo *unmarshalDocInfo(StorageIntf *s)
   if (count==NULL_LIST) return 0;
   DocInfo *result = new DocInfo;
   result->doc  = unmarshalQCString(s);
-  result->line = unmarshalInt(s);
+  result->loc.line = unmarshalInt(s);
   result->file = unmarshalQCString(s);
   return result;
 }
@@ -642,7 +649,7 @@ BriefInfo *unmarshalBriefInfo(StorageIntf *s)
   BriefInfo *result = new BriefInfo;
   result->doc     = unmarshalQCString(s);
   result->tooltip = unmarshalQCString(s);
-  result->line    = unmarshalInt(s);
+  result->loc.line    = unmarshalInt(s);
   result->file    = unmarshalQCString(s);
   return result;
 }
@@ -652,8 +659,8 @@ BodyInfo *unmarshalBodyInfo(StorageIntf *s)
   uint count = unmarshalUInt(s); 
   if (count==NULL_LIST) return 0;
   BodyInfo *result = new BodyInfo;
-  result->startLine = unmarshalInt(s);
-  result->endLine   = unmarshalInt(s);
+  result->startLoc.line = unmarshalInt(s);
+  result->endLoc.line   = unmarshalInt(s);
   result->fileDef   = (FileDef*)unmarshalObjPointer(s);
   return result;
 }
@@ -753,13 +760,16 @@ Entry * unmarshalEntry(StorageIntf *s)
   e->includeFile      = unmarshalQCString(s);
   e->includeName      = unmarshalQCString(s);
   e->doc              = unmarshalQCString(s);
-  e->docLine          = unmarshalInt(s);
+  e->docLoc.line      = unmarshalInt(s);
+  e->docLoc.column    = unmarshalInt(s);
   e->docFile          = unmarshalQCString(s);
   e->brief            = unmarshalQCString(s);
-  e->briefLine        = unmarshalInt(s);
+  e->briefLoc.line    = unmarshalInt(s);
+  e->briefLoc.column  = unmarshalInt(s);
   e->briefFile        = unmarshalQCString(s);
   e->inbodyDocs       = unmarshalQCString(s);
-  e->inbodyLine       = unmarshalInt(s);
+  e->inbodyLoc.line   = unmarshalInt(s);
+  e->inbodyLoc.column = unmarshalInt(s);
   e->inbodyFile       = unmarshalQCString(s);
   e->relates          = unmarshalQCString(s);
   e->relatesType      = (RelatesType)unmarshalInt(s);
@@ -768,8 +778,10 @@ Entry * unmarshalEntry(StorageIntf *s)
   e->inside           = unmarshalQCString(s);
   e->exception        = unmarshalQCString(s);
   e->typeConstr       = unmarshalArgumentList(s);
-  e->bodyLine         = unmarshalInt(s);
-  e->endBodyLine      = unmarshalInt(s);
+  e->bodyLoc.line     = unmarshalInt(s);
+  e->bodyLoc.column   = unmarshalInt(s);
+  e->endBodyLoc.line  = unmarshalInt(s);
+  e->endBodyLoc.column= unmarshalInt(s);
   e->mGrpId           = unmarshalInt(s);
   delete e->extends;
   e->extends          = unmarshalBaseInfoList(s);
@@ -778,7 +790,8 @@ Entry * unmarshalEntry(StorageIntf *s)
   delete e->anchors;
   e->anchors          = unmarshalSectionInfoList(s);
   e->fileName         = unmarshalQCString(s);
-  e->startLine        = unmarshalInt(s);
+  e->startLoc.line    = unmarshalInt(s);
+  e->startLoc.column  = unmarshalInt(s);
   e->sli              = unmarshalItemInfoList(s);
   e->lang             = (SrcLangExt)unmarshalInt(s);
   e->hidden           = unmarshalBool(s);

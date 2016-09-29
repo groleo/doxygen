@@ -19,6 +19,7 @@
 #define SCANNER_H
 
 #include "parserintf.h"
+#include "location.h"
 
 /** \brief C-like language parser using state-based lexical scanning.
  *
@@ -45,8 +46,8 @@ class CLanguageScanner : public ParserInterface
                    bool isExampleBlock,
                    const char *exampleName=0,
                    FileDef *fileDef=0,
-                   int startLine=-1,
-                   int endLine=-1,
+                   Location startLoc=Location(0,0),
+                   Location endLoc=Location(0,0),
                    bool inlineFragment=FALSE,
                    MemberDef *memberDef=0,
                    bool showLineNumbers=TRUE,

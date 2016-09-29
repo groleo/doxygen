@@ -102,10 +102,10 @@ void TooltipManager::writeTooltips(CodeOutputInterface &ol)
     docInfo.url    = d->getOutputFileBase();
     docInfo.anchor = d->anchor();
     SourceLinkInfo defInfo;
-    if (d->getBodyDef() && d->getStartBodyLine()!=-1)
+    if (d->getBodyDef() && d->getStartBodyLoc()!=Location(0,0))
     {
       defInfo.file    = d->getBodyDef()->name();
-      defInfo.line    = d->getStartBodyLine();
+      defInfo.loc     = d->getStartBodyLoc();
       defInfo.url     = d->getSourceFileBase();
       defInfo.anchor  = d->getSourceAnchor();
     }

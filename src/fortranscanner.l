@@ -481,7 +481,7 @@ SCOPENAME ({ID}{BS}"::"{BS})*
                                         }
 
 ^{BS}interface{BS_}{ID}{ARGS}?          { ifType = IF_GENERIC;
-				          current->bodyLine = yyLineNr + lineCountPrepass + 1; // we have to be at the line after the definition and we have to take continuation lines into account.
+				          current->bodyLoc.line = yyLineNr + lineCountPrepass + 1; // we have to be at the line after the definition and we have to take continuation lines into account.
                                           yy_push_state(InterfaceBody);
 
                                           // extract generic name
@@ -494,7 +494,7 @@ SCOPENAME ({ID}{BS}"::"{BS})*
 
 <InterfaceBody>^{BS}end{BS}interface({BS_}{ID})? {
                                           // end scope only if GENERIC interface
-                                          if (ifType == IF_GENERIC)last_entry->parent()->endBodyLine = yyLineNr - 1;
+                                          if (ifType == IF_GENERIC)last_entry->parent()->endBodyLoc.line = yyLineNr - 1;
                                           if (ifType == IF_GENERIC && !endScope(current_root))
                                             yyterminate();
 
@@ -621,8 +621,8 @@ private                                 {
                                           current->spec |= Entry::Struct;
                                           current->name = yytext;
                                           current->fileName = yyFileName;
-                                          current->bodyLine  = yyLineNr; 
-                                          current->startLine  = yyLineNr;
+                                          current->bodyLoc.line  = yyLineNr; 
+                                          current->startLoc.line  = yyLineNr;
 
                                           /* if type is part of a module, mod name is necessary for output */
                                           if ((current_root) && 
@@ -662,8 +662,8 @@ private                                 {
                                           current->section  = Entry::FUNCTION_SEC;
                                           current->name     = name;
                                           current->fileName = yyFileName;
-                                          current->bodyLine = yyLineNr;
-                                          current->startLine  = yyLineNr;
+                                          current->bodyLoc.line = yyLineNr;
+                                          current->startLoc.line  = yyLineNr;
                                           addCurrentEntry(1);
                                         }
 {BS}"=>"[^(\n|\!)]*                     { /* Specific bindings come after the ID. */
@@ -679,7 +679,7 @@ private                                 {
 
 <TypedefBody,TypedefBodyContains>{
 ^{BS}"end"{BS}"type"({BS_}{ID})?{BS}/(\n|!) { /* end type definition */
-                                          last_entry->parent()->endBodyLine = yyLineNr;
+                                          last_entry->parent()->endBodyLoc.line = yyLineNr;
                                           if (!endScope(current_root))
                                             yyterminate();
                                           typeMode = false;
@@ -698,9 +698,9 @@ private                                 {
                                            if (ifType == IF_ABSTRACT || ifType == IF_SPECIFIC)
                                            {
                                              endScope(current_root);
-                                             last_entry->endBodyLine = yyLineNr - 1;
+                                             last_entry->endBodyLoc.line = yyLineNr - 1;
                                            }
-                                           current_root->endBodyLine = yyLineNr - 1;
+                                           current_root->endBodyLoc.line = yyLineNr - 1;
 
 					   if (!endScope(current_root))
 					     yyterminate();
@@ -713,8 +713,8 @@ private                                 {
 }
 <Start,ModuleBody,TypedefBody,SubprogBody>{
 ^{BS}{TYPE_SPEC}/{SEPARATE}             {
-				          current->bodyLine = yyLineNr + 1;
-				          current->endBodyLine = yyLineNr + lineCountPrepass;
+				          current->bodyLoc.line = yyLineNr + 1;
+				          current->endBodyLoc.line = yyLineNr + lineCountPrepass;
                                           /* variable declaration starts */
                                           if(YY_START == Start)
                                           {
@@ -825,8 +825,8 @@ private                                 {
  					    current->name = argName;
 					    current->type = argType;
 					    current->fileName = yyFileName;
-					    current->bodyLine  = yyLineNr; // used for source reference
-                                            current->startLine  = yyLineNr;
+					    current->bodyLoc.line  = yyLineNr; // used for source reference
+                                            current->startLoc.line  = yyLineNr;
                                             addCurrentEntry(1);
                                           } 
 					  else if (!argType.isEmpty())
@@ -999,8 +999,8 @@ private                                 {
                                          result=result.stripWhiteSpace();
                                          addSubprogram(result);
                                          BEGIN(Subprog);
-				         current->bodyLine = yyLineNr + lineCountPrepass + 1; // we have to be at the line after the definition and we have to take continuation lines into account.
-				         current->startLine = yyLineNr;
+				         current->bodyLoc.line = yyLineNr + lineCountPrepass + 1; // we have to be at the line after the definition and we have to take continuation lines into account.
+				         current->startLoc.line = yyLineNr;
                                        }
 
 <Start,ModuleBody,SubprogBody,InterfaceBody,ModuleBodyContains,SubprogBodyContains>^{BS}({PREFIX}{BS_})?{SUBPROG}{BS_} {
@@ -1015,8 +1015,8 @@ private                                 {
                                          result = QCString(yytext).stripWhiteSpace();
                                          addSubprogram(result);
                                          yy_push_state(Subprog);
-				         current->bodyLine = yyLineNr + lineCountPrepass + 1; // we have to be at the line after the definition and we have to take continuation lines into account.
-				         current->startLine = yyLineNr;
+				         current->bodyLoc.line = yyLineNr + lineCountPrepass + 1; // we have to be at the line after the definition and we have to take continuation lines into account.
+				         current->startLoc.line = yyLineNr;
                                        }
 
 <Subprog>{BS}                          {   /* ignore white space */   }
@@ -1080,7 +1080,7 @@ private                                 {
 
 <Variable,SubprogBody,ModuleBody,TypedefBody,TypedefBodyContains>"!<"  { /* backward docu comment */
                                           if (v_type != V_IGNORE) {
-					   current->docLine  = yyLineNr;
+					   current->docLoc.line  = yyLineNr;
  					   docBlockJavaStyle = FALSE;
 					   docBlock.resize(0);
 					   docBlockJavaStyle = Config_getBool(JAVADOC_AUTOBRIEF);
@@ -1134,7 +1134,7 @@ private                                 {
 
 <Start,SubprogBody,ModuleBody,TypedefBody,InterfaceBody,ModuleBodyContains,SubprogBodyContains,TypedefBodyContains>"!>"  {
                                           yy_push_state(YY_START);
-					  current->docLine  = yyLineNr;
+					  current->docLoc.line  = yyLineNr;
  					  docBlockJavaStyle = FALSE;
 					  if (YY_START==SubprogBody) docBlockInBody = TRUE;
 					  docBlock.resize(0);
@@ -1610,9 +1610,9 @@ static void copyEntry(Entry *dest, Entry *src)
 {
    dest->type     = src->type;
    dest->fileName = src->fileName;
-   dest->startLine = src->startLine;
-   dest->bodyLine = src->bodyLine;
-   dest->endBodyLine = src->endBodyLine;
+   dest->startLoc.line = src->startLoc.line;
+   dest->bodyLoc.line = src->bodyLoc.line;
+   dest->endBodyLoc.line = src->endBodyLoc.line;
    dest->args     = src->args;
    dest->argList  = new ArgumentList(*src->argList);
    dest->doc      = src->doc;
@@ -2176,8 +2176,8 @@ static void addModule(const char *name, bool isModule)
   }
   current->type = "program";
   current->fileName  = yyFileName;
-  current->bodyLine  = yyLineNr; // used for source reference
-  current->startLine  = yyLineNr;
+  current->bodyLoc.line  = yyLineNr; // used for source reference
+  current->startLoc.line  = yyLineNr;
   current->protection = Public ;
   addCurrentEntry(1);
   startScope(last_entry);
@@ -2194,8 +2194,8 @@ static void addSubprogram(const char *text)
   current->type += " " + subtype;
   current->type = current->type.stripWhiteSpace();
   current->fileName  = yyFileName;
-  current->bodyLine  = yyLineNr; // used for source reference start of body of routine
-  current->startLine  = yyLineNr; // used for source reference start of definition
+  current->bodyLoc.line  = yyLineNr; // used for source reference start of body of routine
+  current->startLoc.line  = yyLineNr; // used for source reference start of definition
   current->args.resize(0);
   current->argList->clear();
   docBlock.resize(0);
@@ -2242,8 +2242,8 @@ static void addInterface(QCString name, InterfaceType type)
   }
 
   current->fileName = yyFileName;
-  current->bodyLine  = yyLineNr; 
-  current->startLine  = yyLineNr;
+  current->bodyLoc.line  = yyLineNr; 
+  current->startLoc.line  = yyLineNr;
   addCurrentEntry(1);
 }
 
@@ -2277,12 +2277,12 @@ static void startCommentBlock(bool brief)
   if (brief)
   {
     current->briefFile = yyFileName;
-    current->briefLine = yyLineNr;
+    current->briefLoc.line = yyLineNr;
   }
   else
   {
     current->docFile = yyFileName;
-    current->docLine = yyLineNr;
+    current->docLoc.line = yyLineNr;
   }
 }
 
@@ -2299,13 +2299,13 @@ static void handleCommentBlock(const QCString &doc,bool brief)
     return;
   }
   DBG_CTX((stderr,"call parseCommentBlock [%s]\n",doc.data()));
-  int lineNr = brief ? current->briefLine : current->docLine;
+  Location& loc = brief ? current->briefLoc : current->docLoc;
   while (parseCommentBlock(
 	g_thisParser,
 	docBlockInBody ? subrCurrent.getFirst() : current,
 	doc,        // text
 	yyFileName, // file
-	lineNr,
+	loc,
 	docBlockInBody ? FALSE : brief, 
 	docBlockInBody ? FALSE : docBlockJavaStyle,
 	docBlockInBody,
@@ -2475,7 +2475,7 @@ static int level=0;
 static void debugCompounds(Entry *rt)  // print Entry structure (for debugging)
 {
  level++;
-  printf("%d) debugCompounds(%s) line %d\n",level, rt->name.data(), rt->bodyLine);
+  printf("%d) debugCompounds(%s) line %d\n",level, rt->name.data(), rt->bodyLoc.line);
   EntryListIterator eli(*rt->children());
   Entry *ce;
   for (;(ce=eli.current());++eli)
@@ -2602,8 +2602,8 @@ void FortranLanguageScanner::parseCode(CodeOutputInterface & codeOutIntf,
                    bool isExampleBlock,
                    const char * exampleName,
                    FileDef * fileDef,
-                   int startLine,
-                   int endLine,
+                   Location startLoc,
+                   Location endLoc,
                    bool inlineFragment,
 		   MemberDef *memberDef,
                    bool showLineNumbers,
@@ -2612,7 +2612,7 @@ void FortranLanguageScanner::parseCode(CodeOutputInterface & codeOutIntf,
                   )
 {
   ::parseFortranCode(codeOutIntf,scopeName,input,isExampleBlock,exampleName,
-                     fileDef,startLine,endLine,inlineFragment,memberDef,
+                     fileDef,startLoc,endLoc,inlineFragment,memberDef,
                      showLineNumbers,searchCtx,collectXRefs,m_format);
 }
 

@@ -255,7 +255,7 @@ void generateDEFForMember(MemberDef *md,
 
     for (mdi.toFirst();(rmd=mdi.current());++mdi)
     {
-      if (rmd->getStartBodyLine()!=-1 && rmd->getBodyDef())
+      if (rmd->getStartBodyLoc()!=Location(0,0) && rmd->getBodyDef())
       {
         t << memPrefix << "referenceto = {" << endl;
         t << refPrefix << "id = '"
@@ -264,7 +264,7 @@ void generateDEFForMember(MemberDef *md,
           << rmd->anchor() << "';" << endl;
 
         t << refPrefix << "line = '"
-          << rmd->getStartBodyLine() << "';" << endl;
+          << rmd->getStartBodyLoc().line << "';" << endl;
 
         QCString scope = rmd->getScopeString();
         QCString name = rmd->name();
@@ -288,7 +288,7 @@ void generateDEFForMember(MemberDef *md,
 
     for (mdi.toFirst();(rmd=mdi.current());++mdi)
     {
-      if (rmd->getStartBodyLine()!=-1 && rmd->getBodyDef())
+      if (rmd->getStartBodyLoc()!=Location(0,0) && rmd->getBodyDef())
       {
         t << memPrefix << "referenceby = {" << endl;
         t << refPrefix << "id = '"
@@ -297,7 +297,7 @@ void generateDEFForMember(MemberDef *md,
           << rmd->anchor() << "';" << endl;
 
         t << refPrefix << "line = '"
-          << rmd->getStartBodyLine() << "';" << endl;
+          << rmd->getStartBodyLoc().line << "';" << endl;
 
         QCString scope = rmd->getScopeString();
         QCString name = rmd->name();

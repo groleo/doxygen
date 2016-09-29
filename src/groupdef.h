@@ -45,7 +45,7 @@ class FTextStream;
 class GroupDef : public Definition
 {
   public:
-    GroupDef(const char *fileName,int line,const char *name,const char *title,const char *refFileName=0);
+    GroupDef(const char *fileName,Location loc,const char *name,const char *title,const char *refFileName=0);
    ~GroupDef();
     DefType definitionType() const { return TypeGroup; }
     QCString getOutputFileBase() const;

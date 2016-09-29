@@ -646,7 +646,7 @@ static void generateDocbookForMember(MemberDef *md,FTextStream &t,Definition *de
       t << "_1" << md->anchor() << "\">" << endl;
       t << "               <title>" << memType << " " << convertToXML(md->name()) << " " << "</title>" << endl;
       t << "               ";
-      writeDocbookDocBlock(t,md->docFile(),md->docLine(),md->getOuterScope(),md,md->documentation());
+      writeDocbookDocBlock(t,md->docFile(),md->docLoc(),md->getOuterScope(),md,md->documentation());
       t << endl;
       if (enumFields!=0) 
       {
@@ -713,7 +713,7 @@ static void generateDocbookForMember(MemberDef *md,FTextStream &t,Definition *de
           t << "</emphasis>" << endl;
       }
       t << "                ";
-      writeDocbookDocBlock(t,md->docFile(),md->docLine(),md->getOuterScope(),md,md->documentation());
+      writeDocbookDocBlock(t,md->docFile(),md->docLoc(),md->getOuterScope(),md,md->documentation());
       t << endl;
       t << "            </section>" << endl;
     }
@@ -737,7 +737,7 @@ static void generateDocbookForMember(MemberDef *md,FTextStream &t,Definition *de
           t << "</emphasis>" << endl;
       }
       t << "                ";
-      writeDocbookDocBlock(t,md->docFile(),md->docLine(),md->getOuterScope(),md,md->documentation());
+      writeDocbookDocBlock(t,md->docFile(),md->docLoc(),md->getOuterScope(),md,md->documentation());
       t << endl;
       t << "            </section>" << endl;
     }
@@ -757,7 +757,7 @@ static void generateDocbookForMember(MemberDef *md,FTextStream &t,Definition *de
         t << "_1" << md->anchor() << "\">" << endl;
         t << "                <title>" << convertToXML(md->definition()) << "</title>";
         t << "                ";
-        writeDocbookDocBlock(t,md->docFile(),md->docLine(),md->getOuterScope(),md,md->documentation());
+        writeDocbookDocBlock(t,md->docFile(),md->docLoc(),md->getOuterScope(),md,md->documentation());
         t << endl;
         t << "                <para>Definition at line " << md->getDefLine() << " of file " << stripPath(md->getDefFileName()) << "</para>" << endl;
         t << "                <para>The Documentation for this define was generated from the following file: </para>" << endl;
@@ -774,7 +774,7 @@ static void generateDocbookForMember(MemberDef *md,FTextStream &t,Definition *de
           t << "            <simplesect>" << endl;
           t << "                <title>" << convertToXML(md->definition()) << "</title>";
           t << "                ";
-          writeDocbookDocBlock(t,md->docFile(),md->docLine(),md->getOuterScope(),md,md->documentation());
+          writeDocbookDocBlock(t,md->docFile(),md->docLoc(),md->getOuterScope(),md,md->documentation());
           t << endl;
           t << "                <para>Definition at line " << md->getDefLine() << " of file " << stripPath(md->getDefFileName()) << "</para>" << endl;
           t << "                <para>The Documentation for this struct was generated from the following file: </para>" << endl;
@@ -802,7 +802,7 @@ static void generateDocbookForMember(MemberDef *md,FTextStream &t,Definition *de
             t << "</emphasis>" << endl;
         }
         t << "                ";
-        writeDocbookDocBlock(t,md->docFile(),md->docLine(),md->getOuterScope(),md,md->documentation());
+        writeDocbookDocBlock(t,md->docFile(),md->docLoc(),md->getOuterScope(),md,md->documentation());
         t << endl;
         t << "            </section>" << endl;
       }
@@ -883,7 +883,7 @@ static void generateDocbookSection(Definition *d,FTextStream &t,MemberList *ml,c
   if (documentation) 
   {
     t << "      <description>";
-    writeDocbookDocBlock(t,d->docFile(),d->docLine(),d,0,documentation);
+    writeDocbookDocBlock(t,d->docFile(),d->docLoc(),d,0,documentation);
     t << "</description>" << endl;
   }
   for (mli.toFirst();(md=mli.current());++mli) 
@@ -1240,7 +1240,7 @@ static void generateDocbookForClass(ClassDef *cd,FTextStream &ti)
           t << "    <simplesect>" << endl;
           // A title as 'Brief Description' may not be necessary.
           //t << "        <title>" << theTranslator->trBriefDescription() << "</title>" << endl;
-          writeDocbookDocBlock(t,cd->briefFile(),cd->briefLine(),cd,0,cd->briefDescription());
+          writeDocbookDocBlock(t,cd->briefFile(),cd->briefLoc(),cd,0,cd->briefDescription());
           t << "    </simplesect>" << endl;
       }
   }
@@ -1249,7 +1249,7 @@ static void generateDocbookForClass(ClassDef *cd,FTextStream &ti)
   {
     t << "        <simplesect>" << endl;
     t << "            <title>" << theTranslator->trDetailedDescription() << "</title>" << endl;
-    writeDocbookDocBlock(t,cd->docFile(),cd->docLine(),cd,0,cd->documentation());
+    writeDocbookDocBlock(t,cd->docFile(),cd->docLoc(),cd,0,cd->documentation());
     t << "                <para>Definition at line " << cd->getDefLine() << " of file " << stripPath(cd->getDefFileName()) << "</para>" << endl;
     t << "                <para>The Documentation for this struct was generated from the following file: </para>" << endl;
     t << "                <para><itemizedlist><listitem><para>" << stripPath(cd->getDefFileName()) << "</para></listitem></itemizedlist></para>" << endl;
@@ -1281,15 +1281,15 @@ static void generateDocbookForClass(ClassDef *cd,FTextStream &ti)
     t << "    <location file=\""
     << cd->getDefFileName() << "\" line=\""
     << cd->getDefLine() << "\"";
-    if (cd->getStartBodyLine()!=-1)
+    if (cd->getStartBodyLoc()!=0)
     {
     FileDef *bodyDef = cd->getBodyDef();
     if (bodyDef)
     {
     t << " bodyfile=\"" << bodyDef->absFilePath() << "\"";
     }
-    t << " bodystart=\"" << cd->getStartBodyLine() << "\" bodyend=\""
-    << cd->getEndBodyLine() << "\"";
+    t << " bodystart=\"" << cd->getStartBodyLoc() << "\" bodyend=\""
+    << cd->getEndBodyLoc() << "\"";
     }
     t << "/>" << endl;
     writeListOfAllMembers(cd,t);
@@ -1362,7 +1362,7 @@ static void generateDocbookForNamespace(NamespaceDef *nd,FTextStream &ti)
       {
           t << "    <simplesect>" << endl;
           //t << "        <title>" << theTranslator->trBriefDescription() << "</title>" << endl;
-          writeDocbookDocBlock(t,nd->briefFile(),nd->briefLine(),nd,0,nd->briefDescription());
+          writeDocbookDocBlock(t,nd->briefFile(),nd->briefLoc(),nd,0,nd->briefDescription());
           t << "    </simplesect>" << endl;
       }
   }
@@ -1371,7 +1371,7 @@ static void generateDocbookForNamespace(NamespaceDef *nd,FTextStream &ti)
   {
     t << "        <simplesect>" << endl;
     t << "            <title>" << theTranslator->trDetailedDescription() << "</title>" << endl;
-    writeDocbookDocBlock(t,nd->docFile(),nd->docLine(),nd,0,nd->documentation());
+    writeDocbookDocBlock(t,nd->docFile(),nd->docLoc(),nd,0,nd->documentation());
     t << "                <para>Definition at line " << nd->getDefLine() << " of file " << stripPath(nd->getDefFileName()) << "</para>" << endl;
     t << "                <para>The Documentation for this struct was generated from the following file: </para>" << endl;
     t << "                <para><itemizedlist><listitem><para>" << stripPath(nd->getDefFileName()) << "</para></listitem></itemizedlist></para>" << endl;
@@ -1497,8 +1497,8 @@ static void generateDocbookForFile(FileDef *fd,FTextStream &ti)
 
   t << "    <simplesect>" << endl;
   t << "        <title>" << theTranslator->trDetailedDescription() << "</title>" << endl;
-  writeDocbookDocBlock(t,fd->briefFile(),fd->briefLine(),fd,0,fd->briefDescription());
-  writeDocbookDocBlock(t,fd->docFile(),fd->docLine(),fd,0,fd->documentation());
+  writeDocbookDocBlock(t,fd->briefFile(),fd->briefLoc(),fd,0,fd->briefDescription());
+  writeDocbookDocBlock(t,fd->docFile(),fd->docLoc(),fd,0,fd->documentation());
   if (Config_getBool(FULL_PATH_NAMES)) 
   {
     t << "    <para>Definition in file " << fd->getDefFileName() << "</para>" << endl;
@@ -1570,7 +1570,7 @@ static void generateDocbookForGroup(GroupDef *gd,FTextStream &ti)
   {
     //t << "    <section>" << endl;
     //t << "        <title>" << theTranslator->trBriefDescription() << "</title>" << endl;
-    writeDocbookDocBlock(t,gd->briefFile(),gd->briefLine(),gd,0,gd->briefDescription());
+    writeDocbookDocBlock(t,gd->briefFile(),gd->briefLoc(),gd,0,gd->briefDescription());
     //t << "    </section>" << endl;
   }
 
@@ -1578,7 +1578,7 @@ static void generateDocbookForGroup(GroupDef *gd,FTextStream &ti)
   {
     t << "        <section>" << endl;
     t << "            <title>" << theTranslator->trDetailedDescription() << "</title>" << endl;
-    writeDocbookDocBlock(t,gd->docFile(),gd->docLine(),gd,0,gd->documentation());
+    writeDocbookDocBlock(t,gd->docFile(),gd->docLoc(),gd,0,gd->documentation());
     t << "        </section>" << endl;
   }
 
@@ -1660,8 +1660,8 @@ static void generateDocbookForDir(DirDef *dd,FTextStream &ti)
 
   t << "    <simplesect>" << endl;
   t << "        <title>" << theTranslator->trDetailedDescription() << "</title>" << endl;
-  writeDocbookDocBlock(t,dd->briefFile(),dd->briefLine(),dd,0,dd->briefDescription());
-  writeDocbookDocBlock(t,dd->docFile(),dd->docLine(),dd,0,dd->documentation());
+  writeDocbookDocBlock(t,dd->briefFile(),dd->briefLoc(),dd,0,dd->briefDescription());
+  writeDocbookDocBlock(t,dd->docFile(),dd->docLoc(),dd,0,dd->documentation());
   t << "    <para>Directory location is " << dd->name() << "</para>" << endl;
   t << "    </simplesect>" << endl;
 
@@ -1737,12 +1737,12 @@ static void generateDocbookForPage(PageDef *pd,FTextStream &ti,bool isExample)
 
   if (isExample)
   {
-    writeDocbookDocBlock(t,pd->docFile(),pd->docLine(),pd,0,
+    writeDocbookDocBlock(t,pd->docFile(),pd->docLoc(),pd,0,
         pd->documentation()+"\n\\include "+pd->name());
   }
   else
   {
-    writeDocbookDocBlock(t,pd->docFile(),pd->docLine(),pd,0,
+    writeDocbookDocBlock(t,pd->docFile(),pd->docLoc(),pd,0,
         pd->documentation());
   }
   writeInnerPages(pd->getSubPages(),t);

@@ -45,6 +45,7 @@
 #include "arguments.h"
 
 #include "clangparser.h"
+#include "location.h"
 
 #define YY_NO_INPUT 1
 #define YY_NO_UNISTD_H 1
@@ -979,7 +980,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    // C++/CLI event
 					    lineCount() ;
   					    current->mtype = mtype = Event;
-					    current->bodyLine = yyLineNr;
+					    current->bodyLoc.line = yyLineNr;
 					    curlyCount=0;
 					    BEGIN( CliPropertyType );
 					  }
@@ -987,7 +988,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  {
 					    lineCount() ;
   					    current->mtype = Event;
-					    current->bodyLine = yyLineNr;
+					    current->bodyLoc.line = yyLineNr;
 					  }
 					  else
 					  {
@@ -1000,7 +1001,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					     // C++/CLI property
 					     lineCount() ;
   					     current->mtype = mtype = Property;
-					     current->bodyLine = yyLineNr;
+					     current->bodyLoc.line = yyLineNr;
 					     curlyCount=0;
 					     BEGIN( CliPropertyType );
 					   }
@@ -1091,9 +1092,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  {
   					    lineCount();
 					    current->fileName  = yyFileName;
-					    current->startLine = yyLineNr;
-					    current->startColumn = yyColNr;
-					    current->bodyLine  = yyLineNr;
+					    current->startLoc.line = yyLineNr;
+					    current->startLoc.column = yyColNr;
+					    current->bodyLoc.line  = yyLineNr;
 					    current->section = Entry::FUNCTION_SEC;
 					    current->protection = protection = Public ;
 					    language = current->lang = SrcLangExt_ObjC;
@@ -1316,9 +1317,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  current->section = Entry::NAMESPACE_SEC;
 					  current->type = "namespace" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount();
   					}
 <PackageName>";"			{
@@ -1408,9 +1409,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  current->section = Entry::NAMESPACE_SEC;
 					  current->type = "namespace" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount();
 					  if (insidePHP)
 					  {
@@ -1429,9 +1430,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    current->section = Entry::NAMESPACE_SEC;
 					    current->type = "module" ;
 					    current->fileName  = yyFileName;
-					    current->startLine = yyLineNr;
-					    current->startColumn = yyColNr;
-					    current->bodyLine  = yyLineNr;
+					    current->startLoc.line = yyLineNr;
+					    current->startLoc.column = yyColNr;
+					    current->bodyLoc.line  = yyLineNr;
   					    BEGIN( CompoundName ); 
 					  }
 					  else if (insideD)
@@ -1453,9 +1454,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    current->section = Entry::NAMESPACE_SEC;
 					    current->type = "library" ;
 					    current->fileName  = yyFileName;
-					    current->startLine = yyLineNr;
-					    current->startColumn = yyColNr;
-					    current->bodyLine  = yyLineNr;
+					    current->startLoc.line = yyLineNr;
+					    current->startLoc.column = yyColNr;
+					    current->bodyLoc.line  = yyLineNr;
   					    BEGIN( CompoundName ); 
 					  }
 					  else
@@ -1472,9 +1473,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    current->section = Entry::NAMESPACE_SEC;
 					    current->type = "constants";
 					    current->fileName  = yyFileName;
-					    current->startLine = yyLineNr;
-					    current->startColumn = yyColNr;
-					    current->bodyLine  = yyLineNr;
+					    current->startLoc.line = yyLineNr;
+					    current->startLoc.column = yyColNr;
+					    current->bodyLoc.line  = yyLineNr;
 					    BEGIN( CompoundName );
 					  }
 					  else
@@ -1495,8 +1496,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    addType( current ) ;
 					    current->type += " service " ;
 					    current->fileName  = yyFileName;
-					    current->startLine = yyLineNr;
-					    current->bodyLine  = yyLineNr;
+					    current->startLoc.line = yyLineNr;
+					    current->bodyLoc.line  = yyLineNr;
 					    BEGIN( CompoundName );
 					  }
 					  else // TODO is addType right? just copy/pasted
@@ -1516,8 +1517,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    addType( current ) ;
 					    current->type += " singleton " ;
 					    current->fileName  = yyFileName;
-					    current->startLine = yyLineNr;
-					    current->bodyLine  = yyLineNr;
+					    current->startLoc.line = yyLineNr;
+					    current->bodyLoc.line  = yyLineNr;
 					    BEGIN( CompoundName );
 					  }
 					  else // TODO is addType right? just copy/pasted
@@ -1538,9 +1539,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    addType( current ) ;
 					    current->type += " interface" ;
 					    current->fileName  = yyFileName;
-					    current->startLine = yyLineNr;
-					    current->startColumn = yyColNr;
-					    current->bodyLine  = yyLineNr;
+					    current->startLoc.line = yyLineNr;
+					    current->startLoc.column = yyColNr;
+					    current->bodyLoc.line  = yyLineNr;
 					    BEGIN( CompoundName );
 					  }
 					  else
@@ -1559,8 +1560,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  addType( current ) ;
 					  current->type += " implementation" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  BEGIN( CompoundName );
   					}
 <FindMembers>{B}*"@interface"{BN}+	{ // Objective-C class interface, or Java attribute
@@ -1577,9 +1578,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  addType( current ) ;
 					  current->type += " interface" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  BEGIN( CompoundName );
   					}
 <FindMembers>{B}*"@protocol"{BN}+	{ // Objective-C protocol definition
@@ -1593,9 +1594,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  addType( current ) ;
 					  current->type += " protocol" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  BEGIN( CompoundName );
   					}
 <FindMembers>{B}*"exception"{BN}+ 	{ // Corba IDL exception
@@ -1606,9 +1607,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  addType( current ) ;
 					  current->type += " exception" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount();
 					  BEGIN( CompoundName );
   					}
@@ -1631,9 +1632,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                           }
 					  current->type += " class" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  if (yytext[0]=='@')
 					  {
 					    language = current->lang = SrcLangExt_ObjC;
@@ -1656,9 +1657,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  addType( current ) ;
 					  current->type += " value class" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount() ;
 					  if (yytext[yyleng-1]=='{') unput('{');
 					  BEGIN( CompoundName ) ;
@@ -1671,9 +1672,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  addType( current ) ;
 					  current->type += " ref class" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount() ;
 					  if (yytext[yyleng-1]=='{') unput('{');
 					  BEGIN( CompoundName ) ;
@@ -1686,9 +1687,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  addType( current ) ;
 					  current->type += " interface class" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount() ;
 					  if (yytext[yyleng-1]=='{') unput('{');
 					  BEGIN( CompoundName ) ;
@@ -1701,9 +1702,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    addType( current ) ;
 					    current->type += " coclass" ;
 					    current->fileName  = yyFileName;
-					    current->startLine = yyLineNr;
-					    current->startColumn = yyColNr;
-					    current->bodyLine  = yyLineNr;
+					    current->startLoc.line = yyLineNr;
+					    current->startLoc.column = yyColNr;
+					    current->bodyLoc.line  = yyLineNr;
 					    lineCount() ;
 					    BEGIN( CompoundName ) ;
 					  }
@@ -1737,9 +1738,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                           }
 					  current->type += " struct" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount() ;
 					  if (yytext[yyleng-1]=='{') unput('{');
 					  BEGIN( CompoundName ) ;
@@ -1752,9 +1753,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  addType( current ) ;
 					  current->type += " value struct" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount() ;
 					  if (yytext[yyleng-1]=='{') unput('{');
 					  BEGIN( CompoundName ) ;
@@ -1767,9 +1768,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  addType( current ) ;
 					  current->type += " ref struct" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount() ;
 					  if (yytext[yyleng-1]=='{') unput('{');
 					  BEGIN( CompoundName ) ;
@@ -1782,9 +1783,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  addType( current ) ;
 					  current->type += " interface struct";
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount() ;
 					  if (yytext[yyleng-1]=='{') unput('{');
 					  BEGIN( CompoundName ) ;
@@ -1810,9 +1811,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                           }
 					  current->type += " union" ;
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount() ;
 					  if (yytext[yyleng-1]=='{') unput('{');
 					  BEGIN( CompoundName ) ;
@@ -1838,9 +1839,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                             current->spec |= Entry::Strong;
                                           }
 					  current->fileName  = yyFileName;
-					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
-					  current->bodyLine  = yyLineNr;
+					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
+					  current->bodyLoc.line  = yyLineNr;
 					  lineCount() ;
 					  if (yytext[yyleng-1]=='{') unput('{');
 					  BEGIN( CompoundName ) ;
@@ -1985,8 +1986,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  BEGIN(Using);
   					}
 <FindMembers>"using"{BN}+		{ 
-					  current->startLine=yyLineNr; 
-					  current->startColumn = yyColNr;
+					  current->startLoc.line=yyLineNr; 
+					  current->startLoc.column = yyColNr;
                                           lineCount(); 
                                           BEGIN(Using); 
                                         }
@@ -1996,7 +1997,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
   					  current->name=yytext;
                                           current->fileName = yyFileName; 
   					  current->section=Entry::USINGDECL_SEC;
-                                          current->startLine = yyLineNr;
+                                          current->startLoc.line = yyLineNr;
 					  current_root->addSubEntry(current);
                                           previous = current;
 					  current             = new Entry ;
@@ -2007,8 +2008,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  {
 					    current->name=yytext;
 					    current->fileName = yyFileName; 
-					    current->startLine = yyLineNr;
-					    current->startColumn = yyColNr;
+					    current->startLoc.line = yyLineNr;
+					    current->startLoc.column = yyColNr;
 					    current->section=Entry::USINGDIR_SEC;
 					    current_root->addSubEntry(current);
 					    current             = new Entry ;
@@ -2025,7 +2026,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  previous->type=previous->type.simplifyWhiteSpace();
                                           previous->args.resize(0);
 					  previous->name=previous->name.stripWhiteSpace();
-					  previous->bodyLine = yyLineNr;
+					  previous->bodyLoc.line = yyLineNr;
                                           previous->spec |= Entry::Alias;
                                           BEGIN(FindMembers); 
                                         }
@@ -2157,7 +2158,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  // *currentTemplateSpec+='>';
 					  if (roundCount==0 && --sharpCount<=0)
 					  {
-					    current->bodyLine = yyLineNr;
+					    current->bodyLoc.line = yyLineNr;
 					    current->args = "(";
 					    currentArgumentContext = FuncQual;
 					    fullArgString = current->args.copy();
@@ -2196,7 +2197,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 <FindMembers>"define"{BN}*"("{BN}*["']	{
 					  if (insidePHP)
 					  {
-					    current->bodyLine = yyLineNr;
+					    current->bodyLoc.line = yyLineNr;
 					    BEGIN( DefinePHP );
 					  }
 					  else
@@ -2513,7 +2514,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 <FindMembers,FindFields>{B}*"#"{B}*("cmake")?"define"	{
   					  if (insidePHP)
 					    REJECT;
-  					  current->bodyLine = yyLineNr;
+  					  current->bodyLoc.line = yyLineNr;
                                           lastDefineContext = YY_START;
   					  BEGIN( Define );
   					}
@@ -2565,7 +2566,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
   					  current->name = yytext;
 					  current->name = current->name.left(current->name.length()-1).stripWhiteSpace();
 					  current->args = "(";
-  					  current->bodyLine = yyLineNr;
+  					  current->bodyLoc.line = yyLineNr;
 					  currentArgumentContext = DefineEnd;
 					  fullArgString=current->args.copy();
 					  copyArgString=&current->args;
@@ -2587,7 +2588,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                           {
                                             current->id = ClangParser::instance()->lookup(yyLineNr,yytext);
                                           }
-  					  current->bodyLine = yyLineNr;
+  					  current->bodyLoc.line = yyLineNr;
   					  current->name = yytext;
 					  BEGIN(DefineEnd);
   					}
@@ -2595,8 +2596,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
   					  //printf("End define: doc=%s docFile=%s docLine=%d\n",current->doc.data(),current->docFile.data(),current->docLine);
                                           lineCount();
 					  current->fileName   = yyFileName;
-					  current->startLine  = yyLineNr;
-					  current->startColumn = yyColNr;
+					  current->startLoc.line  = yyLineNr;
+					  current->startLoc.column = yyColNr;
 					  current->type.resize(0);
   					  current->args       = current->args.simplifyWhiteSpace();
   					  current->name       = current->name.stripWhiteSpace();
@@ -2609,8 +2610,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 <DefinePHPEnd>";"			{
   					  //printf("End define\n");
 					  current->fileName   = yyFileName;
-					  current->startLine  = yyLineNr;
-					  current->startColumn = yyColNr;
+					  current->startLoc.line  = yyLineNr;
+					  current->startLoc.column = yyColNr;
 					  current->type.resize(0);
                                           current->type       = "const";
                                           QCString init = current->initializer.data();
@@ -2645,7 +2646,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  current->name = current->name.stripWhiteSpace();
 					  current->name = current->name.left(current->name.length()-1).stripWhiteSpace();
 					  current->name = current->name.left(current->name.length()-1);
-  					  current->bodyLine = yyLineNr;
+  					  current->bodyLoc.line = yyLineNr;
   					  lastRoundContext = DefinePHPEnd;
   					  pCopyRoundGString = &current->initializer;
 					  roundCount = 0;
@@ -2668,9 +2669,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
   					  addType( current );
 					}
 <FindMembers,MemberSpec,Function,NextSemi,EnumBaseType,BitFields,ReadInitializer,OldStyleArgs>";"{BN}*("/**"|"//!"|"/*!"|"///")"<" {
-					  if (current->bodyLine==-1)
+					  if (current->bodyLoc.line==-1)
 					  {
-					    current->bodyLine=yyLineNr;
+					    current->bodyLoc.line=yyLineNr;
 					  }
 					  docBlockContext   = YY_START;
 					  docBlockInBody    = FALSE;
@@ -2731,9 +2732,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  }
   					}
 <DefineEnd,FindFields,FindFieldArg,ReadInitializer,OldStyleArgs>{BN}*("/**"|"//!"|"/*!"|"///")"<" {
-					  if (current->bodyLine==-1)
+					  if (current->bodyLoc.line==-1)
 					  {
-					    current->bodyLine=yyLineNr;
+					    current->bodyLoc.line=yyLineNr;
 					  }
 					  docBlockContext   = YY_START;
 					  docBlockInBody    = FALSE;
@@ -2814,7 +2815,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
   					  closeGroup(current,yyFileName,yyLineNr,insideEnum);
   					}
 <FindMembers>"="			{ // in PHP code this could also be due to "<?="
-  					  current->bodyLine = yyLineNr;
+  					  current->bodyLoc.line = yyLineNr;
                                           current->initializer = yytext;
 					  lastInitializerContext = YY_START;
 					  initBracketCount=0;
@@ -2849,8 +2850,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                           if (*yytext==';' && (current_root->spec&Entry::Enum))
 					  {
 					    current->fileName   = yyFileName;
-					    current->startLine  = yyLineNr;
-					    current->startColumn = yyColNr;
+					    current->startLoc.line  = yyLineNr;
+					    current->startLoc.column = yyColNr;
   					    current->args       = current->args.simplifyWhiteSpace();
   					    current->name       = current->name.stripWhiteSpace();
 					    current->section    = Entry::VARIABLE_SEC;
@@ -3322,9 +3323,9 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
   					}
 <FindMembers>[;,]			{ 
   					  QCString oldType = current->type;
-					  if (current->bodyLine==-1)
+					  if (current->bodyLoc.line==-1)
 					  {
-					    current->bodyLine = yyLineNr;
+					    current->bodyLoc.line = yyLineNr;
 					  }
                                           if ( insidePHP && current->type.left(3) == "var" )
                                           {
@@ -3346,8 +3347,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    }
 					    current->section = Entry::VARIABLE_SEC ;
 					    current->fileName = yyFileName;
-					    current->startLine = yyBegLineNr;
-					    current->startColumn = yyBegColNr;
+					    current->startLoc.line = yyBegLineNr;
+					    current->startLoc.column = yyBegColNr;
 					    current_root->addSubEntry( current ) ;
 					    needNewCurrent=TRUE;
 					  }
@@ -3505,8 +3506,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 <IDLPropName>{ID}{BN}*"("		{
   					  current->name = yytext;
 					  current->name = current->name.left(current->name.length()-1).stripWhiteSpace();
-  					  current->startLine = yyLineNr;
-					  current->startColumn = yyColNr;
+  					  current->startLoc.line = yyLineNr;
+					  current->startLoc.column = yyColNr;
 					  BEGIN( IDLProp );
 					}
 <IDLPropName>{BN}*"("{BN}*{ID}{BN}*")"{BN}*	{
@@ -3609,7 +3610,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                           {
                                             current->id = ClangParser::instance()->lookup(yyLineNr,yytext);
                                           }
-  					  current->bodyLine = yyLineNr;
+  					  current->bodyLoc.line = yyLineNr;
   					  current->name     = yytext;
 					}
 <FindFields>"("				{
@@ -3632,8 +3633,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    if (!current->name.isEmpty())
 					    {
 					      current->fileName   = yyFileName;
-					      current->startLine  = yyLineNr;
-					      current->startColumn = yyColNr;
+					      current->startLoc.line  = yyLineNr;
+					      current->startLoc.column = yyColNr;
 					      current->type       = "@"; // enum marker
 					      current->args       = current->args.simplifyWhiteSpace();
 					      current->name       = current->name.stripWhiteSpace();
@@ -3661,8 +3662,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
   					  if (!current->name.isEmpty())
 					  {
 					    current->fileName   = yyFileName;
-					    current->startLine  = yyLineNr;
-					    current->startColumn = yyColNr;
+					    current->startLoc.line  = yyLineNr;
+					    current->startLoc.column = yyColNr;
 					    if (!(current_root->spec&Entry::Enum))
 					    {
 					      current->type       = "@"; // enum marker
@@ -3775,7 +3776,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  }
 					  else
 					  {
-					    current->endBodyLine = yyLineNr;
+					    current->endBodyLoc.line = yyLineNr;
 					    QCString &cn = current->name;
 					    QCString rn = current_root->name.copy();
 					    //printf("cn=`%s' rn=`%s' isTypedef=%d\n",cn.data(),rn.data(),isTypedef);
@@ -3847,7 +3848,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  else
 					  {
 					    isTypedef = TRUE;
-					    current->endBodyLine = yyLineNr;
+					    current->endBodyLoc.line = yyLineNr;
 					    QCString &cn = current->name;
 					    QCString rn = current_root->name.copy();
 					    if (!cn.isEmpty() && !rn.isEmpty())
@@ -4012,8 +4013,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 						varEntry->type+=current->name+msType;
 					      }
 					      varEntry->fileName = yyFileName;
-					      varEntry->startLine = yyLineNr;
-					      varEntry->startColumn = yyColNr;
+					      varEntry->startLoc.line = yyLineNr;
+					      varEntry->startLoc.column = yyColNr;
 					      varEntry->doc = current->doc.copy();
 					      varEntry->brief = current->brief.copy();
 					      varEntry->mGrpId = current->mGrpId;
@@ -4110,7 +4111,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  }
 					  else
 					  {
-					    current->bodyLine = yyLineNr;
+					    current->bodyLoc.line = yyLineNr;
 					    lineCount();
 					    addType(current);
 					    funcPtrType=yytext;
@@ -4177,7 +4178,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
   					  current->args += *yytext ;
 					  //roundCount=0;
 					  //BEGIN( FuncFunc );
-					  current->bodyLine = yyLineNr;
+					  current->bodyLoc.line = yyLineNr;
 					  currentArgumentContext = FuncFuncEnd;
 					  fullArgString=current->args.copy();
 					  copyArgString=&current->args;
@@ -4238,16 +4239,16 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
   					  current->type += *yytext;
   					}
 <FindMembers>"("/{BN}*{ID}{BN}*"*"{BN}*{ID}*")"{BN}*"(" { // for catching typedef void (__stdcall *f)() like definitions
-                                          if (current->type.left(7)=="typedef" && current->bodyLine==-1) 
-					    // the bodyLine check is to prevent this guard to be true more than once
+                                          if (current->type.left(7)=="typedef" && current->bodyLoc.line==-1) 
+					    // the bodyLoc.line check is to prevent this guard to be true more than once
 					  {
-  					    current->bodyLine = yyLineNr;
+  					    current->bodyLoc.line = yyLineNr;
 					    BEGIN( GetCallType );
 					  }
 					  else if (!current->name.isEmpty()) // normal function
 					  {
 					    current->args = yytext;
-					    current->bodyLine = yyLineNr;
+					    current->bodyLoc.line = yyLineNr;
 					    currentArgumentContext = FuncQual;
 					    fullArgString=current->args.copy();
 					    copyArgString=&current->args;
@@ -4267,7 +4268,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                           if (!current->name.isEmpty())
 					  {
 					    current->args = yytext;
-					    current->bodyLine = yyLineNr;
+					    current->bodyLoc.line = yyLineNr;
 					    currentArgumentContext = FuncQual;
 					    fullArgString=current->args.copy();
 					    copyArgString=&current->args;
@@ -4893,8 +4894,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  current->args=removeRedundantWhiteSpace(current->args);
 					                // was: current->args.simplifyWhiteSpace();
 					  current->fileName = yyFileName;
-					  current->startLine = yyBegLineNr;
-					  current->startColumn = yyBegColNr;
+					  current->startLoc.line = yyBegLineNr;
+					  current->startLoc.column = yyBegColNr;
 					  static QRegExp re("([^)]*[*&][^)]*)"); // (...*...)
 					  if (*yytext!=';' || (current_root->section&Entry::COMPOUND_MASK) )
 					  {
@@ -5011,7 +5012,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    else
 					    {
 					      if (previous->section!=Entry::VARIABLE_SEC)
-						previous->bodyLine=-1; // a function/member declaration
+						previous->bodyLoc.line=0; // a function/member declaration
 					      BEGIN( FindMembers ) ;
 					    }
 					  }
@@ -5061,7 +5062,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					      delete current->sli;
 					      current->sli = 0;
 					    }
-					    if (previous) previous->endBodyLine=yyLineNr;
+					    if (previous) previous->endBodyLoc.line=yyLineNr;
 					    BEGIN( lastCurlyContext ) ;
 					  }
 					}
@@ -5074,7 +5075,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  }
 					  else
 					  {
-					    current->endBodyLine=yyLineNr;
+					    current->endBodyLoc.line=yyLineNr;
 
 					    tempEntry = current; // temporarily switch to the previous entry
 					    current = previous;
@@ -5702,8 +5703,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    lineCount();
 					    current->program+=yytext;
                                             current->fileName = yyFileName ;
-					    current->startLine = yyLineNr ;
-					    current->startColumn = yyColNr;
+					    current->startLoc.line = yyLineNr ;
+					    current->startLoc.column = yyColNr;
 					    curlyCount=0;
 					    BEGIN( ReadBodyIntf );
 					  }
@@ -5721,16 +5722,16 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    lineCount();
 					    current->program+=yytext;
                                             current->fileName = yyFileName ;
-					    current->startLine = yyLineNr ;
-					    current->startColumn = yyColNr;
+					    current->startLoc.line = yyLineNr ;
+					    current->startLoc.column = yyColNr;
 					    curlyCount=0;
 					    BEGIN( ReadBodyIntf );
 					  }
   					}
 <CompoundName,ClassVar>{B}*"{"{B}*	{ 
                                           current->fileName = yyFileName ;
-					  current->startLine = yyLineNr ;
-					  current->startColumn = yyColNr;
+					  current->startLoc.line = yyLineNr ;
+					  current->startLoc.column = yyColNr;
 					  current->name = removeRedundantWhiteSpace(current->name);
 					  if (current->name.isEmpty() && !isTypedef) // anonymous compound
 					  {
@@ -5968,8 +5969,8 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  }
 					}
 <Bases>{B}*"{"{B}*			{ current->fileName = yyFileName ;
-					  current->startLine = yyLineNr ;
-					  current->startColumn = yyColNr;
+					  current->startLoc.line = yyLineNr ;
+					  current->startLoc.column = yyColNr;
 					  current->name = removeRedundantWhiteSpace(current->name);
   					  if (!baseName.isEmpty())
   					    current->extends->append(
@@ -6025,7 +6026,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  }
 					  else
 					  {
-					    current->docLine = yyLineNr;
+					    current->docLoc.line = yyLineNr;
 					    current->docFile = yyFileName;
 					  }
 
@@ -6044,7 +6045,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 
 					  if (docBlockAutoBrief)
 					  {
-					    current->briefLine = yyLineNr;
+					    current->briefLoc.line = yyLineNr;
 					    current->briefFile = yyFileName;
 					  }
 					  startCommentBlock(FALSE);
@@ -6059,7 +6060,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
                                           {
 					    current->inside = current_root->name+"::";
                                           }
-					  current->docLine = yyLineNr;
+					  current->docLoc.line = yyLineNr;
 					  current->docFile = yyFileName;
 					  docBlockContext = YY_START;
 					  docBlockInBody  = YY_START==SkipCurly;
@@ -6072,7 +6073,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 
 					  if (docBlockAutoBrief)
 					  {
-					    current->briefLine = yyLineNr;
+					    current->briefLoc.line = yyLineNr;
 					    current->briefFile = yyFileName;
 					  }
 					  startCommentBlock(FALSE);
@@ -6133,7 +6134,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					    {				
   					      current->mtype = mtype = Property;
 					    }
-					    current->bodyLine = yyLineNr;
+					    current->bodyLoc.line = yyLineNr;
 					    curlyCount=0;
 					    BEGIN( CSAccessorDecl );
 					  }
@@ -6176,7 +6177,7 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					      //BEGIN( SkipCurlyBlock );
 
                                               // C++11 style initializer list
-  					      current->bodyLine = yyLineNr;
+  					      current->bodyLoc.line = yyLineNr;
                                               current->initializer = yytext;
 					      lastInitializerContext = YY_START;
 					      initBracketCount=1;
@@ -6601,12 +6602,12 @@ static void startCommentBlock(bool brief)
   if (brief)
   {
     current->briefFile = yyFileName;
-    current->briefLine = yyLineNr;
+    current->briefLoc.line = yyLineNr;
   }
   else
   {
     current->docFile = yyFileName;
-    current->docLine = yyLineNr;
+    current->docLoc.line = yyLineNr;
   }
 }
   
@@ -6634,14 +6635,14 @@ static void handleCommentBlock(const QCString &doc,bool brief)
   bool needsEntry=FALSE;
   if (docBlockInBody && hideInBodyDocs) return;
   //printf("parseCommentBlock [%s] brief=%d\n",doc.data(),brief);
-  int lineNr = brief ? current->briefLine : current->docLine;   // line of block start
+  Location& loc = brief ? current->briefLoc : current->docLoc;   // line of block start
   
-  // fill in inbodyFile && inbodyLine the first time, see bug 633891
+  // fill in inbodyFile && inbodyLoc.line the first time, see bug 633891
   Entry *docEntry = docBlockInBody && previous ? previous : current;
-  if (docBlockInBody && docEntry && docEntry->inbodyLine==-1)
+  if (docBlockInBody && docEntry && docEntry->inbodyLoc.line==-1)
   {
     docEntry->inbodyFile = yyFileName;
-    docEntry->inbodyLine = lineNr;
+    docEntry->inbodyLoc = loc;
   }
 
   while (parseCommentBlock(
@@ -6649,7 +6650,7 @@ static void handleCommentBlock(const QCString &doc,bool brief)
 	docBlockInBody && previous ? previous : current,
 	stripIndentation(doc),        // text
 	yyFileName, // file
-	lineNr,     // line of block start
+	loc,     // line of block start
 	docBlockInBody ? FALSE : brief,               // isBrief
 	docBlockInBody ? FALSE : docBlockAutoBrief,   // isJavaDocStyle
 	docBlockInBody,                               // isInBody
@@ -6665,7 +6666,7 @@ static void handleCommentBlock(const QCString &doc,bool brief)
       QCString docFile = current->docFile;
       newEntry();
       current->docFile = docFile;
-      current->docLine = lineNr;
+      current->docLoc = loc;
     }
   }
   if (needsEntry)
@@ -6696,8 +6697,8 @@ static void handleParametersCommentBlocks(ArgumentList *al)
       // save context
       QCString orgDoc   = current->doc;
       QCString orgBrief = current->brief;
-      int orgDocLine    = current->docLine;
-      int orgBriefLine  = current->briefLine;
+      Location orgDocLoc    = current->docLoc;
+      Location orgBriefLoc  = current->briefLoc;
 
       current->doc.resize(0);
       current->brief.resize(0);
@@ -6708,7 +6709,7 @@ static void handleParametersCommentBlocks(ArgumentList *al)
 	     current,
 	     a->docs,            // text
 	     yyFileName,         // file
-	     current->docLine,   // line of block start
+	     current->docLoc,   // line of block start
 	     FALSE, 
 	     FALSE,
 	     FALSE,
@@ -6730,8 +6731,8 @@ static void handleParametersCommentBlocks(ArgumentList *al)
       // restore context
       current->doc       = orgDoc;
       current->brief     = orgBrief;
-      current->docLine   = orgDocLine;
-      current->briefLine = orgBriefLine;
+      current->docLoc    = orgDocLoc;
+      current->briefLoc  = orgBriefLoc;
     }
   }
 }
@@ -6764,8 +6765,8 @@ static void parseCompounds(Entry *rt)
       current_root = ce ;
       yyFileName = ce->fileName;
       //setContext();
-      yyLineNr = ce->startLine ;
-      yyColNr = ce->startColumn ;
+      yyLineNr = ce->startLoc.line ;
+      yyColNr = ce->startLoc.column ;
       insideObjC = ce->lang==SrcLangExt_ObjC;
       //printf("---> Inner block starts at line %d objC=%d\n",yyLineNr,insideObjC);
       //current->reset();
@@ -7067,8 +7068,8 @@ void CLanguageScanner::parseCode(CodeOutputInterface & codeOutIntf,
                    bool isExampleBlock,
                    const char * exampleName,
                    FileDef * fileDef,
-                   int startLine,
-                   int endLine,
+                   Location startLoc,
+                   Location endLoc,
                    bool inlineFragment,
 		   MemberDef *memberDef,
 		   bool showLineNumbers,
@@ -7077,7 +7078,7 @@ void CLanguageScanner::parseCode(CodeOutputInterface & codeOutIntf,
                   )
 {
   ::parseCCode(codeOutIntf,scopeName,input,lang,isExampleBlock,exampleName,
-               fileDef,startLine,endLine,inlineFragment,memberDef,
+               fileDef,startLoc,endLoc,inlineFragment,memberDef,
 	       showLineNumbers,searchCtx,collectXRefs);
 }
 

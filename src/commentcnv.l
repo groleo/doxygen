@@ -46,30 +46,29 @@
   
 struct CondCtx
 {
-  CondCtx(int line,QCString id,bool b) 
-    : lineNr(line),sectionId(id), skip(b) {}
-  int lineNr;
+  CondCtx(Location loc,QCString id,bool b)
+    : loc(loc),sectionId(id), skip(b) {}
+  Location loc;
   QCString sectionId;
   bool skip;
 };
   
 struct CommentCtx
 {
-  CommentCtx(int line) 
-    : lineNr(line) {}
-  int lineNr;
+  CommentCtx(Location loc) 
+    : loc(loc) {}
+  Location loc;
 };
   
 static BufStr * g_inBuf;
 static BufStr * g_outBuf;
 static int      g_inBufPos;
-static int      g_col;
 static int      g_blockHeadCol;
 static bool     g_mlBrief;
 static int      g_readLineCtx;
 static bool     g_skip;
 static QCString g_fileName;
-static int      g_lineNr;
+static Location g_yyLocation;
 static int      g_condCtx;
 static QStack<CondCtx> g_condStack;
 static QStack<CommentCtx> g_commentStack;
@@ -100,7 +99,7 @@ static void replaceCommentMarker(const char *s,int len)
   while ((c=*p) && (c==' ' || c=='\t' || c=='\n')) 
   {
     ADDCHAR(c);
-    g_lineNr += c=='\n';
+    g_yyLocation.line+= c=='\n';
     p++;
   }
   // replace start of comment marker by blanks and the last character by a *
@@ -158,8 +157,8 @@ static inline void copyToOutput(const char *s,int len)
       if (s[i]=='\n') 
       {
 	ADDCHAR('\n');
-	//fprintf(stderr,"---> skip %d\n",g_lineNr);
-	g_lineNr++;
+	//fprintf(stderr,"---> skip %d\n",g_yyLocation);
+	g_yyLocation.line++;
       }
     }
   }
@@ -171,11 +170,11 @@ static inline void copyToOutput(const char *s,int len)
     {
       switch (s[i])
       {
-	case '\n': g_col=0; 
-	           //fprintf(stderr,"---> copy %d\n",g_lineNr);
-		   g_lineNr++; break;
-	case '\t': g_col+=tabSize-(g_col%tabSize); break;
-	default:   g_col++; break;
+	case '\n': g_yyLocation.column=0; 
+	           //fprintf(stderr,"---> copy %d\n",g_yyLocation);
+		   g_yyLocation.line++; break;
+	case '\t': g_yyLocation.column+=tabSize-(g_yyLocation.column%tabSize); break;
+	default:   g_yyLocation.column++; break;
       }
     }
   }
@@ -185,8 +184,8 @@ static void startCondSection(const char *sectId)
 {
   //printf("startCondSection: skip=%d stack=%d\n",g_skip,g_condStack.count());
   CondParser prs;
-  bool expResult = prs.parse(g_fileName,g_lineNr,sectId);
-  g_condStack.push(new CondCtx(g_lineNr,sectId,g_skip));
+  bool expResult = prs.parse(g_fileName,g_yyLocation,sectId);
+  g_condStack.push(new CondCtx(g_yyLocation,sectId,g_skip));
   if (!expResult) // not enabled
   {
     g_skip=TRUE;
@@ -197,7 +196,7 @@ static void endCondSection()
 {
   if (g_condStack.isEmpty())
   {
-    warn(g_fileName,g_lineNr,"Found \\endcond command without matching \\cond");
+    warn(g_fileName,g_yyLocation.line,"Found \\endcond command without matching \\cond");
     g_skip=FALSE;
   }
   else
@@ -268,7 +267,7 @@ void replaceComment(int offset);
                                        g_commentStack.clear(); /*  to be on the save side */
                                        copyToOutput(yytext,(int)yyleng);
 				       BEGIN(CComment);
-                                       g_commentStack.push(new CommentCtx(g_lineNr));
+                                       g_commentStack.push(new CommentCtx(g_yyLocation));
 				     }
                                    }
 <Scan>![><!]/.*\n	   {
@@ -282,7 +281,7 @@ void replaceComment(int offset);
                                        g_nestingCount=0;
                                        g_commentStack.clear(); /*  to be on the save side */
 				       BEGIN(CComment);
-                                       g_commentStack.push(new CommentCtx(g_lineNr));
+                                       g_commentStack.push(new CommentCtx(g_yyLocation));
 				     }
   				   }
 <Scan>[Cc\*][><!]/.*\n	   {
@@ -293,13 +292,13 @@ void replaceComment(int offset);
 				     else
 				     {
                                        /* check for fixed format; we might have some conditional as part of multilene if like C<5 .and. & */
-                                       if (isFixedForm && (g_col == 0))
+                                       if (isFixedForm && (g_yyLocation.column == 0))
                                        {
                                          copyToOutput(yytext,(int)yyleng); 
                                          g_nestingCount=0;
                                          g_commentStack.clear(); /*  to be on the save side */
 				         BEGIN(CComment);
-                                         g_commentStack.push(new CommentCtx(g_lineNr));
+                                         g_commentStack.push(new CommentCtx(g_yyLocation));
 				       }
 				       else
 				       {
@@ -324,7 +323,7 @@ void replaceComment(int offset);
 				     }
 				     else
 				     {
-                                       if (g_col == 0)
+                                       if (g_yyLocation.column == 0)
                                        {
                                          copyToOutput(yytext,(int)yyleng); 
 				       }
@@ -363,7 +362,7 @@ void replaceComment(int offset);
 				       {
 					 while (i<(int)yyleng && yytext[i]=='/') i++;
 				       }
-				       g_blockHeadCol=g_col;
+				       g_blockHeadCol=g_yyLocation.column;
 				       copyToOutput("/**",3); 
 				       replaceAliases(yytext+i);
 				       g_inSpecialComment=TRUE;
@@ -375,7 +374,7 @@ void replaceComment(int offset);
 <Scan>"//##Documentation".*/\n	   { /* Start of Rational Rose ANSI C++ comment block */
                                      if (g_mlBrief) REJECT;
                                      int i=17; //=strlen("//##Documentation");
-				     g_blockHeadCol=g_col;
+				     g_blockHeadCol=g_yyLocation.column;
 				     copyToOutput("/**",3);
 				     replaceAliases(yytext+i);
 				     g_inRoseComment=TRUE;
@@ -402,7 +401,7 @@ void replaceComment(int offset);
                                      g_commentStack.clear(); /*  to be on the save side */
                                      copyToOutput(yytext,(int)yyleng); 
 				     BEGIN(CComment); 
-                                     g_commentStack.push(new CommentCtx(g_lineNr));
+                                     g_commentStack.push(new CommentCtx(g_yyLocation));
                                    }
 <Scan>"#"("#")?		           {
                                      if (g_lang!=SrcLangExt_Python)
@@ -415,7 +414,7 @@ void replaceComment(int offset);
                                        g_nestingCount=0;
                                        g_commentStack.clear(); /*  to be on the save side */
 				       BEGIN(CComment);
-                                       g_commentStack.push(new CommentCtx(g_lineNr));
+                                       g_commentStack.push(new CommentCtx(g_yyLocation));
 				     }
   				   }
 <Scan>"--!"		           {
@@ -429,7 +428,7 @@ void replaceComment(int offset);
                                        g_nestingCount=0;
                                        g_commentStack.clear(); /*  to be on the save side */
 				       BEGIN(CComment);
-                                       g_commentStack.push(new CommentCtx(g_lineNr));
+                                       g_commentStack.push(new CommentCtx(g_yyLocation));
 				     }
   				   }
 <Scan>![><!]		           {
@@ -443,7 +442,7 @@ void replaceComment(int offset);
                                        g_nestingCount=0;
                                        g_commentStack.clear(); /*  to be on the save side */
 				       BEGIN(CComment);
-                                       g_commentStack.push(new CommentCtx(g_lineNr));
+                                       g_commentStack.push(new CommentCtx(g_yyLocation));
 				     }
   				   }
 <CComment>"{@code"/[ \t\n]	   {
@@ -642,7 +641,7 @@ void replaceComment(int offset);
                                    }
 <CComment>"/"+"*"                  { /* nested C comment */
                                      g_nestingCount++;
-                                     g_commentStack.push(new CommentCtx(g_lineNr));
+                                     g_commentStack.push(new CommentCtx(g_yyLocation));
                                      copyToOutput(yytext,(int)yyleng); 
                                    }
 <CComment>"*"+"/"                  { /* end of C comment */
@@ -842,7 +841,7 @@ void replaceComment(int offset);
      				         ADDCHAR('/');
 				       }
     				     }
-				     if (*yytext=='\n') g_lineNr++;
+				     if (*yytext=='\n') g_yyLocation.line++;
                                      if (g_readLineCtx==SComment)
                                      {
                                        BEGIN(SComment);
@@ -887,7 +886,7 @@ void replaceComment(int offset);
                                    }
 <ReadAliasArgs>\n		   {
                                      g_aliasString+=yytext;
-                                     g_lineNr++;
+                                     g_yyLocation.line++;
 				     g_lastEscaped=FALSE;
   				   }
 <ReadAliasArgs>"{"		   {
@@ -990,13 +989,13 @@ void convertCppComments(BufStr *inBuf,BufStr *outBuf,const char *fileName)
   g_inBuf    = inBuf;
   g_outBuf   = outBuf;
   g_inBufPos = 0;
-  g_col      = 0;
+  g_yyLocation.column      = 0;
   g_mlBrief = Config_getBool(MULTILINE_CPP_IS_BRIEF);
   g_skip     = FALSE;
   g_fileName = fileName;
   g_lang = getLanguageFromFileName(fileName);
   g_pythonDocString = FALSE;
-  g_lineNr   = 1;
+  g_yyLocation.line   = 1;
   g_condStack.clear();
   g_condStack.setAutoDelete(TRUE);
   g_commentStack.clear();
@@ -1013,7 +1012,7 @@ void convertCppComments(BufStr *inBuf,BufStr *outBuf,const char *fileName)
   {
     g_nestingCount=0;
     BEGIN(CComment);
-    g_commentStack.push(new CommentCtx(g_lineNr));
+    g_commentStack.push(new CommentCtx(g_yyLocation));
   }
   else
   {
@@ -1025,7 +1024,7 @@ void convertCppComments(BufStr *inBuf,BufStr *outBuf,const char *fileName)
     CondCtx *ctx = g_condStack.pop();
     QCString sectionInfo = " ";
     if (ctx->sectionId!=" ") sectionInfo.sprintf(" with label %s ",ctx->sectionId.data()); 
-    warn(g_fileName,ctx->lineNr,"Conditional section%sdoes not have "
+    warn(g_fileName,ctx->loc.line,"Conditional section%sdoes not have "
 	"a corresponding \\endcond command within this file.",sectionInfo.data());
   }
   if (g_nestingCount>0 && g_lang!=SrcLangExt_Markdown)
@@ -1036,12 +1035,12 @@ void convertCppComments(BufStr *inBuf,BufStr *outBuf,const char *fileName)
     {
       CommentCtx *ctx = g_commentStack.pop();
       if (!first) tmp += ", ";
-      tmp += QCString().setNum(ctx->lineNr);
+      tmp += QCString().setNum(ctx->loc.line);
       first = FALSE;
       delete ctx;
     }
     tmp += ")";
-    warn(g_fileName,g_lineNr,"Reached end of file while still inside a (nested) comment. "
+    warn(g_fileName,g_yyLocation.line,"Reached end of file while still inside a (nested) comment. "
         "Nesting level %d %s",g_nestingCount+1,tmp.data()); // add one for "normal" expected end of comment
   }
   g_commentStack.clear();

@@ -615,7 +615,7 @@ void HtmlCodeGenerator::writeTooltip(const char *id, const DocLinkInfo &docInfo,
       }
       m_t << "\">";
     }
-    m_t << defInfo.file << ":" << defInfo.line;
+    m_t << defInfo.file << ":" << defInfo.loc.line << ":" << defInfo.loc.column;
     if (!defInfo.url.isEmpty())
     {
       m_t << "</a>";
@@ -636,7 +636,7 @@ void HtmlCodeGenerator::writeTooltip(const char *id, const DocLinkInfo &docInfo,
       }
       m_t << "\">";
     }
-    m_t << declInfo.file << ":" << declInfo.line;
+    m_t << declInfo.file << ":" << declInfo.loc.line << ":" << declInfo.loc.column;
     if (!declInfo.url.isEmpty())
     {
       m_t << "</a>";

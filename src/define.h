@@ -21,6 +21,8 @@
 #include <qdict.h>
 #include <qlist.h>
 
+#include "location.h"
+
 class FileDef;
 
 /** A class representing a macro definition. */
@@ -39,8 +41,7 @@ class Define
     QCString args;
     QCString anchor;
     FileDef *fileDef;
-    int lineNr;
-    int columnNr;
+    Location loc;
     int nargs;
     bool undef;
     bool varArgs;

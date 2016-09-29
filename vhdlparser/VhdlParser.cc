@@ -6881,8 +6881,8 @@ lastCompound=current;
                           clone->section=Entry::NAMESPACE_SEC;
                           clone->spec=VhdlDocGen::PACKAGE;
                           clone->name=s;
-                          clone->startLine=getLine(PACKAGE_T);
-                          clone->bodyLine=getLine(PACKAGE_T);
+                          clone->startLoc.line=getLine(PACKAGE_T);
+                          clone->bodyLoc.line=getLine(PACKAGE_T);
                           clone->protection=Package;
                           current_root->addSubEntry(clone);
                           addVhdlType(s,getLine(PACKAGE_T),Entry::CLASS_SEC,VhdlDocGen::PACKAGE,0,0,Package);
@@ -7779,8 +7779,8 @@ void VhdlParser::process_statement() {QCString s,s1,s2;Token *tok=0;if (!hasErro
     if (!hasError) {
     
 currP=VhdlDocGen::PROCESS;
-               current->startLine=getLine();
-               current->bodyLine=getLine();
+               current->startLoc.line=getLine();
+               current->bodyLoc.line=getLine();
     }
     if (!hasError) {
     
@@ -7915,7 +7915,7 @@ if(s.isEmpty())
 
    current->name=currName;
    tempEntry=current;
-   current->endBodyLine=getLine();
+   current->endBodyLoc.line=getLine();
    currP=0;
  if(tok)
    s1=tok->image.data();
@@ -9424,7 +9424,7 @@ if (s.data())
     jj_consume_token(SEMI_T);
     }
     
-tempEntry->endBodyLine=getLine(END_T);
+tempEntry->endBodyLoc.line=getLine(END_T);
       createFlow();
       currP=0;
 }
@@ -9737,8 +9737,8 @@ void VhdlParser::subprogram_specification() {QCString s;Token *tok=0;Token *t;
 currP=VhdlDocGen::PROCEDURE;
               createFunction(s.data(),currP,0);
               tempEntry=current;
-               current->startLine=getLine(PROCEDURE_T);
-               current->bodyLine=getLine(PROCEDURE_T);
+               current->startLoc.line=getLine(PROCEDURE_T);
+               current->bodyLoc.line=getLine(PROCEDURE_T);
       }
       if (!hasError) {
       
@@ -9857,8 +9857,8 @@ currP=VhdlDocGen::FUNCTION;
      else
      createFunction(0,currP,s.data());
       tempEntry=current;
-      current->startLine=getLine(FUNCTION_T);
-      current->bodyLine=getLine(FUNCTION_T);
+      current->startLoc.line=getLine(FUNCTION_T);
+      current->bodyLoc.line=getLine(FUNCTION_T);
       }
       if (!hasError) {
       

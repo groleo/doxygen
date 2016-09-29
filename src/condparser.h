@@ -23,13 +23,14 @@
  */
 
 #include <qcstring.h>
+#include <location.h>
 
 class CondParser
 {
   // public functions
   public:
     CondParser() : m_e(0), m_tokenType(NOTHING) {}
-    bool parse(const char *fileName,int lineNr,const char *expr);
+    bool parse(const char *fileName,Location loc,const char *expr);
 
     // enumerations
   private:

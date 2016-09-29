@@ -20,9 +20,8 @@
 
 Define::Define()
 { 
-  fileDef=0; 
-  lineNr=1;
-  columnNr=1;
+  fileDef=0;
+  loc = Location(1,1);
   nargs=-1;
   undef=FALSE; 
   varArgs=FALSE;
@@ -34,8 +33,8 @@ Define::Define(const Define &d)
       : name(d.name),definition(d.definition),fileName(d.fileName)
 { 
   //name=d.name; definition=d.definition; fileName=d.fileName; 
-  lineNr=d.lineNr; 
-  columnNr=d.columnNr;
+  loc.line = d.loc.line;
+  loc.column = d.loc.column;
   nargs=d.nargs; 
   undef=d.undef; 
   varArgs=d.varArgs;

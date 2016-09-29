@@ -123,7 +123,7 @@ struct DocParserContext
   QStack<DocStyleChange> initialStyleStack;
   QList<Definition> copyStack;
   QCString fileName;
-  int lineNo;
+  Location loc;
   QCString relPath;
 
   bool         hasParamCommand;
@@ -163,7 +163,7 @@ static void docParserPushContext(bool saveParamInfo=TRUE)
   ctx->initialStyleStack  = g_initialStyleStack;
   ctx->copyStack          = g_copyStack;
   ctx->fileName           = g_fileName;
-  ctx->lineNo             = doctokenizerYYlineno;
+  ctx->loc                = Location(doctokenizerYYlineno,0);
   ctx->relPath            = g_relPath;
 
   if (saveParamInfo)
@@ -202,7 +202,7 @@ static void docParserPopContext(bool keepParamInfo=FALSE)
   g_initialStyleStack   = ctx->initialStyleStack;
   g_copyStack           = ctx->copyStack;
   g_fileName            = ctx->fileName;
-  doctokenizerYYlineno  = ctx->lineNo;
+  doctokenizerYYlineno  = ctx->loc.line;
   g_relPath             = ctx->relPath;
 
   if (!keepParamInfo)
@@ -427,19 +427,19 @@ static void checkArgumentName(const QCString &name,bool isParam)
       if (!scope.isEmpty()) scope+="::"; else scope="";
       QCString inheritedFrom = "";
       QCString docFile = g_memberDef->docFile();
-      int docLine = g_memberDef->docLine();
+      int docLoc = g_memberDef->docLoc();
       MemberDef *inheritedMd = g_memberDef->inheritsDocsFrom();
       if (inheritedMd) // documentation was inherited
       {
         inheritedFrom.sprintf(" inherited from member %s at line "
             "%d in file %s",qPrint(inheritedMd->name()),
-            inheritedMd->docLine(),qPrint(inheritedMd->docFile()));
+            inheritedMd->docLoc(),qPrint(inheritedMd->docFile()));
         docFile = g_memberDef->getDefFileName();
-        docLine = g_memberDef->getDefLine();
+        docLoc = g_memberDef->getDefLine();
         
       }
       QCString alStr = argListToString(al);
-      warn_doc_error(docFile,docLine,
+      warn_doc_error(docFile,docLoc,
 	  "argument '%s' of command @param "
 	  "is not found in the argument list of %s%s%s%s",
 	  qPrint(aName), qPrint(scope), qPrint(g_memberDef->name()),
@@ -7221,7 +7221,7 @@ static QCString processCopyDoc(const char *data,uint &len)
 
 //--------------------------------------------------------------------------
 
-DocRoot *validatingParseDoc(const char *fileName,int startLine,
+DocRoot *validatingParseDoc(const char *fileName,Location startLoc,
                             Definition *ctx,MemberDef *md,
                             const char *input,bool indexWords,
                             bool isExample, const char *exampleName,
@@ -7383,7 +7383,7 @@ DocRoot *validatingParseDoc(const char *fileName,int startLine,
   g_sectionDict = 0; //sections;
   
   //printf("Starting comment block at %s:%d\n",g_fileName.data(),startLine);
-  doctokenizerYYlineno=startLine;
+  doctokenizerYYlineno=startLoc.line;
   uint inpLen=qstrlen(input);
   QCString inpStr = processCopyDoc(input,inpLen);
   if (inpStr.isEmpty() || inpStr.at(inpStr.length()-1)!='\n')

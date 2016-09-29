@@ -88,13 +88,13 @@ Entry::Entry(const Entry &e)
   includeFile = e.includeFile;
   includeName = e.includeName;
   doc         = e.doc;
-  docLine     = e.docLine;
+  docLoc     = e.docLoc;
   docFile     = e.docFile;
   brief       = e.brief;
-  briefLine   = e.briefLine;
+  briefLoc   = e.briefLoc;
   briefFile   = e.briefFile;
   inbodyDocs  = e.inbodyDocs;
-  inbodyLine  = e.inbodyLine;
+  inbodyLoc  = e.inbodyLoc;
   inbodyFile  = e.inbodyFile;
   relates     = e.relates;
   relatesType = e.relatesType;
@@ -103,8 +103,8 @@ Entry::Entry(const Entry &e)
   inside      = e.inside;
   exception   = e.exception;
   typeConstr  = 0;
-  bodyLine    = e.bodyLine;
-  endBodyLine = e.endBodyLine;
+  bodyLoc    = e.bodyLoc;
+  endBodyLoc = e.endBodyLoc;
   mGrpId      = e.mGrpId;
   extends     = new QList<BaseInfo>;
   extends->setAutoDelete(TRUE);
@@ -112,8 +112,7 @@ Entry::Entry(const Entry &e)
   groups->setAutoDelete(TRUE);
   anchors     = new QList<SectionInfo>;
   fileName    = e.fileName;
-  startLine   = e.startLine;
-  startColumn = e.startColumn;
+  startLoc   = e.startLoc;
   if (e.sli)
   {
     sli = new QList<ListItemInfo>;
@@ -229,23 +228,22 @@ void Entry::reset()
   includeName.resize(0);
   doc.resize(0);
   docFile.resize(0);
-  docLine=-1;
+  docLoc=Location(0,0);
   relates.resize(0);
   relatesType=Simple;
   brief.resize(0);
   briefFile.resize(0);
-  briefLine=-1;
+  briefLoc=-1;
   inbodyDocs.resize(0);
   inbodyFile.resize(0);
-  inbodyLine=-1;
+  inbodyLoc= Location(0,0);
   inside.resize(0);
   fileName.resize(0);
   initializer.resize(0);
   initLines = -1;
-  startLine = 1;
-  startColumn = 1;
-  bodyLine = -1;
-  endBodyLine = -1;
+  startLoc = Location(1,1);
+  bodyLoc = Location(0,0);
+  endBodyLoc = Location(0,0);
   mGrpId = -1;
   callGraph   = entryCallGraph;
   callerGraph = entryCallerGraph;

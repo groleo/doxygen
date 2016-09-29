@@ -27,6 +27,7 @@
 #include "types.h"
 #include "sortdict.h"
 #include "docparser.h"
+#include "location.h"
 
 //--------------------------------------------------------------------
 
@@ -325,7 +326,7 @@ void addRefItem(const QList<ListItemInfo> *sli,const char *prefix,
 
 PageDef *addRelatedPage(const char *name,const QCString &ptitle,
                            const QCString &doc,QList<SectionInfo> *anchors,
-                           const char *fileName,int startLine,
+                           const char *fileName,Location startLoc,
                            const QList<ListItemInfo> *sli,
                            GroupDef *gd=0,
                            TagInfo *tagInfo=0,
@@ -377,7 +378,7 @@ bool containsWord(const QCString &s,const QCString &word);
 
 bool findAndRemoveWord(QCString &s,const QCString &word);
 
-QCString stripLeadingAndTrailingEmptyLines(const QCString &s,int &docLine);
+QCString stripLeadingAndTrailingEmptyLines(const QCString &s,Location &docLoc);
 
 //void stringToSearchIndex(const QCString &docUrlBase,const QCString &title,
 //                         const QCString &str, bool priority=FALSE,
@@ -397,7 +398,7 @@ ClassDef *newResolveTypedef(FileDef *fileScope,MemberDef *md,
                             QCString *pResolvedType=0,
                             ArgumentList *actTemplParams=0);
 
-QCString parseCommentAsText(const Definition *scope,const MemberDef *member,const QCString &doc,const QCString &fileName,int lineNr);
+QCString parseCommentAsText(const Definition *scope,const MemberDef *member,const QCString &doc,const QCString &fileName,Location loc);
 
 QCString transcodeCharacterStringToUTF8(const QCString &input);
 

@@ -1905,10 +1905,10 @@ void PerlModGenerator::generatePerlModForClass(ClassDef *cd)
   t << "    <location file=\"" 
     << cd->getDefFileName() << "\" line=\"" 
     << cd->getDefLine() << "\"";
-    if (cd->getStartBodyLine()!=-1)
+    if (cd->getStartBodyLoc()!=0)
     {
-      t << " bodystart=\"" << cd->getStartBodyLine() << "\" bodyend=\"" 
-        << cd->getEndBodyLine() << "\"";
+      t << " bodystart=\"" << cd->getStartBodyLoc() << "\" bodyend=\"" 
+        << cd->getEndBodyLoc() << "\"";
     }
   t << "/>" << endl;
 #endif
@@ -2169,7 +2169,7 @@ void PerlModGenerator::generatePerlModForPage(PageDef *pd)
   if (si)
     m_output.addFieldQuotedString("title4", filterTitle(si->title));
 
-  addPerlModDocBlock(m_output,"detailed",pd->docFile(),pd->docLine(),0,0,pd->documentation());
+  addPerlModDocBlock(m_output,"detailed",pd->docFile(),pd->docLoc(),0,0,pd->documentation());
   m_output.closeHash();
 }
 

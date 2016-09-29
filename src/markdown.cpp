@@ -92,7 +92,7 @@ static QDict<LinkRef> g_linkRefs(257);
 static action_t       g_actions[256];
 static Entry         *g_current;
 static QCString       g_fileName;
-static int            g_lineNr;
+static Location       g_location;
 
 // In case a markdown page starts with a level1 header, that header is used
 // as a title of the page, in effect making it a level0 header, so the
@@ -1734,18 +1734,19 @@ void writeOneLineHeaderOrRuler(GrowBuf &out,const char *data,int size)
       SectionInfo *si = Doxygen::sectionDict->find(id);
       if (si)
       {
-        if (si->lineNr != -1)
+        if (si->location != Location(0,0))
         {
-          warn(g_fileName,g_lineNr,"multiple use of section label '%s', (first occurrence: %s, line %d)",header.data(),si->fileName.data(),si->lineNr);
+          warn(g_fileName,g_location.line,"multiple use of section label '%s', (first occurrence: %s, line %d)"
+              ,header.data(),si->fileName.data(),si->location.line);
         }
         else
         {
-          warn(g_fileName,g_lineNr,"multiple use of section label '%s', (first occurrence: %s)",header.data(),si->fileName.data());
+          warn(g_fileName,g_location.line,"multiple use of section label '%s', (first occurrence: %s)",header.data(),si->fileName.data());
         }
       }
       else
       {
-        si = new SectionInfo(g_fileName,g_lineNr,id,header,type,level);
+        si = new SectionInfo(g_fileName,g_location,id,header,type,level);
         if (g_current)
         {
           g_current->anchors->append(si);
@@ -2104,18 +2105,19 @@ static QCString processBlocks(const QCString &s,int indent)
             SectionInfo *si = Doxygen::sectionDict->find(id);
             if (si)
             {
-              if (si->lineNr != -1)
+              if (si->location != Location(0,0))
               {
-                warn(g_fileName,g_lineNr,"multiple use of section label '%s', (first occurrence: %s, line %d)",header.data(),si->fileName.data(),si->lineNr);
+                warn(g_fileName,g_location.line,"multiple use of section label '%s', (first occurrence: %s, line %d)"
+                    ,header.data(),si->fileName.data(),si->location.line);
               }
               else
               {
-                warn(g_fileName,g_lineNr,"multiple use of section label '%s', (first occurrence: %s)",header.data(),si->fileName.data());
+                warn(g_fileName,g_location.line,"multiple use of section label '%s', (first occurrence: %s)",header.data(),si->fileName.data());
               }
             }
             else
             {
-              si = new SectionInfo(g_fileName,g_lineNr,id,header,
+              si = new SectionInfo(g_fileName,g_location,id,header,
                       level==1 ? SectionInfo::Section : SectionInfo::Subsection,level);
               if (g_current)
               {
@@ -2324,7 +2326,7 @@ static QCString detab(const QCString &s,int &refIndent)
 
 //---------------------------------------------------------------------------
 
-QCString processMarkdown(const QCString &fileName,const int lineNr,Entry *e,const QCString &input)
+QCString processMarkdown(const QCString &fileName,const Location loc,Entry *e,const QCString &input)
 {
   static bool init=FALSE;
   if (!init)
@@ -2347,7 +2349,7 @@ QCString processMarkdown(const QCString &fileName,const int lineNr,Entry *e,cons
   g_linkRefs.clear();
   g_current = e;
   g_fileName = fileName;
-  g_lineNr   = lineNr;
+  g_location = loc;
   static GrowBuf out;
   if (input.isEmpty()) return input;
   out.clear();
@@ -2389,7 +2391,7 @@ void MarkdownFileParser::parseInput(const char *fileName,
   current->lang = SrcLangExt_Markdown;
   current->fileName = fileName;
   current->docFile  = fileName;
-  current->docLine  = 1;
+  current->docLoc  = 1;
   QCString docs = fileBuf;
   QCString id;
   QCString title=extractPageTitle(docs,id).stripWhiteSpace();
@@ -2418,7 +2420,7 @@ void MarkdownFileParser::parseInput(const char *fileName,
       docs.prepend("@page "+id+" "+title+"\n");
     }
   }
-  int lineNr=1;
+  Location lineNr=Location(1,1);
   int position=0;
 
   // even without markdown support enabled, we still 
@@ -2448,7 +2450,7 @@ void MarkdownFileParser::parseInput(const char *fileName,
       current = new Entry;
       current->lang = SrcLangExt_Markdown;
       current->docFile = docFile;
-      current->docLine = lineNr;
+      current->docLoc = lineNr;
     }
   }
   if (needsEntry)
@@ -2468,8 +2470,8 @@ void MarkdownFileParser::parseCode(CodeOutputInterface &codeOutIntf,
                bool isExampleBlock,
                const char *exampleName,
                FileDef *fileDef,
-               int startLine,
-               int endLine,
+               Location startLoc,
+               Location endLoc,
                bool inlineFragment,
                MemberDef *memberDef,
                bool showLineNumbers,
@@ -2482,7 +2484,7 @@ void MarkdownFileParser::parseCode(CodeOutputInterface &codeOutIntf,
   {
     pIntf->parseCode(
        codeOutIntf,scopeName,input,lang,isExampleBlock,exampleName,
-       fileDef,startLine,endLine,inlineFragment,memberDef,showLineNumbers,
+       fileDef,startLoc,endLoc,inlineFragment,memberDef,showLineNumbers,
        searchCtx,collectXRefs);
   }
 }

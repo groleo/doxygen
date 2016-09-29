@@ -18,7 +18,7 @@
 
 static int g_dirCount=0;
 
-DirDef::DirDef(const char *path) : Definition(path,1,1,path), visited(FALSE)
+DirDef::DirDef(const char *path) : Definition(path,Location(1,1),path), visited(FALSE)
 {
   bool fullPathNames = Config_getBool(FULL_PATH_NAMES);
   // get display name (stipping the paths mentioned in STRIP_FROM_PATH)
@@ -143,7 +143,7 @@ void DirDef::writeDetailedDescription(OutputList &ol,const QCString &title)
     // repeat brief description
     if (!briefDescription().isEmpty() && Config_getBool(REPEAT_BRIEF))
     {
-      ol.generateDoc(briefFile(),briefLine(),this,0,briefDescription(),FALSE,FALSE);
+      ol.generateDoc(briefFile(),briefLoc(),this,0,briefDescription(),FALSE,FALSE);
     }
     // separator between brief and details
     if (!briefDescription().isEmpty() && Config_getBool(REPEAT_BRIEF) && 
@@ -163,7 +163,7 @@ void DirDef::writeDetailedDescription(OutputList &ol,const QCString &title)
     // write documentation
     if (!documentation().isEmpty())
     {
-      ol.generateDoc(docFile(),docLine(),this,0,documentation()+"\n",TRUE,FALSE);
+      ol.generateDoc(docFile(),docLoc(),this,0,documentation()+"\n",TRUE,FALSE);
     }
   }
 }
@@ -173,7 +173,7 @@ void DirDef::writeBriefDescription(OutputList &ol)
   if (!briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
   {
     DocRoot *rootNode = validatingParseDoc(
-         briefFile(),briefLine(),this,0,briefDescription(),TRUE,FALSE);
+         briefFile(),briefLoc(),this,0,briefDescription(),TRUE,FALSE);
     if (rootNode && !rootNode->isEmpty())
     {
       ol.startParagraph();
@@ -254,7 +254,7 @@ void DirDef::writeSubDirList(OutputList &ol)
         if (!dd->briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
         {
           ol.startMemberDescription(dd->getOutputFileBase());
-          ol.generateDoc(briefFile(),briefLine(),dd,0,dd->briefDescription(),
+          ol.generateDoc(briefFile(),briefLoc(),dd,0,dd->briefDescription(),
               FALSE, // indexWords
               FALSE, // isExample
               0,     // exampleName
@@ -327,7 +327,7 @@ void DirDef::writeFileList(OutputList &ol)
         if (!fd->briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
         {
           ol.startMemberDescription(fd->getOutputFileBase());
-          ol.generateDoc(briefFile(),briefLine(),fd,0,fd->briefDescription(),
+          ol.generateDoc(briefFile(),briefLoc(),fd,0,fd->briefDescription(),
               FALSE, // indexWords
               FALSE, // isExample
               0,     // exampleName

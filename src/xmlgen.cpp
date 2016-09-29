@@ -457,8 +457,8 @@ void writeXMLCodeBlock(FTextStream &t,FileDef *fd)
                 FALSE,       // isExampleBlock
                 0,           // exampleName
                 fd,          // fileDef
-                -1,          // startLine
-                -1,          // endLine
+                Location(0,0),   // startLocation
+                Location(0,0),          // endLocation
                 FALSE,       // inlineFragement
                 0,           // memberDef
                 TRUE         // showLineNumbers
@@ -477,13 +477,13 @@ static void writeMemberReference(FTextStream &t,Definition *def,MemberDef *rmd,c
   }
   t << "        <" << tagName << " refid=\"";
   t << rmd->getOutputFileBase() << "_1" << rmd->anchor() << "\"";
-  if (rmd->getStartBodyLine()!=-1 && rmd->getBodyDef()) 
+  if (rmd->getStartBodyLoc()!=Location(0,0) && rmd->getBodyDef()) 
   {
     t << " compoundref=\"" << rmd->getBodyDef()->getOutputFileBase() << "\"";
-    t << " startline=\"" << rmd->getStartBodyLine() << "\"";
-    if (rmd->getEndBodyLine()!=-1)
+    t << " startline=\"" << rmd->getStartBodyLoc().line << "\"";
+    if (rmd->getEndBodyLoc()!=Location(0,0))
     {
-      t << " endline=\"" << rmd->getEndBodyLine() << "\"";
+      t << " endline=\"" << rmd->getEndBodyLoc().line << "\"";
     }
   }
   t << ">" << convertToXML(name) << "</" << tagName << ">" << endl;
@@ -958,39 +958,39 @@ static void generateXMLForMember(MemberDef *md,FTextStream &ti,FTextStream &t,De
           t << "</initializer>" << endl;
         }
         t << "          <briefdescription>" << endl;
-        writeXMLDocBlock(t,emd->briefFile(),emd->briefLine(),emd->getOuterScope(),emd,emd->briefDescription());
+        writeXMLDocBlock(t,emd->briefFile(),emd->briefLoc(),emd->getOuterScope(),emd,emd->briefDescription());
         t << "          </briefdescription>" << endl;
         t << "          <detaileddescription>" << endl;
-        writeXMLDocBlock(t,emd->docFile(),emd->docLine(),emd->getOuterScope(),emd,emd->documentation());
+        writeXMLDocBlock(t,emd->docFile(),emd->docLoc(),emd->getOuterScope(),emd,emd->documentation());
         t << "          </detaileddescription>" << endl;
         t << "        </enumvalue>" << endl;
       }
     }
   }
   t << "        <briefdescription>" << endl;
-  writeXMLDocBlock(t,md->briefFile(),md->briefLine(),md->getOuterScope(),md,md->briefDescription());
+  writeXMLDocBlock(t,md->briefFile(),md->briefLoc(),md->getOuterScope(),md,md->briefDescription());
   t << "        </briefdescription>" << endl;
   t << "        <detaileddescription>" << endl;
-  writeXMLDocBlock(t,md->docFile(),md->docLine(),md->getOuterScope(),md,md->documentation());
+  writeXMLDocBlock(t,md->docFile(),md->docLoc(),md->getOuterScope(),md,md->documentation());
   t << "        </detaileddescription>" << endl;
   t << "        <inbodydescription>" << endl;
-  writeXMLDocBlock(t,md->docFile(),md->inbodyLine(),md->getOuterScope(),md,md->inbodyDocumentation());
+  writeXMLDocBlock(t,md->docFile(),md->inbodyLoc(),md->getOuterScope(),md,md->inbodyDocumentation());
   t << "        </inbodydescription>" << endl;
-  if (md->getDefLine()!=-1)
+  if (md->getDefLine()!=0)
   {
     t << "        <location file=\"" 
       << stripFromPath(md->getDefFileName()) << "\" line=\"" 
       << md->getDefLine() << "\"" << " column=\"" 
       << md->getDefColumn() << "\"" ;
-    if (md->getStartBodyLine()!=-1)
+    if (md->getStartBodyLoc()!=Location(0,0))
     {
       FileDef *bodyDef = md->getBodyDef();
       if (bodyDef)
       {
         t << " bodyfile=\"" << stripFromPath(bodyDef->absFilePath()) << "\"";
       }
-      t << " bodystart=\"" << md->getStartBodyLine() << "\" bodyend=\"" 
-        << md->getEndBodyLine() << "\"";
+      t << " bodystart=\"" << md->getStartBodyLoc().line << "\" bodyend=\"" 
+        << md->getEndBodyLoc().line << "\"";
     }
     t << "/>" << endl;
   }
@@ -1047,7 +1047,7 @@ static void generateXMLSection(Definition *d,FTextStream &ti,FTextStream &t,
   if (documentation)
   {
     t << "      <description>";
-    writeXMLDocBlock(t,d->docFile(),d->docLine(),d,0,documentation);
+    writeXMLDocBlock(t,d->docFile(),d->docLoc(),d,0,documentation);
     t << "</description>" << endl;
   }
   for (mli.toFirst();(md=mli.current());++mli)
@@ -1385,10 +1385,10 @@ static void generateXMLForClass(ClassDef *cd,FTextStream &ti)
   }
 
   t << "    <briefdescription>" << endl;
-  writeXMLDocBlock(t,cd->briefFile(),cd->briefLine(),cd,0,cd->briefDescription());
+  writeXMLDocBlock(t,cd->briefFile(),cd->briefLoc(),cd,0,cd->briefDescription());
   t << "    </briefdescription>" << endl;
   t << "    <detaileddescription>" << endl;
-  writeXMLDocBlock(t,cd->docFile(),cd->docLine(),cd,0,cd->documentation());
+  writeXMLDocBlock(t,cd->docFile(),cd->docLoc(),cd,0,cd->documentation());
   t << "    </detaileddescription>" << endl;
   DotClassGraph inheritanceGraph(cd,DotNode::Inheritance);
   if (!inheritanceGraph.isTrivial())
@@ -1408,15 +1408,15 @@ static void generateXMLForClass(ClassDef *cd,FTextStream &ti)
     << stripFromPath(cd->getDefFileName()) << "\" line=\"" 
     << cd->getDefLine() << "\"" << " column=\"" 
     << cd->getDefColumn() << "\"" ;
-    if (cd->getStartBodyLine()!=-1)
+    if (cd->getStartBodyLoc()!=Location(0,0))
     {
       FileDef *bodyDef = cd->getBodyDef();
       if (bodyDef)
       {
         t << " bodyfile=\"" << stripFromPath(bodyDef->absFilePath()) << "\"";
       }
-      t << " bodystart=\"" << cd->getStartBodyLine() << "\" bodyend=\"" 
-        << cd->getEndBodyLine() << "\"";
+      t << " bodystart=\"" << cd->getStartBodyLoc().line << "\" bodyend=\"" 
+        << cd->getEndBodyLoc().line << "\"";
     }
   t << "/>" << endl;
   writeListOfAllMembers(cd,t);
@@ -1487,10 +1487,10 @@ static void generateXMLForNamespace(NamespaceDef *nd,FTextStream &ti)
   }
 
   t << "    <briefdescription>" << endl;
-  writeXMLDocBlock(t,nd->briefFile(),nd->briefLine(),nd,0,nd->briefDescription());
+  writeXMLDocBlock(t,nd->briefFile(),nd->briefLoc(),nd,0,nd->briefDescription());
   t << "    </briefdescription>" << endl;
   t << "    <detaileddescription>" << endl;
-  writeXMLDocBlock(t,nd->docFile(),nd->docLine(),nd,0,nd->documentation());
+  writeXMLDocBlock(t,nd->docFile(),nd->docLoc(),nd,0,nd->documentation());
   t << "    </detaileddescription>" << endl;
   t << "    <location file=\""
     << stripFromPath(nd->getDefFileName()) << "\" line=\""
@@ -1624,10 +1624,10 @@ static void generateXMLForFile(FileDef *fd,FTextStream &ti)
   }
 
   t << "    <briefdescription>" << endl;
-  writeXMLDocBlock(t,fd->briefFile(),fd->briefLine(),fd,0,fd->briefDescription());
+  writeXMLDocBlock(t,fd->briefFile(),fd->briefLoc(),fd,0,fd->briefDescription());
   t << "    </briefdescription>" << endl;
   t << "    <detaileddescription>" << endl;
-  writeXMLDocBlock(t,fd->docFile(),fd->docLine(),fd,0,fd->documentation());
+  writeXMLDocBlock(t,fd->docFile(),fd->docLoc(),fd,0,fd->documentation());
   t << "    </detaileddescription>" << endl;
   if (Config_getBool(XML_PROGRAMLISTING))
   {
@@ -1706,10 +1706,10 @@ static void generateXMLForGroup(GroupDef *gd,FTextStream &ti)
   }
 
   t << "    <briefdescription>" << endl;
-  writeXMLDocBlock(t,gd->briefFile(),gd->briefLine(),gd,0,gd->briefDescription());
+  writeXMLDocBlock(t,gd->briefFile(),gd->briefLoc(),gd,0,gd->briefDescription());
   t << "    </briefdescription>" << endl;
   t << "    <detaileddescription>" << endl;
-  writeXMLDocBlock(t,gd->docFile(),gd->docLine(),gd,0,gd->documentation());
+  writeXMLDocBlock(t,gd->docFile(),gd->docLoc(),gd,0,gd->documentation());
   t << "    </detaileddescription>" << endl;
   t << "  </compounddef>" << endl;
   t << "</doxygen>" << endl;
@@ -1744,10 +1744,10 @@ static void generateXMLForDir(DirDef *dd,FTextStream &ti)
   writeInnerFiles(dd->getFiles(),t);
 
   t << "    <briefdescription>" << endl;
-  writeXMLDocBlock(t,dd->briefFile(),dd->briefLine(),dd,0,dd->briefDescription());
+  writeXMLDocBlock(t,dd->briefFile(),dd->briefLoc(),dd,0,dd->briefDescription());
   t << "    </briefdescription>" << endl;
   t << "    <detaileddescription>" << endl;
-  writeXMLDocBlock(t,dd->docFile(),dd->docLine(),dd,0,dd->documentation());
+  writeXMLDocBlock(t,dd->docFile(),dd->docLoc(),dd,0,dd->documentation());
   t << "    </detaileddescription>" << endl;
   t << "    <location file=\"" << stripFromPath(dd->name()) << "\"/>" << endl; 
   t << "  </compounddef>" << endl;
@@ -1821,12 +1821,12 @@ static void generateXMLForPage(PageDef *pd,FTextStream &ti,bool isExample)
   t << "    <detaileddescription>" << endl;
   if (isExample)
   {
-    writeXMLDocBlock(t,pd->docFile(),pd->docLine(),pd,0,
+    writeXMLDocBlock(t,pd->docFile(),pd->docLoc(),pd,0,
         pd->documentation()+"\n\\include "+pd->name());
   }
   else
   {
-    writeXMLDocBlock(t,pd->docFile(),pd->docLine(),pd,0,
+    writeXMLDocBlock(t,pd->docFile(),pd->docLoc(),pd,0,
         pd->documentation());
   }
   t << "    </detaileddescription>" << endl;

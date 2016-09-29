@@ -26,6 +26,7 @@
 #define PYCODE_H
 
 #include "types.h"
+#include "location.h"
 
 class CodeOutputInterface;
 class FileDef;
@@ -35,7 +36,7 @@ class Definition;
 
 extern void parsePythonCode(CodeOutputInterface &,const char *,const QCString &,
              bool ,const char *,FileDef *fd,
-	     int startLine,int endLine,bool inlineFragment,
+	     Location startLoc,Location endLoc,bool inlineFragment,
              MemberDef *memberDef,bool showLineNumbers,Definition *searchCtx,
              bool collectXRefs);
 extern void resetPythonCodeParserState();

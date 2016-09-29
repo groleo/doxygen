@@ -128,7 +128,7 @@ void OutputList::popGeneratorState()
   }
 }
 
-bool OutputList::generateDoc(const char *fileName,int startLine,
+bool OutputList::generateDoc(const char *fileName,Location startLoc,
                   Definition *ctx,MemberDef * md,
                   const QCString &docStr,bool indexWords,
                   bool isExample,const char *exampleName,
@@ -146,7 +146,7 @@ bool OutputList::generateDoc(const char *fileName,int startLine,
   if (count==0) return TRUE; // no output formats enabled.
 
   DocRoot *root=0;
-  root = validatingParseDoc(fileName,startLine,
+  root = validatingParseDoc(fileName,startLoc,
                             ctx,md,docStr,indexWords,isExample,exampleName,
                             singleLine,linkFromIndex);
 

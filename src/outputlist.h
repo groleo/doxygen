@@ -74,7 +74,7 @@ class OutputList : public OutputDocInterface
     // OutputDocInterface implementation
     //////////////////////////////////////////////////
 
-    bool generateDoc(const char *fileName,int startLine,
+    bool generateDoc(const char *fileName,Location startLoc,
                      Definition *ctx,MemberDef *md,const QCString &docStr,
                      bool indexWords,bool isExample,const char *exampleName=0,
                      bool singleLine=FALSE,bool linkFromIndex=FALSE);

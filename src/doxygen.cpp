@@ -436,7 +436,7 @@ static void addSTLIterator(EntryNav *classEntryNav,const char *name)
 {
   Entry *iteratorClassEntry = new Entry;
   iteratorClassEntry->fileName  = "[STL]";
-  iteratorClassEntry->startLine = 1;
+  iteratorClassEntry->startLoc = 1;
   iteratorClassEntry->name      = name;
   iteratorClassEntry->section   = Entry::CLASS_SEC;
   iteratorClassEntry->brief     = "STL iterator class";
@@ -452,7 +452,7 @@ static void addSTLClasses(EntryNav *rootNav)
 {
   Entry *namespaceEntry = new Entry;
   namespaceEntry->fileName  = "[STL]";
-  namespaceEntry->startLine = 1;
+  namespaceEntry->startLoc = 1;
   //namespaceEntry->parent    = rootNav->entry();
   namespaceEntry->name      = "std";
   namespaceEntry->section   = Entry::NAMESPACE_SEC;
@@ -474,7 +474,7 @@ static void addSTLClasses(EntryNav *rootNav)
     // add fake Entry for the class
     Entry *classEntry = new Entry;
     classEntry->fileName  = "[STL]";
-    classEntry->startLine = 1;
+    classEntry->startLoc = 1;
     classEntry->name      = fullName;
     //classEntry->parent    = namespaceEntry;
     classEntry->section   = Entry::CLASS_SEC;
@@ -595,14 +595,14 @@ static void addRelatedPage(EntryNav *rootNav)
     doc=root->brief+"\n\n"+root->doc+root->inbodyDocs;
   }
   PageDef *pd = addRelatedPage(root->name,root->args,doc,root->anchors,
-      root->docFile,root->docLine,
+      root->docFile,root->docLoc,
       root->sli,
       gd,rootNav->tagInfo(),
       root->lang
      );
   if (pd)
   {
-    pd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+    pd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
     pd->addSectionsToDefinition(root->anchors);
     pd->setShowToc(root->stat);
     addPageToContext(pd,rootNav);
@@ -634,13 +634,13 @@ static void buildGroupListFiltered(EntryNav *rootNav,bool additional, bool inclu
         }
         else if ( root->type.length() > 0 && root->name != root->type && gd->groupTitle() != root->type )
         {
-          warn( root->fileName,root->startLine,
+          warn( root->fileName,root->startLoc.line,
               "group %s: ignoring title \"%s\" that does not match old title \"%s\"\n",
               qPrint(root->name), qPrint(root->type), qPrint(gd->groupTitle()) );
         }
-        gd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-        gd->setDocumentation( root->doc, root->docFile, root->docLine );
-        gd->setInbodyDocumentation( root->inbodyDocs, root->inbodyFile, root->inbodyLine );
+        gd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+        gd->setDocumentation( root->doc, root->docFile, root->docLoc );
+        gd->setInbodyDocumentation( root->inbodyDocs, root->inbodyFile, root->inbodyLoc );
         gd->addSectionsToDefinition(root->anchors);
         gd->setRefItems(root->sli);
         gd->setLanguage(root->lang);
@@ -649,17 +649,17 @@ static void buildGroupListFiltered(EntryNav *rootNav,bool additional, bool inclu
       {
         if (rootNav->tagInfo())
         {
-          gd = new GroupDef(root->fileName,root->startLine,root->name,root->type,rootNav->tagInfo()->fileName);
+          gd = new GroupDef(root->fileName,root->startLoc,root->name,root->type,rootNav->tagInfo()->fileName);
           gd->setReference(rootNav->tagInfo()->tagName);
         }
         else
         {
-          gd = new GroupDef(root->fileName,root->startLine,root->name,root->type);
+          gd = new GroupDef(root->fileName,root->startLoc,root->name,root->type);
         }
-        gd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+        gd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
         // allow empty docs for group
-        gd->setDocumentation(!root->doc.isEmpty() ? root->doc : QCString(" "),root->docFile,root->docLine,FALSE);
-        gd->setInbodyDocumentation( root->inbodyDocs, root->inbodyFile, root->inbodyLine );
+        gd->setDocumentation(!root->doc.isEmpty() ? root->doc : QCString(" "),root->docFile,root->docLoc,FALSE);
+        gd->setInbodyDocumentation( root->inbodyDocs, root->inbodyFile, root->inbodyLoc );
         gd->addSectionsToDefinition(root->anchors);
         Doxygen::groupSDict->append(root->name,gd);
         gd->setRefItems(root->sli);
@@ -783,7 +783,7 @@ static void buildFileList(EntryNav *rootNav)
           (!root->brief.isEmpty() && !fd->briefDescription().isEmpty()))
       {
         warn(
-            root->fileName,root->startLine,
+            root->fileName,root->startLoc,
             "file %s already documented. "
             "Skipping documentation.",
             root->name.data()
@@ -796,8 +796,8 @@ static void buildFileList(EntryNav *rootNav)
         // using FALSE in setDocumentation is small hack to make sure a file
         // is documented even if a \file command is used without further
         // documentation
-        fd->setDocumentation(root->doc,root->docFile,root->docLine,FALSE);
-        fd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+        fd->setDocumentation(root->doc,root->docFile,root->docLoc,FALSE);
+        fd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
         fd->addSectionsToDefinition(root->anchors);
         fd->setRefItems(root->sli);
         QListIterator<Grouping> gli(*root->groups);
@@ -832,7 +832,7 @@ static void buildFileList(EntryNav *rootNav)
       {
         text+="is not an input file";
       }
-      warn(fn,root->startLine,text);
+      warn(fn,root->startLoc.line,text);
     }
 
     rootNav->releaseEntry();
@@ -888,7 +888,7 @@ static void addIncludeFile(ClassDef *cd,FileDef *ifd,Entry *root)
       {
         text+="is not an input file";
       }
-      warn(root->fileName,root->startLine,text);
+      warn(root->fileName,root->startLoc.line,text);
     }
     else if (includeFile.isEmpty() && ifd &&
         // see if the file extension makes sense
@@ -1027,7 +1027,7 @@ static Definition *buildScopeFromQualifiedName(const QCString name,
       // introduce bogus namespace
       //printf("++ adding dummy namespace %s to %s tagInfo=%p\n",nsName.data(),prevScope->name().data(),tagInfo);
       nd=new NamespaceDef(
-        "[generated]",1,1,fullScope,
+        "[generated]",Location(1,1),fullScope,
         tagInfo?tagInfo->tagName:QCString(),
         tagInfo?tagInfo->fileName:QCString());
       nd->setLanguage(lang);
@@ -1276,12 +1276,12 @@ static void addClassToContext(EntryNav *rootNav)
     //  cd->setTemplateArguments(tArgList);
     //}
 
-    cd->setDocumentation(root->doc,root->docFile,root->docLine);
-    cd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+    cd->setDocumentation(root->doc,root->docFile,root->docLoc);
+    cd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
 
-    if (root->bodyLine!=-1 && cd->getStartBodyLine()==-1)
+    if (root->bodyLoc!=Location(0,0) && cd->getStartBodyLoc()==Location(0,0))
     {
-      cd->setBodySegment(root->bodyLine,root->endBodyLine);
+      cd->setBodySegment(root->bodyLoc,root->endBodyLoc);
       cd->setBodyDef(fd);
     }
     //cd->setName(fullName); // change name to match docs
@@ -1337,12 +1337,12 @@ static void addClassToContext(EntryNav *rootNav)
     {
       tArgList = getTemplateArgumentsFromName(fullName,root->tArgLists);
     }
-    cd=new ClassDef(tagInfo?tagName:root->fileName,root->startLine,root->startColumn,
+    cd=new ClassDef(tagInfo?tagName:root->fileName,root->startLoc,
         fullName,sec,tagName,refFileName,TRUE,root->spec&Entry::Enum);
     Debug::print(Debug::Classes,0,"  New class `%s' (sec=0x%08x)! #tArgLists=%d tagInfo=%p\n",
         qPrint(fullName),sec,root->tArgLists ? (int)root->tArgLists->count() : -1, tagInfo);
-    cd->setDocumentation(root->doc,root->docFile,root->docLine); // copy docs to definition
-    cd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+    cd->setDocumentation(root->doc,root->docFile,root->docLoc); // copy docs to definition
+    cd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
     cd->setLanguage(root->lang);
     cd->setId(root->id);
     cd->setHidden(root->hidden);
@@ -1358,7 +1358,7 @@ static void addClassToContext(EntryNav *rootNav)
     cd->setIsStatic(root->stat);
 
     // file definition containing the class cd
-    cd->setBodySegment(root->bodyLine,root->endBodyLine);
+    cd->setBodySegment(root->bodyLoc,root->endBodyLoc);
     cd->setBodyDef(fd);
 
     // see if the class is found inside a namespace
@@ -1532,14 +1532,13 @@ static ClassDef *createTagLessInstance(ClassDef *rootCd,ClassDef *templ,const QC
   if (fullName.right(2)=="::") fullName=fullName.left(fullName.length()-2);
   fullName+="."+fieldName;
   ClassDef *cd = new ClassDef(templ->getDefFileName(),
-                              templ->getDefLine(),
-                              templ->getDefColumn(),
+                              templ->getDefLoc(),
                               fullName,
                               templ->compoundType());
-  cd->setDocumentation(templ->documentation(),templ->docFile(),templ->docLine()); // copy docs to definition
-  cd->setBriefDescription(templ->briefDescription(),templ->briefFile(),templ->briefLine());
+  cd->setDocumentation(templ->documentation(),templ->docFile(),templ->docLoc()); // copy docs to definition
+  cd->setBriefDescription(templ->briefDescription(),templ->briefFile(),templ->briefLoc());
   cd->setLanguage(templ->getLanguage());
-  cd->setBodySegment(templ->getStartBodyLine(),templ->getEndBodyLine());
+  cd->setBodySegment(templ->getStartBodyLoc(),templ->getEndBodyLoc());
   cd->setBodyDef(templ->getBodyDef());
 
   cd->setOuterScope(rootCd->getOuterScope());
@@ -1576,15 +1575,15 @@ static ClassDef *createTagLessInstance(ClassDef *rootCd,ClassDef *templ,const QC
     for (li.toFirst();(md=li.current());++li)
     {
       //printf("    Member %s type=%s\n",md->name().data(),md->typeString());
-      MemberDef *imd = new MemberDef(md->getDefFileName(),md->getDefLine(),md->getDefColumn(),
+      MemberDef *imd = new MemberDef(md->getDefFileName(),md->getDefLoc(),
                                      md->typeString(),md->name(),md->argsString(),md->excpString(),
                                      md->protection(),md->virtualness(),md->isStatic(),Member,
                                      md->memberType(),
                                      0,0);
       imd->setMemberClass(cd);
-      imd->setDocumentation(md->documentation(),md->docFile(),md->docLine());
-      imd->setBriefDescription(md->briefDescription(),md->briefFile(),md->briefLine());
-      imd->setInbodyDocumentation(md->inbodyDocumentation(),md->inbodyFile(),md->inbodyLine());
+      imd->setDocumentation(md->documentation(),md->docFile(),md->docLoc());
+      imd->setBriefDescription(md->briefDescription(),md->briefFile(),md->briefLoc());
+      imd->setInbodyDocumentation(md->inbodyDocumentation(),md->inbodyFile(),md->inbodyLoc());
       imd->setMemberSpecifiers(md->getMemberSpecifiers());
       imd->setMemberGroupId(md->getMemberGroupId());
       imd->setInitializer(md->initializer());
@@ -1733,14 +1732,14 @@ static void buildNamespaceList(EntryNav *rootNav)
     if (!fullName.isEmpty())
     {
       //printf("Found namespace %s in %s at line %d\n",root->name.data(),
-      //        root->fileName.data(), root->startLine);
+      //        root->fileName.data(), root->startLoc);
       NamespaceDef *nd;
       if ((nd=Doxygen::namespaceSDict->find(fullName))) // existing namespace
       {
-        nd->setDocumentation(root->doc,root->docFile,root->docLine);
+        nd->setDocumentation(root->doc,root->docFile,root->docLoc);
         nd->setName(fullName); // change name to match docs
         nd->addSectionsToDefinition(root->anchors);
-        nd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+        nd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
         if (nd->getLanguage()==SrcLangExt_Unknown)
         {
           nd->setLanguage(root->lang);
@@ -1771,11 +1770,11 @@ static void buildNamespaceList(EntryNav *rootNav)
           tagFileName = tagInfo->fileName;
         }
         //printf("++ new namespace %s lang=%s tagName=%s\n",fullName.data(),langToString(root->lang).data(),tagName.data());
-        NamespaceDef *nd=new NamespaceDef(tagInfo?tagName:root->fileName,root->startLine,
-                             root->startColumn,fullName,tagName,tagFileName,
+        NamespaceDef *nd=new NamespaceDef(tagInfo?tagName:root->fileName,root->startLoc,
+                             fullName,tagName,tagFileName,
                              root->type,root->spec&Entry::Published);
-        nd->setDocumentation(root->doc,root->docFile,root->docLine); // copy docs to definition
-        nd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+        nd->setDocumentation(root->doc,root->docFile,root->docLoc); // copy docs to definition
+        nd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
         nd->addSectionsToDefinition(root->anchors);
         nd->setHidden(root->hidden);
         nd->setArtificial(root->artificial);
@@ -1792,9 +1791,9 @@ static void buildNamespaceList(EntryNav *rootNav)
         if (fd) fd->insertNamespace(nd);
 
         // the empty string test is needed for extract all case
-        nd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+        nd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
         nd->insertUsedFile(fd);
-        nd->setBodySegment(root->bodyLine,root->endBodyLine);
+        nd->setBodySegment(root->bodyLoc,root->endBodyLoc);
         nd->setBodyDef(fd);
         // add class to the list
         Doxygen::namespaceSDict->inSort(fullName,nd);
@@ -1853,7 +1852,7 @@ static void findUsingDirectives(EntryNav *rootNav)
     Entry *root = rootNav->entry();
 
     //printf("Found using directive %s at line %d of %s\n",
-    //    root->name.data(),root->startLine,root->fileName.data());
+    //    root->name.data(),root->startLoc,root->fileName.data());
     QCString name=substitute(root->name,".","::");
     if (name.right(2)=="::")
     {
@@ -1947,9 +1946,9 @@ static void findUsingDirectives(EntryNav *rootNav)
       else // unknown namespace, but add it anyway.
       {
         //printf("++ new unknown namespace %s lang=%s\n",name.data(),langToString(root->lang).data());
-        NamespaceDef *nd=new NamespaceDef(root->fileName,root->startLine,root->startColumn,name);
-        nd->setDocumentation(root->doc,root->docFile,root->docLine); // copy docs to definition
-        nd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+        NamespaceDef *nd=new NamespaceDef(root->fileName,root->startLoc,name);
+        nd->setDocumentation(root->doc,root->docFile,root->docLoc); // copy docs to definition
+        nd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
         nd->addSectionsToDefinition(root->anchors);
         //printf("** Adding namespace %s hidden=%d\n",name.data(),root->hidden);
         nd->setHidden(root->hidden);
@@ -1974,7 +1973,7 @@ static void findUsingDirectives(EntryNav *rootNav)
         }
 
         // the empty string test is needed for extract all case
-        nd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+        nd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
         nd->insertUsedFile(fd);
         // add class to the list
         Doxygen::namespaceSDict->inSort(name,nd);
@@ -2025,7 +2024,7 @@ static void findUsingDeclarations(EntryNav *rootNav)
     Entry *root = rootNav->entry();
 
     //printf("Found using declaration %s at line %d of %s inside section %x\n",
-    //   root->name.data(),root->startLine,root->fileName.data(),
+    //   root->name.data(),root->startLoc,root->fileName.data(),
     //   rootNav->parent()->section());
     if (!root->name.isEmpty())
     {
@@ -2070,7 +2069,7 @@ static void findUsingDeclarations(EntryNav *rootNav)
         Debug::print(Debug::Classes,0,"  New using class `%s' (sec=0x%08x)! #tArgLists=%d\n",
              qPrint(name),root->section,root->tArgLists ? (int)root->tArgLists->count() : -1);
         usingCd = new ClassDef(
-                     "<using>",1,1,
+                     "<using>",Location(1,1),
                      name,
                      ClassDef::Class);
         Doxygen::hiddenClasses->append(root->name,usingCd);
@@ -2112,7 +2111,7 @@ static void findUsingDeclImports(EntryNav *rootNav)
      )
   {
     //printf("Found using declaration %s at line %d of %s inside section %x\n",
-    //    root->name.data(),root->startLine,root->fileName.data(),
+    //    root->name.data(),root->startLoc,root->fileName.data(),
     //    root->parent->section);
     QCString fullName=removeRedundantWhiteSpace(rootNav->parent()->name());
     fullName=stripAnonymousNamespaceScope(fullName);
@@ -2158,7 +2157,7 @@ static void findUsingDeclImports(EntryNav *rootNav)
                     ArgumentList *templAl = md->templateArguments();
                     ArgumentList *al = md->templateArguments();
                     newMd = new MemberDef(
-                      fileName,root->startLine,root->startColumn,
+                      fileName,root->startLoc,
                       md->typeString(),memName,md->argsString(),
                       md->excpString(),root->protection,root->virt,
                       md->isStatic(),Member,md->memberType(),
@@ -2169,22 +2168,22 @@ static void findUsingDeclImports(EntryNav *rootNav)
                   cd->insertMember(newMd);
                   if (!root->doc.isEmpty() || !root->brief.isEmpty())
                   {
-                    newMd->setDocumentation(root->doc,root->docFile,root->docLine);
-                    newMd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-                    newMd->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+                    newMd->setDocumentation(root->doc,root->docFile,root->docLoc);
+                    newMd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+                    newMd->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
                   }
                   else
                   {
-                    newMd->setDocumentation(md->documentation(),md->docFile(),md->docLine());
-                    newMd->setBriefDescription(md->briefDescription(),md->briefFile(),md->briefLine());
-                    newMd->setInbodyDocumentation(md->inbodyDocumentation(),md->inbodyFile(),md->inbodyLine());
+                    newMd->setDocumentation(md->documentation(),md->docFile(),md->docLoc());
+                    newMd->setBriefDescription(md->briefDescription(),md->briefFile(),md->briefLoc());
+                    newMd->setInbodyDocumentation(md->inbodyDocumentation(),md->inbodyFile(),md->inbodyLoc());
                   }
                   newMd->setDefinition(md->definition());
                   newMd->enableCallGraph(root->callGraph);
                   newMd->enableCallerGraph(root->callerGraph);
                   newMd->setBitfields(md->bitfieldString());
                   newMd->addSectionsToDefinition(root->anchors);
-                  newMd->setBodySegment(md->getStartBodyLine(),md->getEndBodyLine());
+                  newMd->setBodySegment(md->getStartBodyLoc(),md->getEndBodyLoc());
                   newMd->setBodyDef(md->getBodyDef());
                   newMd->setInitializer(md->initializer());
                   newMd->setMaxInitLines(md->initializerLines());
@@ -2352,24 +2351,24 @@ static MemberDef *addVariableToClass(
 
   // new member variable, typedef or enum value
   MemberDef *md=new MemberDef(
-      fileName,root->startLine,root->startColumn,
+      fileName,root->startLoc,
       root->type,name,root->args,root->exception,
       prot,Normal,root->stat,related,
       mtype,root->tArgLists ? root->tArgLists->getLast() : 0,0);
   md->setTagInfo(rootNav->tagInfo());
   md->setMemberClass(cd); // also sets outer scope (i.e. getOuterScope())
   //md->setDefFile(root->fileName);
-  //md->setDefLine(root->startLine);
-  md->setDocumentation(root->doc,root->docFile,root->docLine);
-  md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-  md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+  //md->setDefLine(root->startLoc);
+  md->setDocumentation(root->doc,root->docFile,root->docLoc);
+  md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+  md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
   md->setDefinition(def);
   md->setBitfields(root->bitfields);
   md->addSectionsToDefinition(root->anchors);
   md->setFromAnonymousScope(fromAnnScope);
   md->setFromAnonymousMember(fromAnnMemb);
   //md->setIndentDepth(indentDepth);
-  md->setBodySegment(root->bodyLine,root->endBodyLine);
+  md->setBodySegment(root->bodyLoc,root->endBodyLoc);
   md->setInitializer(root->initializer);
   md->setMaxInitLines(root->initLines);
   md->setMemberGroupId(root->mGrpId);
@@ -2463,8 +2462,8 @@ static MemberDef *addVariableToFile(
           // this typedef should hide compound name cd, so we
           // change the name that is displayed from cd.
           cd->setClassName(name);
-          cd->setDocumentation(root->doc,root->docFile,root->docLine);
-          cd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+          cd->setDocumentation(root->doc,root->docFile,root->docLoc);
+          cd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
           return 0;
         }
       }
@@ -2595,15 +2594,15 @@ static MemberDef *addVariableToFile(
     "    new variable, nd=%s!\n",nd?qPrint(nd->name()):"<global>");
   // new global variable, enum value or typedef
   MemberDef *md=new MemberDef(
-      fileName,root->startLine,root->startColumn,
+      fileName,root->startLoc,
       root->type,name,root->args,0,
       root->protection, Normal,root->stat,Member,
       mtype,root->tArgLists ? root->tArgLists->getLast() : 0,0);
   md->setTagInfo(rootNav->tagInfo());
   md->setMemberSpecifiers(root->spec);
-  md->setDocumentation(root->doc,root->docFile,root->docLine);
-  md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-  md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+  md->setDocumentation(root->doc,root->docFile,root->docLoc);
+  md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+  md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
   md->addSectionsToDefinition(root->anchors);
   md->setFromAnonymousScope(fromAnnScope);
   md->setFromAnonymousMember(fromAnnMemb);
@@ -2619,7 +2618,7 @@ static MemberDef *addVariableToFile(
   //md->setOuterScope(fd);
   if (!root->explicitExternal)
   {
-    md->setBodySegment(root->bodyLine,root->endBodyLine);
+    md->setBodySegment(root->bodyLoc,root->endBodyLoc);
     md->setBodyDef(fd);
   }
   addMemberToGroups(root,md);
@@ -2821,11 +2820,11 @@ static void addVariable(EntryNav *rootNav,int isFuncPtr=-1)
 
     Debug::print(Debug::Variables,0,
                   "VARIABLE_SEC: \n"
-                  "  type=`%s' name=`%s' args=`%s' bodyLine=`%d' mGrpId=%d relates=%s\n",
+                  "  type=`%s' name=`%s' args=`%s' bodyLoc=`%d' mGrpId=%d relates=%s\n",
                    qPrint(root->type),
                    qPrint(root->name),
                    qPrint(root->args),
-                   root->bodyLine,
+                   root->bodyLoc,
                    root->mGrpId,
                    qPrint(root->relates)
                 );
@@ -3112,16 +3111,16 @@ static void addInterfaceOrServiceToServiceOrSingleton(
     fileName = rootNav->tagInfo()->tagName;
   }
   MemberDef *const md = new MemberDef(
-      fileName, root->startLine, root->startColumn, root->type, rname,
+      fileName, root->startLoc, root->type, rname,
       "", "", root->protection, root->virt, root->stat, Member,
       type, 0, root->argList);
   md->setTagInfo(rootNav->tagInfo());
   md->setMemberClass(cd);
-  md->setDocumentation(root->doc,root->docFile,root->docLine);
+  md->setDocumentation(root->doc,root->docFile,root->docLoc);
   md->setDocsForDefinition(false);
-  md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-  md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
-  md->setBodySegment(root->bodyLine,root->endBodyLine);
+  md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+  md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
+  md->setBodySegment(root->bodyLoc,root->endBodyLoc);
   md->setMemberSpecifiers(root->spec);
   md->setMemberGroupId(root->mGrpId);
   md->setTypeConstraints(root->typeConstr);
@@ -3183,7 +3182,7 @@ static void buildInterfaceAndServiceList(EntryNav *const rootNav)
 
     Debug::print(Debug::Functions,0,
                  "EXPORTED_INTERFACE_SEC:\n"
-                 "  `%s' `%s'::`%s' `%s' relates=`%s' relatesType=`%d' file=`%s' line=`%d' bodyLine=`%d' #tArgLists=%d mGrpId=%d spec=%lld proto=%d docFile=%s\n",
+                 "  `%s' `%s'::`%s' `%s' relates=`%s' relatesType=`%d' file=`%s' line=`%d' bodyLoc=`%d' #tArgLists=%d mGrpId=%d spec=%lld proto=%d docFile=%s\n",
                  qPrint(root->type),
                  qPrint(rootNav->parent()->name()),
                  qPrint(root->name),
@@ -3191,8 +3190,8 @@ static void buildInterfaceAndServiceList(EntryNav *const rootNav)
                  qPrint(root->relates),
                  root->relatesType,
                  qPrint(root->fileName),
-                 root->startLine,
-                 root->bodyLine,
+                 root->startLoc,
+                 root->bodyLoc,
                  root->tArgLists ? (int)root->tArgLists->count() : -1,
                  root->mGrpId,
                  root->spec,
@@ -3220,7 +3219,7 @@ static void buildInterfaceAndServiceList(EntryNav *const rootNav)
     }
     else if (rname.isEmpty())
     {
-      warn(root->fileName,root->startLine,
+      warn(root->fileName,root->startLoc.line,
            "Illegal member name found.");
     }
 
@@ -3295,7 +3294,7 @@ static void addMethodToClass(EntryNav *rootNav,ClassDef *cd,
 
   // adding class member
   MemberDef *md=new MemberDef(
-      fileName,root->startLine,root->startColumn,
+      fileName,root->startLoc,
       root->type,name,root->args,root->exception,
       root->protection,root->virt,
       root->stat && root->relatesType != MemberOf,
@@ -3304,11 +3303,11 @@ static void addMethodToClass(EntryNav *rootNav,ClassDef *cd,
       mtype,root->tArgLists ? root->tArgLists->getLast() : 0,root->argList);
   md->setTagInfo(rootNav->tagInfo());
   md->setMemberClass(cd);
-  md->setDocumentation(root->doc,root->docFile,root->docLine);
+  md->setDocumentation(root->doc,root->docFile,root->docLoc);
   md->setDocsForDefinition(!root->proto);
-  md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-  md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
-  md->setBodySegment(root->bodyLine,root->endBodyLine);
+  md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+  md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
+  md->setBodySegment(root->bodyLoc,root->endBodyLoc);
   md->setMemberSpecifiers(root->spec);
   md->setMemberGroupId(root->mGrpId);
   md->setTypeConstraints(root->typeConstr);
@@ -3432,7 +3431,7 @@ static void buildFunctionList(EntryNav *rootNav)
 
     Debug::print(Debug::Functions,0,
                  "FUNCTION_SEC:\n"
-                 "  `%s' `%s'::`%s' `%s' relates=`%s' relatesType=`%d' file=`%s' line=`%d' bodyLine=`%d' #tArgLists=%d mGrpId=%d spec=%lld proto=%d docFile=%s\n",
+                 "  `%s' `%s'::`%s' `%s' relates=`%s' relatesType=`%d' file=`%s' line=`%d' bodyLoc=`%d' #tArgLists=%d mGrpId=%d spec=%lld proto=%d docFile=%s\n",
                  qPrint(root->type),
                  qPrint(rootNav->parent()->name()),
                  qPrint(root->name),
@@ -3440,8 +3439,8 @@ static void buildFunctionList(EntryNav *rootNav)
                  qPrint(root->relates),
                  root->relatesType,
                  qPrint(root->fileName),
-                 root->startLine,
-                 root->bodyLine,
+                 root->startLoc,
+                 root->bodyLoc,
                  root->tArgLists ? (int)root->tArgLists->count() : -1,
                  root->mGrpId,
                  root->spec,
@@ -3633,12 +3632,12 @@ static void buildFunctionList(EntryNav *rootNav)
                   }
                 }
 
-                md->setDocumentation(root->doc,root->docFile,root->docLine);
-                md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+                md->setDocumentation(root->doc,root->docFile,root->docLoc);
+                md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
                 md->setDocsForDefinition(!root->proto);
-                if (md->getStartBodyLine()==-1 && root->bodyLine!=-1)
+                if (md->getStartBodyLoc()==Location(0,0) && root->bodyLoc!=Location(0,0))
                 {
-                  md->setBodySegment(root->bodyLine,root->endBodyLine);
+                  md->setBodySegment(root->bodyLoc,root->endBodyLoc);
                   md->setBodyDef(rfd);
                 }
 
@@ -3646,7 +3645,7 @@ static void buildFunctionList(EntryNav *rootNav)
                 {
                   md->setArgsString(root->args);
                 }
-                md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+                md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
 
                 md->addSectionsToDefinition(root->anchors);
 
@@ -3681,14 +3680,14 @@ static void buildFunctionList(EntryNav *rootNav)
         if (!found) /* global function is unique with respect to the file */
         {
           Debug::print(Debug::Functions,0,"  --> new function %s found!\n",qPrint(rname));
-          //printf("New function type=`%s' name=`%s' args=`%s' bodyLine=%d\n",
-          //       root->type.data(),rname.data(),root->args.data(),root->bodyLine);
+          //printf("New function type=`%s' name=`%s' args=`%s' bodyLoc=%d\n",
+          //       root->type.data(),rname.data(),root->args.data(),root->bodyLoc);
 
           // new global function
           ArgumentList *tArgList = root->tArgLists ? root->tArgLists->getLast() : 0;
           QCString name=removeRedundantWhiteSpace(rname);
           md=new MemberDef(
-              root->fileName,root->startLine,root->startColumn,
+              root->fileName,root->startLoc,
               root->type,name,root->args,root->exception,
               root->protection,root->virt,root->stat,Member,
               MemberType_Function,tArgList,root->argList);
@@ -3697,15 +3696,15 @@ static void buildFunctionList(EntryNav *rootNav)
           md->setLanguage(root->lang);
           md->setId(root->id);
           //md->setDefFile(root->fileName);
-          //md->setDefLine(root->startLine);
-          md->setDocumentation(root->doc,root->docFile,root->docLine);
-          md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-          md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+          //md->setDefLine(root->startLoc);
+          md->setDocumentation(root->doc,root->docFile,root->docLoc);
+          md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+          md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
           md->setPrototype(root->proto);
           md->setDocsForDefinition(!root->proto);
           md->setTypeConstraints(root->typeConstr);
           //md->setBody(root->body);
-          md->setBodySegment(root->bodyLine,root->endBodyLine);
+          md->setBodySegment(root->bodyLoc,root->endBodyLoc);
           FileDef *fd=rootNav->fileDef();
           md->setBodyDef(fd);
           md->addSectionsToDefinition(root->anchors);
@@ -3834,7 +3833,7 @@ static void buildFunctionList(EntryNav *rootNav)
     }
     else if (rname.isEmpty())
     {
-        warn(root->fileName,root->startLine,
+        warn(root->fileName,root->startLoc.line,
              "Illegal member name found."
             );
     }
@@ -3883,38 +3882,38 @@ static void findFriends()
             mergeArguments(mmdAl,fmdAl);
             if (!fmd->documentation().isEmpty())
             {
-              mmd->setDocumentation(fmd->documentation(),fmd->docFile(),fmd->docLine());
+              mmd->setDocumentation(fmd->documentation(),fmd->docFile(),fmd->docLoc());
             }
             else if (!mmd->documentation().isEmpty())
             {
-              fmd->setDocumentation(mmd->documentation(),mmd->docFile(),mmd->docLine());
+              fmd->setDocumentation(mmd->documentation(),mmd->docFile(),mmd->docLoc());
             }
             if (mmd->briefDescription().isEmpty() && !fmd->briefDescription().isEmpty())
             {
-              mmd->setBriefDescription(fmd->briefDescription(),fmd->briefFile(),fmd->briefLine());
+              mmd->setBriefDescription(fmd->briefDescription(),fmd->briefFile(),fmd->briefLoc());
             }
             else if (!mmd->briefDescription().isEmpty() && !fmd->briefDescription().isEmpty())
             {
-              fmd->setBriefDescription(mmd->briefDescription(),mmd->briefFile(),mmd->briefLine());
+              fmd->setBriefDescription(mmd->briefDescription(),mmd->briefFile(),mmd->briefLoc());
             }
             if (!fmd->inbodyDocumentation().isEmpty())
             {
-              mmd->setInbodyDocumentation(fmd->inbodyDocumentation(),fmd->inbodyFile(),fmd->inbodyLine());
+              mmd->setInbodyDocumentation(fmd->inbodyDocumentation(),fmd->inbodyFile(),fmd->inbodyLoc());
             }
             else if (!mmd->inbodyDocumentation().isEmpty())
             {
-              fmd->setInbodyDocumentation(mmd->inbodyDocumentation(),mmd->inbodyFile(),mmd->inbodyLine());
+              fmd->setInbodyDocumentation(mmd->inbodyDocumentation(),mmd->inbodyFile(),mmd->inbodyLoc());
             }
-            //printf("body mmd %d fmd %d\n",mmd->getStartBodyLine(),fmd->getStartBodyLine());
-            if (mmd->getStartBodyLine()==-1 && fmd->getStartBodyLine()!=-1)
+            //printf("body mmd %d fmd %d\n",mmd->getStartBodyLoc(),fmd->getStartBodyLoc());
+            if (mmd->getStartBodyLoc()==Location(0,0) && fmd->getStartBodyLoc()!=Location(0,0))
             {
-              mmd->setBodySegment(fmd->getStartBodyLine(),fmd->getEndBodyLine());
+              mmd->setBodySegment(fmd->getStartBodyLoc(),fmd->getEndBodyLoc());
               mmd->setBodyDef(fmd->getBodyDef());
               //mmd->setBodyMember(fmd);
             }
-            else if (mmd->getStartBodyLine()!=-1 && fmd->getStartBodyLine()==-1)
+            else if (mmd->getStartBodyLoc()!=Location(0,0) && fmd->getStartBodyLoc()==Location(0,0))
             {
-              fmd->setBodySegment(mmd->getStartBodyLine(),mmd->getEndBodyLine());
+              fmd->setBodySegment(mmd->getStartBodyLoc(),mmd->getEndBodyLoc());
               fmd->setBodyDef(mmd->getBodyDef());
               //fmd->setBodyMember(mmd);
             }
@@ -4274,8 +4273,7 @@ static void findUsedClassesForClass(EntryNav *rootNav,
                   if (usedCd==0)
                   {
                     usedCd = new ClassDef(
-                        masterCd->getDefFileName(),masterCd->getDefLine(),
-                        masterCd->getDefColumn(),
+                        masterCd->getDefFileName(),masterCd->getDefLoc(),
                         usedName,
                         ClassDef::Class);
                     //printf("making %s a template argument!!!\n",usedCd->name().data());
@@ -4323,8 +4321,7 @@ static void findUsedClassesForClass(EntryNav *rootNav,
               }
               Debug::print(Debug::Classes,0,"  New undocumented used class `%s'\n", qPrint(type));
               usedCd = new ClassDef(
-                  masterCd->getDefFileName(),masterCd->getDefLine(),
-                  masterCd->getDefColumn(),
+                  masterCd->getDefFileName(),masterCd->getDefLoc(),
                   type,ClassDef::Class);
               usedCd->setUsedOnly(TRUE);
               usedCd->setLanguage(masterCd->getLanguage());
@@ -4440,7 +4437,7 @@ static bool findTemplateInstanceRelation(Entry *root,
 
   bool freshInstance=FALSE;
   ClassDef *instanceClass = templateClass->insertTemplateInstance(
-                     root->fileName,root->startLine,root->startColumn,templSpec,freshInstance);
+                     root->fileName,root->startLoc,templSpec,freshInstance);
   if (isArtificial) instanceClass->setArtificial(TRUE);
   instanceClass->setLanguage(root->lang);
 
@@ -4829,7 +4826,7 @@ static bool findClassRelation(
             }
             else
             {
-              warn(root->fileName,root->startLine,
+              warn(root->fileName,root->startLoc.line,
                   "Detected potential recursive class relation "
                   "between class %s and base class %s!",
                   cd->name().data(),baseClass->name().data()
@@ -4850,7 +4847,7 @@ static bool findClassRelation(
             baseClass=Doxygen::hiddenClasses->find(baseClassName);
             if (baseClass==0)
             {
-              baseClass=new ClassDef(root->fileName,root->startLine,root->startColumn,
+              baseClass=new ClassDef(root->fileName,root->startLoc,
                                  baseClassName,
                                  ClassDef::Class);
               Doxygen::hiddenClasses->append(baseClassName,baseClass);
@@ -4865,7 +4862,7 @@ static bool findClassRelation(
             //    baseClassName.data(),baseClass,biName.data(),templSpec.data());
             if (baseClass==0)
             {
-              baseClass=new ClassDef(root->fileName,root->startLine,root->startColumn,
+              baseClass=new ClassDef(root->fileName,root->startLoc,
                   baseClassName,
                   ClassDef::Class);
               Doxygen::classSDict->append(baseClassName,baseClass);
@@ -4908,7 +4905,7 @@ static bool findClassRelation(
       {
         if (mode!=TemplateInstances)
         {
-          warn(root->fileName,root->startLine,
+          warn(root->fileName,root->startLoc.line,
               "Detected potential recursive class relation "
               "between class %s and base class %s!\n",
               root->name.data(),baseClassName.data()
@@ -5071,7 +5068,7 @@ static void computeClassRelations()
            !Config_getBool(HIDE_UNDOC_CLASSES) // undocumented class are visible
          )
         warn_undoc(
-                   root->fileName,root->startLine,
+                   root->fileName,root->startLoc.line,
                    "Compound %s is not documented.",
                    root->name.data()
              );
@@ -5365,18 +5362,18 @@ static void addMemberDocs(EntryNav *rootNav,
       doc+="<p>";
       doc+=root->doc;
     }
-    md->setDocumentation(doc,root->docFile,root->docLine);
-    md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+    md->setDocumentation(doc,root->docFile,root->docLoc);
+    md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
     md->setDocsForDefinition(!root->proto);
   }
   else
   {
     //printf("overwrite!\n");
-    md->setDocumentation(root->doc,root->docFile,root->docLine);
+    md->setDocumentation(root->doc,root->docFile,root->docLoc);
     md->setDocsForDefinition(!root->proto);
 
     //printf("overwrite!\n");
-    md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+    md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
 
     if (
         (md->inbodyDocumentation().isEmpty() ||
@@ -5384,7 +5381,7 @@ static void addMemberDocs(EntryNav *rootNav,
         ) && !root->inbodyDocs.isEmpty()
        )
     {
-      md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+      md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
     }
   }
 
@@ -5402,11 +5399,11 @@ static void addMemberDocs(EntryNav *rootNav,
 
   if (rfd)
   {
-    if ((md->getStartBodyLine()==-1 && root->bodyLine!=-1)
+    if ((md->getStartBodyLoc()==Location(0,0) && root->bodyLoc!=Location(0,0))
        )
     {
-      //printf("Setting new body segment [%d,%d]\n",root->bodyLine,root->endBodyLine);
-      md->setBodySegment(root->bodyLine,root->endBodyLine);
+      //printf("Setting new body segment [%d,%d]\n",root->bodyLoc,root->endBodyLoc);
+      md->setBodySegment(root->bodyLoc,root->endBodyLoc);
       md->setBodyDef(rfd);
     }
 
@@ -5428,7 +5425,7 @@ static void addMemberDocs(EntryNav *rootNav,
       if (md->getMemberGroupId()!=root->mGrpId)
       {
         warn(
-             root->fileName,root->startLine,
+             root->fileName,root->startLoc.line,
              "member %s belongs to two different groups. The second "
              "one found here will be ignored.",
              md->name().data()
@@ -5591,7 +5588,7 @@ static bool findGlobalMember(EntryNav *rootNav,
                    " of file"+md->getDefFileName()+"\n";
         }
       }
-      warn(root->fileName,root->startLine,warnMsg);
+      warn(root->fileName,root->startLoc.line,warnMsg);
     }
   }
   else // got docs for an undefined member!
@@ -5603,7 +5600,7 @@ static bool findGlobalMember(EntryNav *rootNav,
          root->type.find("typedef ")==-1)
        )
     {
-      warn(root->fileName,root->startLine,
+      warn(root->fileName,root->startLoc.line,
            "documented symbol `%s' was not declared or defined.",decl
           );
     }
@@ -6410,7 +6407,7 @@ static void findMember(EntryNav *rootNav,
                 }
               }
             }
-            warn_simple(root->fileName,root->startLine,warnMsg);
+            warn_simple(root->fileName,root->startLoc.line,warnMsg);
           }
         }
         else if (cd) // member specialization
@@ -6431,7 +6428,7 @@ static void findMember(EntryNav *rootNav,
           ArgumentList *tArgList = new ArgumentList;
           //  getTemplateArgumentsFromName(cd->name()+"::"+funcName,root->tArgLists);
           md=new MemberDef(
-              root->fileName,root->startLine,root->startColumn,
+              root->fileName,root->startLoc,
               funcType,funcName,funcArgs,exceptions,
               declMd ? declMd->protection() : root->protection,
               root->virt,root->stat,Member,
@@ -6446,13 +6443,13 @@ static void findMember(EntryNav *rootNav,
           md->setDefinition(funcDecl);
           md->enableCallGraph(root->callGraph);
           md->enableCallerGraph(root->callerGraph);
-          md->setDocumentation(root->doc,root->docFile,root->docLine);
-          md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-          md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+          md->setDocumentation(root->doc,root->docFile,root->docLoc);
+          md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+          md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
           md->setDocsForDefinition(!root->proto);
           md->setPrototype(root->proto);
           md->addSectionsToDefinition(root->anchors);
-          md->setBodySegment(root->bodyLine,root->endBodyLine);
+          md->setBodySegment(root->bodyLoc,root->endBodyLoc);
           FileDef *fd=rootNav->fileDef();
           md->setBodyDef(fd);
           md->setMemberSpecifiers(root->spec);
@@ -6499,7 +6496,7 @@ static void findMember(EntryNav *rootNav,
             getTemplateArgumentsFromName(cd->name()+"::"+funcName,root->tArgLists);
           //printf("new related member %s args=`%s'\n",md->name().data(),funcArgs.data());
           MemberDef *md=new MemberDef(
-              root->fileName,root->startLine,root->startColumn,
+              root->fileName,root->startLoc,
               funcType,funcName,funcArgs,exceptions,
               root->protection,root->virt,root->stat,Related,
               mtype,tArgList,root->argList);
@@ -6514,13 +6511,13 @@ static void findMember(EntryNav *rootNav,
           QCString doc=getOverloadDocs();
           doc+="<p>";
           doc+=root->doc;
-          md->setDocumentation(doc,root->docFile,root->docLine);
-          md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-          md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+          md->setDocumentation(doc,root->docFile,root->docLoc);
+          md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+          md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
           md->setDocsForDefinition(!root->proto);
           md->setPrototype(root->proto);
           md->addSectionsToDefinition(root->anchors);
-          md->setBodySegment(root->bodyLine,root->endBodyLine);
+          md->setBodySegment(root->bodyLoc,root->endBodyLoc);
           FileDef *fd=rootNav->fileDef();
           md->setBodyDef(fd);
           md->setMemberSpecifiers(root->spec);
@@ -6537,7 +6534,7 @@ static void findMember(EntryNav *rootNav,
         {
           QCString fullFuncDecl=funcDecl.copy();
           if (isFunc) fullFuncDecl+=argListToString(root->argList,TRUE);
-          warn(root->fileName,root->startLine,
+          warn(root->fileName,root->startLoc.line,
                "Cannot determine class for function\n%s",
                fullFuncDecl.data()
               );
@@ -6633,7 +6630,7 @@ static void findMember(EntryNav *rootNav,
           // the related function, which don't have to do with
           // those of the related class.
           MemberDef *md=new MemberDef(
-              root->fileName,root->startLine,root->startColumn,
+              root->fileName,root->startLoc,
               funcType,funcName,funcArgs,exceptions,
               root->protection,root->virt,
               root->stat && !isMemberOf,
@@ -6664,13 +6661,13 @@ static void findMember(EntryNav *rootNav,
 
 
 
-          //printf("Related member name=`%s' decl=`%s' bodyLine=`%d'\n",
-          //       funcName.data(),funcDecl.data(),root->bodyLine);
+          //printf("Related member name=`%s' decl=`%s' bodyLoc=`%d'\n",
+          //       funcName.data(),funcDecl.data(),root->bodyLoc);
 
           // try to find the matching line number of the body from the
           // global function list
           bool found=FALSE;
-          if (root->bodyLine==-1)
+          if (root->bodyLoc==Location(0,0))
           {
             MemberName *rmn=Doxygen::functionNameSDict->find(funcName);
             if (rmn)
@@ -6693,7 +6690,7 @@ static void findMember(EntryNav *rootNav,
               }
               if (rmd) // member found -> copy line number info
               {
-                md->setBodySegment(rmd->getStartBodyLine(),rmd->getEndBodyLine());
+                md->setBodySegment(rmd->getStartBodyLoc(),rmd->getEndBodyLoc());
                 md->setBodyDef(rmd->getBodyDef());
                 //md->setBodyMember(rmd);
               }
@@ -6702,7 +6699,7 @@ static void findMember(EntryNav *rootNav,
           if (!found) // line number could not be found or is available in this
                       // entry
           {
-            md->setBodySegment(root->bodyLine,root->endBodyLine);
+            md->setBodySegment(root->bodyLoc,root->endBodyLoc);
             md->setBodyDef(fd);
           }
 
@@ -6715,11 +6712,11 @@ static void findMember(EntryNav *rootNav,
           md->setDefinition(funcDecl);
           md->enableCallGraph(root->callGraph);
           md->enableCallerGraph(root->callerGraph);
-          md->setDocumentation(root->doc,root->docFile,root->docLine);
-          md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+          md->setDocumentation(root->doc,root->docFile,root->docLoc);
+          md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
           md->setDocsForDefinition(!root->proto);
           md->setPrototype(root->proto);
-          md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+          md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
           md->addSectionsToDefinition(root->anchors);
           md->setMemberGroupId(root->mGrpId);
           md->setLanguage(root->lang);
@@ -6748,7 +6745,7 @@ static void findMember(EntryNav *rootNav,
           {
             QCString fullFuncDecl=funcDecl.copy();
             if (isFunc) fullFuncDecl+=argListToString(root->argList,TRUE);
-            warn(root->fileName,root->startLine,
+            warn(root->fileName,root->startLoc.line,
                "Cannot determine file/namespace for relatedalso function\n%s",
                fullFuncDecl.data()
               );
@@ -6757,7 +6754,7 @@ static void findMember(EntryNav *rootNav,
       }
       else
       {
-        warn_undoc(root->fileName,root->startLine,
+        warn_undoc(root->fileName,root->startLoc.line,
                    "class `%s' for related function `%s' is not "
                    "documented.",
                    className.data(),funcName.data()
@@ -6775,7 +6772,7 @@ localObjCMethod:
               "  scopeName=%s className=%s\n",qPrint(root->name),qPrint(scopeName),qPrint(className));
         //printf("Local objective C method `%s' of class `%s' found\n",root->name.data(),cd->name().data());
         MemberDef *md=new MemberDef(
-            root->fileName,root->startLine,root->startColumn,
+            root->fileName,root->startLoc,
             funcType,funcName,funcArgs,exceptions,
             root->protection,root->virt,root->stat,Member,
             MemberType_Function,0,root->argList);
@@ -6787,13 +6784,13 @@ localObjCMethod:
         md->setDefinition(funcDecl);
         md->enableCallGraph(root->callGraph);
         md->enableCallerGraph(root->callerGraph);
-        md->setDocumentation(root->doc,root->docFile,root->docLine);
-        md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-        md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+        md->setDocumentation(root->doc,root->docFile,root->docLoc);
+        md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+        md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
         md->setDocsForDefinition(!root->proto);
         md->setPrototype(root->proto);
         md->addSectionsToDefinition(root->anchors);
-        md->setBodySegment(root->bodyLine,root->endBodyLine);
+        md->setBodySegment(root->bodyLoc,root->endBodyLoc);
         FileDef *fd=rootNav->fileDef();
         md->setBodyDef(fd);
         md->setMemberSpecifiers(root->spec);
@@ -6822,14 +6819,14 @@ localObjCMethod:
       bool globMem = findGlobalMember(rootNav,namespaceName,funcType,funcName,funcTempList,funcArgs,funcDecl);
       if (className.isEmpty() && !globMem)
       {
-        warn(root->fileName,root->startLine,
+        warn(root->fileName,root->startLoc.line,
              "class for member `%s' cannot "
              "be found.", funcName.data()
             );
       }
       else if (!className.isEmpty() && !globMem)
       {
-        warn(root->fileName,root->startLine,
+        warn(root->fileName,root->startLoc.line,
              "member `%s' of class `%s' cannot be found",
              funcName.data(),className.data());
       }
@@ -6838,7 +6835,7 @@ localObjCMethod:
   else
   {
     // this should not be called
-    warn(root->fileName,root->startLine,
+    warn(root->fileName,root->startLoc.line,
          "member with no name found.");
   }
   return;
@@ -7109,7 +7106,7 @@ static void findEnums(EntryNav *rootNav)
     {
       // new enum type
       md = new MemberDef(
-          root->fileName,root->startLine,root->startColumn,
+          root->fileName,root->startLoc,
           0,name,0,0,
           root->protection,Normal,FALSE,
           isMemberOf ? Foreign : isRelated ? Related : Member,
@@ -7119,12 +7116,12 @@ static void findEnums(EntryNav *rootNav)
       md->setLanguage(root->lang);
       md->setId(root->id);
       if (!isGlobal) md->setMemberClass(cd); else md->setFileDef(fd);
-      md->setBodySegment(root->bodyLine,root->endBodyLine);
+      md->setBodySegment(root->bodyLoc,root->endBodyLoc);
       md->setBodyDef(rootNav->fileDef());
       md->setMemberSpecifiers(root->spec);
       md->setEnumBaseType(root->args);
       //printf("Enum %s definition at line %d of %s: protection=%d scope=%s\n",
-      //    root->name.data(),root->bodyLine,root->fileName.data(),root->protection,cd?cd->name().data():"<none>");
+      //    root->name.data(),root->bodyLoc,root->fileName.data(),root->protection,cd?cd->name().data():"<none>");
       md->addSectionsToDefinition(root->anchors);
       md->setMemberGroupId(root->mGrpId);
       md->enableCallGraph(root->callGraph);
@@ -7185,10 +7182,10 @@ static void findEnums(EntryNav *rootNav)
         cd->insertMember(md);
         cd->insertUsedFile(fd);
       }
-      md->setDocumentation(root->doc,root->docFile,root->docLine);
+      md->setDocumentation(root->doc,root->docFile,root->docLoc);
       md->setDocsForDefinition(!root->proto);
-      md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-      md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+      md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+      md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
 
       //printf("Adding member=%s\n",md->name().data());
       MemberName *mn;
@@ -7333,7 +7330,7 @@ static void addEnumValuesToEnums(EntryNav *rootNav)
                     fileName = rootNav->tagInfo()->tagName;
                   }
                   MemberDef *fmd=new MemberDef(
-                      fileName,root->startLine,root->startColumn,
+                      fileName,root->startLoc,
                       root->type,root->name,root->args,0,
                       root->protection, Normal,root->stat,Member,
                       MemberType_EnumValue,0,0);
@@ -7344,8 +7341,8 @@ static void addEnumValuesToEnums(EntryNav *rootNav)
                   fmd->setTagInfo(e->tagInfo());
                   fmd->setLanguage(root->lang);
                   fmd->setId(root->id);
-                  fmd->setDocumentation(root->doc,root->docFile,root->docLine);
-                  fmd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+                  fmd->setDocumentation(root->doc,root->docFile,root->docLoc);
+                  fmd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
                   fmd->addSectionsToDefinition(root->anchors);
                   fmd->setInitializer(root->initializer);
                   fmd->setMaxInitLines(root->initLines);
@@ -7502,7 +7499,7 @@ static void findEnumDocumentation(EntryNav *rootNav)
               if (!md->documentation() || rootNav->parent()->name().isEmpty())
 #endif
               {
-                md->setDocumentation(root->doc,root->docFile,root->docLine);
+                md->setDocumentation(root->doc,root->docFile,root->docLoc);
                 md->setDocsForDefinition(!root->proto);
               }
 
@@ -7512,12 +7509,12 @@ static void findEnumDocumentation(EntryNav *rootNav)
               if (!md->briefDescription() || !rootNav->parent()->name().isEmpty())
 #endif
               {
-                md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+                md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
               }
 
               if (!md->inbodyDocumentation() || !rootNav->parent()->name().isEmpty())
               {
-                md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+                md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
               }
 
               if (root->mGrpId!=-1 && md->getMemberGroupId()==-1)
@@ -7555,10 +7552,10 @@ static void findEnumDocumentation(EntryNav *rootNav)
           {
             if (md->isEnumerate())
             {
-              md->setDocumentation(root->doc,root->docFile,root->docLine);
+              md->setDocumentation(root->doc,root->docFile,root->docLoc);
               md->setDocsForDefinition(!root->proto);
-              md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-              md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+              md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+              md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
               md->addSectionsToDefinition(root->anchors);
               md->setMemberGroupId(root->mGrpId);
 
@@ -7575,7 +7572,7 @@ static void findEnumDocumentation(EntryNav *rootNav)
       }
       if (!found)
       {
-        warn(root->fileName,root->startLine,
+        warn(root->fileName,root->startLoc.line,
              "Documentation for undefined enum `%s' found.",
              name.data()
             );
@@ -8000,9 +7997,9 @@ static void addSourceReferences()
   for (cli.toFirst();(cd=cli.current());++cli)
   {
     FileDef *fd=cd->getBodyDef();
-    if (fd && cd->isLinkableInProject() && cd->getStartBodyLine()!=-1)
+    if (fd && cd->isLinkableInProject() && cd->getStartBodyLoc()!=Location(0,0))
     {
-      fd->addSourceRef(cd->getStartBodyLine(),cd,0);
+      fd->addSourceRef(cd->getStartBodyLoc(),cd,0);
     }
   }
   // add source references for namespace definitions
@@ -8011,9 +8008,9 @@ static void addSourceReferences()
   for (nli.toFirst();(nd=nli.current());++nli)
   {
     FileDef *fd=nd->getBodyDef();
-    if (fd && nd->isLinkableInProject() && nd->getStartBodyLine()!=-1)
+    if (fd && nd->isLinkableInProject() && nd->getStartBodyLoc()!=Location(0,0))
     {
-      fd->addSourceRef(nd->getStartBodyLine(),nd,0);
+      fd->addSourceRef(nd->getStartBodyLoc(),nd,0);
     }
   }
 
@@ -8029,17 +8026,17 @@ static void addSourceReferences()
       //printf("class member %s: def=%s body=%d link?=%d\n",
       //    md->name().data(),
       //    md->getBodyDef()?md->getBodyDef()->name().data():"<none>",
-      //    md->getStartBodyLine(),md->isLinkableInProject());
+      //    md->getStartBodyLoc(),md->isLinkableInProject());
       FileDef *fd=md->getBodyDef();
       if (fd &&
-          md->getStartBodyLine()!=-1 &&
+          md->getStartBodyLoc()!=Location(0,0) &&
           md->isLinkableInProject() &&
           (fd->generateSourceFile() || Doxygen::parseSourcesNeeded)
          )
       {
         //printf("Found member `%s' in file `%s' at line `%d' def=%s\n",
-        //    md->name().data(),fd->name().data(),md->getStartBodyLine(),md->getOuterScope()->name().data());
-        fd->addSourceRef(md->getStartBodyLine(),md->getOuterScope(),md);
+        //    md->name().data(),fd->name().data(),md->getStartBodyLoc(),md->getOuterScope()->name().data());
+        fd->addSourceRef(md->getStartBodyLoc(),md->getOuterScope(),md);
       }
     }
   }
@@ -8053,18 +8050,18 @@ static void addSourceReferences()
       FileDef *fd=md->getBodyDef();
       //printf("member %s body=[%d,%d] fd=%p link=%d parseSources=%d\n",
       //    md->name().data(),
-      //    md->getStartBodyLine(),md->getEndBodyLine(),fd,
+      //    md->getStartBodyLoc(),md->getEndBodyLoc(),fd,
       //    md->isLinkableInProject(),
       //    Doxygen::parseSourcesNeeded);
       if (fd &&
-          md->getStartBodyLine()!=-1 &&
+          md->getStartBodyLoc()!=Location(0,0) &&
           md->isLinkableInProject() &&
           (fd->generateSourceFile() || Doxygen::parseSourcesNeeded)
          )
       {
         //printf("Found member `%s' in file `%s' at line `%d' def=%s\n",
-        //    md->name().data(),fd->name().data(),md->getStartBodyLine(),md->getOuterScope()->name().data());
-        fd->addSourceRef(md->getStartBodyLine(),md->getOuterScope(),md);
+        //    md->name().data(),fd->name().data(),md->getStartBodyLoc(),md->getOuterScope()->name().data());
+        fd->addSourceRef(md->getStartBodyLoc(),md->getOuterScope(),md);
       }
     }
   }
@@ -8177,11 +8174,11 @@ static void inheritDocumentation()
         if (bmd) // copy the documentation from the reimplemented member
         {
           md->setInheritsDocsFrom(bmd);
-          md->setDocumentation(bmd->documentation(),bmd->docFile(),bmd->docLine());
+          md->setDocumentation(bmd->documentation(),bmd->docFile(),bmd->docLoc());
           md->setDocsForDefinition(bmd->isDocsForDefinition());
-          md->setBriefDescription(bmd->briefDescription(),bmd->briefFile(),bmd->briefLine());
+          md->setBriefDescription(bmd->briefDescription(),bmd->briefFile(),bmd->briefLoc());
           md->copyArgumentNames(bmd);
-          md->setInbodyDocumentation(bmd->inbodyDocumentation(),bmd->inbodyFile(),bmd->inbodyLine());
+          md->setInbodyDocumentation(bmd->inbodyDocumentation(),bmd->inbodyFile(),bmd->inbodyLoc());
         }
       }
     }
@@ -8464,7 +8461,7 @@ static void findDefineDocumentation(EntryNav *rootNav)
 
     if (rootNav->tagInfo() && !root->name.isEmpty()) // define read from a tag file
     {
-      MemberDef *md=new MemberDef(rootNav->tagInfo()->tagName,1,1,
+      MemberDef *md=new MemberDef(rootNav->tagInfo()->tagName,Location(1,1),
                     "#define",root->name,root->args,0,
                     Public,Normal,FALSE,Member,MemberType_Define,0,0);
       md->setTagInfo(rootNav->tagInfo());
@@ -8500,14 +8497,14 @@ static void findDefineDocumentation(EntryNav *rootNav)
         {
           if (md->memberType()==MemberType_Define)
           {
-            md->setDocumentation(root->doc,root->docFile,root->docLine);
+            md->setDocumentation(root->doc,root->docFile,root->docLoc);
             md->setDocsForDefinition(!root->proto);
-            md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+            md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
             if (md->inbodyDocumentation().isEmpty())
             {
-              md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+              md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
             }
-            md->setBodySegment(root->bodyLine,root->endBodyLine);
+            md->setBodySegment(root->bodyLoc,root->endBodyLoc);
             md->setBodyDef(rootNav->fileDef());
             md->addSectionsToDefinition(root->anchors);
             md->setMaxInitLines(root->initLines);
@@ -8520,7 +8517,7 @@ static void findDefineDocumentation(EntryNav *rootNav)
       else if (count>1 &&
                (!root->doc.isEmpty() ||
                 !root->brief.isEmpty() ||
-                root->bodyLine!=-1
+                root->bodyLoc!=Location(0,0)
                )
               )
         // multiple defines don't know where to add docs
@@ -8538,20 +8535,20 @@ static void findDefineDocumentation(EntryNav *rootNav)
               if (md->documentation().isEmpty())
 #endif
               {
-                md->setDocumentation(root->doc,root->docFile,root->docLine);
+                md->setDocumentation(root->doc,root->docFile,root->docLoc);
                 md->setDocsForDefinition(!root->proto);
               }
 #if 0
               if (md->briefDescription().isEmpty())
 #endif
               {
-                md->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+                md->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
               }
               if (md->inbodyDocumentation().isEmpty())
               {
-                md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLine);
+                md->setInbodyDocumentation(root->inbodyDocs,root->inbodyFile,root->inbodyLoc);
               }
-              md->setBodySegment(root->bodyLine,root->endBodyLine);
+              md->setBodySegment(root->bodyLoc,root->endBodyLoc);
               md->setBodyDef(rootNav->fileDef());
               md->addSectionsToDefinition(root->anchors);
               md->setRefItems(root->sli);
@@ -8564,7 +8561,7 @@ static void findDefineDocumentation(EntryNav *rootNav)
         //warn("define %s found in the following files:\n",root->name.data());
         //warn("Cannot determine where to add the documentation found "
         //     "at line %d of file %s. \n",
-        //     root->startLine,root->fileName.data());
+        //     root->startLoc,root->fileName.data());
       }
     }
     else if (!root->doc.isEmpty() || !root->brief.isEmpty()) // define not found
@@ -8572,14 +8569,14 @@ static void findDefineDocumentation(EntryNav *rootNav)
       static bool preEnabled = Config_getBool(ENABLE_PREPROCESSING);
       if (preEnabled)
       {
-        warn(root->fileName,root->startLine,
+        warn(root->fileName,root->startLoc.line,
              "documentation for unknown define %s found.\n",
              root->name.data()
             );
       }
       else
       {
-        warn(root->fileName,root->startLine,
+        warn(root->fileName,root->startLoc.line,
              "found documented #define but ignoring it because "
              "ENABLE_PREPROCESSING is NO.\n",
              root->name.data()
@@ -8626,7 +8623,7 @@ static void findDirDocumentation(EntryNav *rootNav)
       {
         if (matchingDir)
         {
-           warn(root->fileName,root->startLine,
+           warn(root->fileName,root->startLoc.line,
              "\\dir command matches multiple directories.\n"
              "  Applying the command for directory %s\n"
              "  Ignoring the command for directory %s\n",
@@ -8642,14 +8639,14 @@ static void findDirDocumentation(EntryNav *rootNav)
     if (matchingDir)
     {
       //printf("Match for with dir %s\n",matchingDir->name().data());
-      matchingDir->setBriefDescription(root->brief,root->briefFile,root->briefLine);
-      matchingDir->setDocumentation(root->doc,root->docFile,root->docLine);
+      matchingDir->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
+      matchingDir->setDocumentation(root->doc,root->docFile,root->docLoc);
       matchingDir->setRefItems(root->sli);
       addDirToGroups(root,matchingDir);
     }
     else
     {
-      warn(root->fileName,root->startLine,"No matching "
+      warn(root->fileName,root->startLoc.line,"No matching "
           "directory found for command \\dir %s\n",normalizedName.data());
     }
     rootNav->releaseEntry();
@@ -8711,10 +8708,10 @@ static void findMainPage(EntryNav *rootNav)
       QCString title=root->args.stripWhiteSpace();
       //QCString indexName=Config_getBool(GENERATE_TREEVIEW)?"main":"index";
       QCString indexName="index";
-      Doxygen::mainPage = new PageDef(root->docFile,root->docLine,
+      Doxygen::mainPage = new PageDef(root->docFile,root->docLoc,
                               indexName, root->brief+root->doc+root->inbodyDocs,title);
       //setFileNameForSections(root->anchors,"index",Doxygen::mainPage);
-      Doxygen::mainPage->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+      Doxygen::mainPage->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
       Doxygen::mainPage->setFileName(indexName);
       Doxygen::mainPage->setShowToc(root->stat);
       addPageToContext(Doxygen::mainPage,rootNav);
@@ -8722,20 +8719,22 @@ static void findMainPage(EntryNav *rootNav)
       SectionInfo *si = Doxygen::sectionDict->find(Doxygen::mainPage->name());
       if (si)
       {
-        if (si->lineNr != -1)
+        if (si->location != Location(0,0))
         {
-          warn(root->fileName,root->startLine,"multiple use of section label '%s' for main page, (first occurrence: %s, line %d)",Doxygen::mainPage->name().data(),si->fileName.data(),si->lineNr);
+          warn(root->fileName,root->startLoc.line,"multiple use of section label '%s' for main page, (first occurrence: %s, line %d)"
+              ,Doxygen::mainPage->name().data(),si->fileName.data(),si->location.line);
         }
         else
         {
-          warn(root->fileName,root->startLine,"multiple use of section label '%s' for main page, (first occurrence: %s)",Doxygen::mainPage->name().data(),si->fileName.data());
+          warn(root->fileName,root->startLoc.line,"multiple use of section label '%s' for main page, (first occurrence: %s)"
+              ,Doxygen::mainPage->name().data(),si->fileName.data());
         }
       }
       else
       {
         // a page name is a label as well! but should no be double either
         si=new SectionInfo(
-          indexName, root->startLine,
+          indexName, root->startLoc,
           Doxygen::mainPage->name(),
           Doxygen::mainPage->title(),
           SectionInfo::Page,
@@ -8747,9 +8746,9 @@ static void findMainPage(EntryNav *rootNav)
     else if (rootNav->tagInfo()==0)
     {
       Entry *root = rootNav->entry();
-      warn(root->fileName,root->startLine,
+      warn(root->fileName,root->startLoc.line,
            "found more than one \\mainpage comment block! (first occurrence: %s, line %d), Skipping current block!",
-           Doxygen::mainPage->docFile().data(),Doxygen::mainPage->docLine());
+           Doxygen::mainPage->docFile().data(),Doxygen::mainPage->docLoc());
     }
 
     rootNav->releaseEntry();
@@ -8821,7 +8820,7 @@ static void checkPageRelations()
       {
         err("page defined at line %d of file %s with label %s is a subpage "
             "of itself! Please remove this cyclic dependency.\n",
-            pd->docLine(),pd->docFile().data(),pd->name().data());
+            pd->docLoc(),pd->docFile().data(),pd->name().data());
         exit(1);
       }
       ppd=ppd->getOuterScope();
@@ -8933,7 +8932,7 @@ static void buildExampleList(EntryNav *rootNav)
 
     if (Doxygen::exampleSDict->find(root->name))
     {
-      warn(root->fileName,root->startLine,
+      warn(root->fileName,root->startLoc.line,
           "Example %s was already documented. Ignoring "
           "documentation found here.",
           root->name.data()
@@ -8941,9 +8940,9 @@ static void buildExampleList(EntryNav *rootNav)
     }
     else
     {
-      PageDef *pd=new PageDef(root->fileName,root->startLine,
+      PageDef *pd=new PageDef(root->fileName,root->startLoc,
           root->name,root->brief+root->doc+root->inbodyDocs,root->args);
-      pd->setBriefDescription(root->brief,root->briefFile,root->briefLine);
+      pd->setBriefDescription(root->brief,root->briefFile,root->briefLoc);
       pd->setFileName(convertNameToFile(pd->name()+"-example",FALSE,TRUE));
       pd->addSectionsToDefinition(root->anchors);
       pd->setLanguage(root->lang);
@@ -8997,7 +8996,7 @@ static void generateExampleDocs()
     endTitle(*g_outputList,n,0);
     g_outputList->startContents();
     g_outputList->generateDoc(pd->docFile(),                            // file
-                         pd->docLine(),                            // startLine
+                         pd->docLoc(),                            // startLoc
                          pd,                                       // context
                          0,                                        // memberDef
                          pd->documentation()+"\n\n\\include "+pd->name(),          // docs
@@ -10505,7 +10504,7 @@ void checkConfiguration()
 /** adjust globals that depend on configuration settings. */
 void adjustConfiguration()
 {
-  Doxygen::globalScope = new NamespaceDef("<globalScope>",1,1,"<globalScope>");
+  Doxygen::globalScope = new NamespaceDef("<globalScope>",Location(1,1),"<globalScope>");
   Doxygen::inputNameDict = new FileNameDict(10007);
   Doxygen::includeNameDict = new FileNameDict(10007);
   Doxygen::exampleNameDict = new FileNameDict(1009);

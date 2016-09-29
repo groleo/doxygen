@@ -20,6 +20,7 @@
 
 #include <qstack.h>
 
+#include "location.h"
 #include "index.h"
 #include "section.h"
 #include "ftextstream.h"
@@ -48,7 +49,7 @@ struct DocLinkInfo
 struct SourceLinkInfo
 {
   QCString file;
-  int line;
+  Location loc;
   QCString ref;
   QCString url;
   QCString anchor;
@@ -87,7 +88,7 @@ class CodeOutputInterface
      *  \param lineNumber The line number to write
      */
     virtual void writeLineNumber(const char *ref,const char *file,
-                                 const char *anchor,int lineNumber) = 0;
+                                 const char *anchor,int location) = 0;
 
     /*! Writes a tool tip definition 
      *  \param id       unique identifier for the tooltip

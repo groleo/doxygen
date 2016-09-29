@@ -372,8 +372,8 @@ void HtmlDocVisitor::visit(DocVerbatim *s)
                                         s->isExample(),
                                         s->exampleFile(),
                                         0,     // fileDef
-                                        -1,    // startLine
-                                        -1,    // endLine
+                                        Location(0,0),    // startLoc
+                                        Location(0,0),    // endLoc
                                         FALSE, // inlineFragment
                                         0,     // memberDef
                                         TRUE,  // show line numbers
@@ -513,8 +513,8 @@ void HtmlDocVisitor::visit(DocInclude *inc)
                                         inc->isExample(),
                                         inc->exampleFile(),
                                         0,     // fileDef
-                                        -1,    // startLine
-                                        -1,    // endLine
+                                        Location(0,0),    // startLocation
+                                        Location(0,0),    // endLocation
                                         TRUE,  // inlineFragment
                                         0,     // memberDef
                                         FALSE, // show line numbers
@@ -537,8 +537,8 @@ void HtmlDocVisitor::visit(DocInclude *inc)
                                            inc->isExample(),
                                            inc->exampleFile(), 
                                            &fd,   // fileDef,
-                                           -1,    // start line
-                                           -1,    // end line
+                                           Location(0,0),    // start location
+                                           Location(0,0),    // end location
                                            FALSE, // inline fragment
                                            0,     // memberDef
                                            TRUE,  // show line numbers
@@ -574,8 +574,8 @@ void HtmlDocVisitor::visit(DocInclude *inc)
                                            inc->isExample(),
                                            inc->exampleFile(), 
                                            0,
-                                           -1,    // startLine
-                                           -1,    // endLine
+                                           Location(0,0),    // startLocation
+                                           Location(0,0),    // endLocation
                                            TRUE,  // inlineFragment
                                            0,     // memberDef
                                            FALSE, // show line number
@@ -643,8 +643,8 @@ void HtmlDocVisitor::visit(DocIncOperator *op)
                                 op->isExample(),
                                 op->exampleFile(),
                                 0,     // fileDef
-                                -1,    // startLine
-                                -1,    // endLine
+                                Location(0,0),    // startLocation
+                                Location(0,0),    // endLocation
                                 FALSE, // inline fragment
                                 0,     // memberDef
                                 TRUE,  // show line numbers

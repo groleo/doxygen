@@ -26,6 +26,7 @@
 
 #include "docvisitor.h"
 #include "htmlattrib.h"
+#include "location.h"
 
 class DocNode;
 class MemberDef;
@@ -56,7 +57,7 @@ class SectionDict;
  *  @returns         Root node of the abstract syntax tree. Ownership of the
  *                   pointer is handed over to the caller.
  */
-DocRoot *validatingParseDoc(const char *fileName,int startLine,
+DocRoot *validatingParseDoc(const char *fileName,Location startLoc,
                             Definition *context, MemberDef *md,
                             const char *input,bool indexWords,
                             bool isExample,const char *exampleName=0,

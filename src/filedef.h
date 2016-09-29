@@ -26,6 +26,7 @@
 #include "sortdict.h"
 #include "memberlist.h"
 
+
 class MemberList;
 class FileDef;
 class FileList;
@@ -102,8 +103,8 @@ class FileDef : public Definition
 
     bool isDocumentationFile() const;
     
-    Definition *getSourceDefinition(int lineNr) const;
-    MemberDef *getSourceMember(int lineNr) const;
+    Definition *getSourceDefinition(Location loc) const;
+    MemberDef *getSourceMember(Location loc) const;
 
     /*! Returns the absolute path of this file. */ 
     QCString getPath() const { return m_path; }
@@ -140,7 +141,7 @@ class FileDef : public Definition
     
     //---------------------------------
 
-    void addSourceRef(int line,Definition *d,MemberDef *md);
+    void addSourceRef(Location loc,Definition *d,MemberDef *md);
 
     void writeDocumentation(OutputList &ol);
     void writeMemberPages(OutputList &ol);

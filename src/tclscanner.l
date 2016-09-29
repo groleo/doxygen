@@ -996,7 +996,7 @@ D
   if (tcl.string_commentline.length())
   {
     tcl.entry_current->brief = tcl.string_commentline;
-    tcl.entry_current->briefLine = tcl.line_commentline;
+    tcl.entry_current->briefLoc.line = tcl.line_commentline;
     tcl.entry_current->briefFile = tcl.file_name;
   }
   yyless(0);
@@ -1490,7 +1490,7 @@ tcl_inf("-> %s\n",(const char *)tcl.string_comment);
 tcl_inf("-> %s\n",(const char *)tcl.string_comment);
       int myPos=0;
       bool myNew=0;
-      int myLine=tcl.line_comment;
+      Location myLine(tcl.line_comment,0);
       BufStr myI(1024);
       BufStr myO(1024);
       Protection myProt=tcl.protection;
@@ -1507,7 +1507,6 @@ tcl_inf("-> %s\n",(const char *)tcl.string_comment);
       if (what==99)
       { // inbody comment file or namespace or class or proc/method
         int myPos0;
-        int myLine0;
         Entry myEntry0; // used to test parsing
         Entry *myEntry;
 
@@ -1522,7 +1521,8 @@ tcl_inf("-> %s\n",(const char *)tcl.string_comment);
         }
 
         myPos0=myPos;
-        myLine0=myLine;
+        Location myLine0(myLine);
+
         while (parseCommentBlock(tcl.this_parser, &myEntry0, myDoc, tcl.file_name,
           myLine, FALSE, tcl.config_autobrief, FALSE, myProt, myPos, myNew))
         {
@@ -2138,9 +2138,9 @@ D
   tcl.entry_current->section = Entry::FUNCTION_SEC;
   tcl.entry_current->mtype = Method;
   tcl.entry_current->name = myName;
-  tcl.entry_current->startLine = tcl.line_command;
-  tcl.entry_current->bodyLine = tcl.line_body0;
-  tcl.entry_current->endBodyLine = tcl.line_body1;
+  tcl.entry_current->startLoc.line = tcl.line_command;
+  tcl.entry_current->bodyLoc.line = tcl.line_body0;
+  tcl.entry_current->endBodyLoc.line = tcl.line_body1;
   tcl_protection(tcl.entry_current);
   tcl_command_ARGLIST(*tcl.list_commandwords.at(4));
   myEntryNs->addSubEntry(tcl.entry_current);
@@ -2180,9 +2180,9 @@ D
   tcl.entry_current->section = Entry::FUNCTION_SEC;
   tcl.entry_current->mtype = Method;
   tcl.entry_current->name = myName;
-  tcl.entry_current->startLine = tcl.line_command;
-  tcl.entry_current->bodyLine = tcl.line_body0;
-  tcl.entry_current->endBodyLine = tcl.line_body1;
+  tcl.entry_current->startLoc.line = tcl.line_command;
+  tcl.entry_current->bodyLoc.line = tcl.line_body0;
+  tcl.entry_current->endBodyLoc.line = tcl.line_body1;
   tcl_protection(tcl.entry_current);
   tcl_command_ARGLIST(*tcl.list_commandwords.at(4));
   myEntryCl->addSubEntry(tcl.entry_current);
@@ -2217,9 +2217,9 @@ D
   tcl.entry_current->section = Entry::FUNCTION_SEC;
   tcl.entry_current->mtype = Method;
   tcl.entry_current->name = myName;
-  tcl.entry_current->startLine = tcl.line_command;
-  tcl.entry_current->bodyLine = tcl.line_body0;
-  tcl.entry_current->endBodyLine = tcl.line_body1;
+  tcl.entry_current->startLoc.line = tcl.line_command;
+  tcl.entry_current->bodyLoc.line = tcl.line_body0;
+  tcl.entry_current->endBodyLoc.line = tcl.line_body1;
   tcl_protection(tcl.entry_current);
   tcl_command_ARGLIST(*tcl.list_commandwords.at(2));
   if (myEntryCl) myEntryCl->addSubEntry(tcl.entry_current);
@@ -2252,9 +2252,9 @@ D
   tcl.entry_current->section = Entry::FUNCTION_SEC;
   tcl.entry_current->mtype = Method;
   tcl.entry_current->name = myName;
-  tcl.entry_current->startLine = tcl.line_command;
-  tcl.entry_current->bodyLine = tcl.line_body0;
-  tcl.entry_current->endBodyLine = tcl.line_body1;
+  tcl.entry_current->startLoc.line = tcl.line_command;
+  tcl.entry_current->bodyLoc.line = tcl.line_body0;
+  tcl.entry_current->endBodyLoc.line = tcl.line_body1;
   tcl_protection(tcl.entry_current);
   myEntryCl->addSubEntry(tcl.entry_current);
   myEntry = tcl.entry_current;
@@ -2284,9 +2284,9 @@ D
   }
   tcl.entry_current->section = Entry::NAMESPACE_SEC;
   tcl.entry_current->name = myName;
-  tcl.entry_current->startLine = tcl.line_command;
-  tcl.entry_current->bodyLine = tcl.line_body0;
-  tcl.entry_current->endBodyLine = tcl.line_body1;
+  tcl.entry_current->startLoc.line = tcl.line_command;
+  tcl.entry_current->bodyLoc.line = tcl.line_body0;
+  tcl.entry_current->endBodyLoc.line = tcl.line_body1;
   tcl.entry_main->addSubEntry(tcl.entry_current);
   tcl.ns.insert(myName,tcl.entry_current);
   //myEntryNs = tcl.entry_current;
@@ -2321,9 +2321,9 @@ D
   }
   tcl.entry_current->section = Entry::CLASS_SEC;
   tcl.entry_current->name = myName;
-  tcl.entry_current->startLine = tcl.line_command;
-  tcl.entry_current->bodyLine = tcl.line_body0;
-  tcl.entry_current->endBodyLine = tcl.line_body1;
+  tcl.entry_current->startLoc.line = tcl.line_command;
+  tcl.entry_current->bodyLoc.line = tcl.line_body0;
+  tcl.entry_current->endBodyLoc.line = tcl.line_body1;
   tcl.entry_main->addSubEntry(tcl.entry_current);
   tcl.cl.insert(myName,tcl.entry_current);
   myEntryCl = tcl.entry_current;
@@ -2353,9 +2353,9 @@ D
   }
   tcl.entry_current->section = Entry::CLASS_SEC;
   tcl.entry_current->name = myName;
-  tcl.entry_current->startLine = tcl.line_command;
-  tcl.entry_current->bodyLine = tcl.line_body0;
-  tcl.entry_current->endBodyLine = tcl.line_body1;
+  tcl.entry_current->startLoc.line = tcl.line_command;
+  tcl.entry_current->bodyLoc.line = tcl.line_body0;
+  tcl.entry_current->endBodyLoc.line = tcl.line_body1;
   tcl.entry_main->addSubEntry(tcl.entry_current);
   //myEntryNs = tcl_entry_namespace(myName);
   tcl.cl.insert(myName,tcl.entry_current);
@@ -2405,9 +2405,9 @@ D
     tcl.entry_current->section = Entry::FUNCTION_SEC;
     tcl.entry_current->mtype = Method;
     tcl.entry_current->name = myMethod;
-    tcl.entry_current->startLine = tcl.line_command;
-    tcl.entry_current->bodyLine = tcl.line_body0;
-    tcl.entry_current->endBodyLine = tcl.line_body1;
+    tcl.entry_current->startLoc.line = tcl.line_command;
+    tcl.entry_current->bodyLoc.line = tcl.line_body0;
+    tcl.entry_current->endBodyLoc.line = tcl.line_body1;
     tcl_protection(tcl.entry_current);
     if (n==11)
     {
@@ -2475,9 +2475,9 @@ D
   }
   tcl.entry_current->section = Entry::VARIABLE_SEC;
   tcl.entry_current->name = myName;
-  tcl.entry_current->startLine = tcl.line_command;
-  tcl.entry_current->bodyLine = tcl.line_body0;
-  tcl.entry_current->endBodyLine = tcl.line_body1;
+  tcl.entry_current->startLoc.line = tcl.line_command;
+  tcl.entry_current->bodyLoc.line = tcl.line_body0;
+  tcl.entry_current->endBodyLoc.line = tcl.line_body1;
   tcl_protection(tcl.entry_current);
   myEntry->addSubEntry(tcl.entry_current);
   tcl.entry_current = tcl_entry_new();
@@ -2962,8 +2962,8 @@ void TclLanguageScanner::parseCode(CodeOutputInterface & codeOutIntf,
                    bool isExampleBlock,
                    const char * exampleName,
                    FileDef * fileDef,
-                   int startLine,
-                   int endLine,
+                   Location startLoc,
+                   Location endLoc,
                    bool inlineFragment,
                    MemberDef *memberDef,
                    bool showLineNumbers,
@@ -2975,7 +2975,7 @@ void TclLanguageScanner::parseCode(CodeOutputInterface & codeOutIntf,
   (void)lang;
   (void)exampleName;
   (void)fileDef;
-  (void)endLine;
+  (void)endLoc;
   (void)inlineFragment;
   (void)searchCtx;
   (void)collectXRefs;
@@ -3022,7 +3022,7 @@ void TclLanguageScanner::parseCode(CodeOutputInterface & codeOutIntf,
     myStr+=" file=";
     myStr+=fileDef->fileName();
   }
-tcl_inf("%s (%d,%d) %d %d\n",myStr.ascii(),startLine,endLine,isExampleBlock,inlineFragment);
+tcl_inf("%s (%d,%d) %d %d\n",myStr.ascii(),startLoc,endLoc,isExampleBlock,inlineFragment);
 //tcl_inf("%s\n"input.data());
   if (isExampleBlock)
   {
@@ -3033,11 +3033,11 @@ tcl_inf("%s (%d,%d) %d %d\n",myStr.ascii(),startLine,endLine,isExampleBlock,inli
   tcl.collectXRefs = collectXRefs;
   tcl.memberdef = memberDef;
   tcl.code = &codeOutIntf;
-  if (startLine<0) 
+  if (startLoc==Location(0,0)) 
   {
-    startLine=1;
+    startLoc.line=1;
   }
-  yylineno=startLine;
+  yylineno=startLoc.line;
   tcl.code_linenumbers = showLineNumbers;
   tcl.code_line=yylineno;
   tcl.code->startCodeLine(tcl.code_linenumbers);

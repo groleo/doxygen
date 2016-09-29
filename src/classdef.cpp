@@ -293,11 +293,11 @@ ClassDefImpl::~ClassDefImpl()
 
 // constructs a new class definition
 ClassDef::ClassDef(
-    const char *defFileName,int defLine,int defColumn,
+    const char *defFileName,Location defLoc,
     const char *nm,CompoundType ct,
     const char *lref,const char *fName,
     bool isSymbol,bool isJavaEnum)
- : Definition(defFileName,defLine,defColumn,removeRedundantWhiteSpace(nm),0,0,isSymbol)
+ : Definition(defFileName,defLoc,removeRedundantWhiteSpace(nm),0,0,isSymbol)
 {
   visited=FALSE;
   setReference(lref);
@@ -954,7 +954,7 @@ void ClassDef::writeBriefDescription(OutputList &ol,bool exampleFlag)
   if (hasBriefDescription())
   {
     ol.startParagraph();
-    ol.generateDoc(briefFile(),briefLine(),this,0,
+    ol.generateDoc(briefFile(),briefLoc(),this,0,
                    briefDescription(),TRUE,FALSE,0,TRUE,FALSE);
     ol.pushGeneratorState();
     ol.disable(OutputGenerator::RTF);
@@ -986,7 +986,7 @@ void ClassDef::writeDetailedDocumentationBody(OutputList &ol)
   // repeat brief description
   if (!briefDescription().isEmpty() && repeatBrief)
   {
-    ol.generateDoc(briefFile(),briefLine(),this,0,briefDescription(),FALSE,FALSE);
+    ol.generateDoc(briefFile(),briefLoc(),this,0,briefDescription(),FALSE,FALSE);
   }
   if (!briefDescription().isEmpty() && repeatBrief &&
       !documentation().isEmpty())
@@ -999,7 +999,7 @@ void ClassDef::writeDetailedDocumentationBody(OutputList &ol)
   // write documentation
   if (!documentation().isEmpty())
   {
-    ol.generateDoc(docFile(),docLine(),this,0,documentation(),TRUE,FALSE);
+    ol.generateDoc(docFile(),docLoc(),this,0,documentation(),TRUE,FALSE);
   }
   // write type constraints
   writeTypeConstraints(ol,this,m_impl->typeConstraints);
@@ -1026,7 +1026,7 @@ bool ClassDef::hasDetailedDescription() const
   static bool sourceBrowser = Config_getBool(SOURCE_BROWSER);
   return ((!briefDescription().isEmpty() && repeatBrief) ||
           !documentation().isEmpty() ||
-          (sourceBrowser && getStartBodyLine()!=-1 && getBodyDef()));
+          (sourceBrowser && getStartBodyLoc()!=Location(0,0) && getBodyDef()));
 }
 
 // write the detailed description for this class
@@ -1924,7 +1924,7 @@ void ClassDef::writeDeclarationLink(OutputList &ol,bool &found,const char *heade
     // add the brief description if available
     if (!briefDescription().isEmpty() && Config_getBool(BRIEF_MEMBER_DESC))
     {
-      DocRoot *rootNode = validatingParseDoc(briefFile(),briefLine(),this,0,
+      DocRoot *rootNode = validatingParseDoc(briefFile(),briefLoc(),this,0,
                                 briefDescription(),FALSE,FALSE,0,TRUE,FALSE);
       if (rootNode && !rootNode->isEmpty())
       {
@@ -2550,7 +2550,7 @@ void ClassDef::addTypeConstraint(const QCString &typeConstraint,const QCString &
   ClassDef *cd = getResolvedClass(this,getFileDef(),typeConstraint);
   if (cd==0 && !hideUndocRelation)
   {
-    cd = new ClassDef(getDefFileName(),getDefLine(),getDefColumn(),typeConstraint,ClassDef::Class);
+    cd = new ClassDef(getDefFileName(),getDefLoc(),typeConstraint,ClassDef::Class);
     cd->setUsedOnly(TRUE);
     cd->setLanguage(getLanguage());
     Doxygen::hiddenClasses->append(typeConstraint,cd);
@@ -3600,7 +3600,7 @@ QCString ClassDef::getSourceFileBase() const
   }
 }
 
-void ClassDef::setGroupDefForAllMembers(GroupDef *gd,Grouping::GroupPri_t pri,const QCString &fileName,int startLine,bool hasDocs)
+void ClassDef::setGroupDefForAllMembers(GroupDef *gd,Grouping::GroupPri_t pri,const QCString &fileName,Location startLoc,bool hasDocs)
 {
   gd->addClass(this);
   //printf("ClassDef::setGroupDefForAllMembers(%s)\n",gd->name().data());
@@ -3614,10 +3614,10 @@ void ClassDef::setGroupDefForAllMembers(GroupDef *gd,Grouping::GroupPri_t pri,co
     for (mnii.toFirst();(mi=mnii.current());++mnii)
     {
       MemberDef *md=mi->memberDef;
-      md->setGroupDef(gd,pri,fileName,startLine,hasDocs);
+      md->setGroupDef(gd,pri,fileName,startLoc,hasDocs);
       gd->insertMember(md,TRUE);
       ClassDef *innerClass = md->getClassDefOfAnonymousType();
-      if (innerClass) innerClass->setGroupDefForAllMembers(gd,pri,fileName,startLine,hasDocs);
+      if (innerClass) innerClass->setGroupDefForAllMembers(gd,pri,fileName,startLoc,hasDocs);
     }
   }
 }
@@ -3688,7 +3688,7 @@ Definition *ClassDef::findInnerCompound(const char *name)
 //}
 
 ClassDef *ClassDef::insertTemplateInstance(const QCString &fileName,
-    int startLine, int startColumn, const QCString &templSpec,bool &freshInstance)
+    Location startLoc, const QCString &templSpec,bool &freshInstance)
 {
   freshInstance = FALSE;
   if (m_impl->templateInstances==0)
@@ -3701,7 +3701,7 @@ ClassDef *ClassDef::insertTemplateInstance(const QCString &fileName,
     Debug::print(Debug::Classes,0,"      New template instance class `%s'`%s'\n",qPrint(name()),qPrint(templSpec));
     QCString tcname = removeRedundantWhiteSpace(localName()+templSpec);
     templateClass = new ClassDef(
-        fileName,startLine,startColumn,tcname,ClassDef::Class);
+        fileName,startLoc,tcname,ClassDef::Class);
     templateClass->setTemplateMaster(this);
     templateClass->setOuterScope(getOuterScope());
     templateClass->setHidden(isHidden());
@@ -3723,7 +3723,7 @@ ClassDef *ClassDef::getVariableInstance(const char *templSpec)
   {
     Debug::print(Debug::Classes,0,"      New template variable instance class `%s'`%s'\n",qPrint(name()),qPrint(templSpec));
     QCString tcname = removeRedundantWhiteSpace(name()+templSpec);
-    templateClass = new ClassDef("<code>",1,1,tcname,
+    templateClass = new ClassDef("<code>",Location(1,1),tcname,
                         ClassDef::Class,0,0,FALSE);
     templateClass->addMembersToTemplateInstance( this, templSpec );
     templateClass->setTemplateMaster(this);
@@ -3777,9 +3777,9 @@ void ClassDef::addMembersToTemplateInstance(ClassDef *cd,const char *templSpec)
       //printf("%s->setMemberClass(%p)\n",imd->name().data(),this);
       imd->setMemberClass(this);
       imd->setTemplateMaster(md);
-      imd->setDocumentation(md->documentation(),md->docFile(),md->docLine());
-      imd->setBriefDescription(md->briefDescription(),md->briefFile(),md->briefLine());
-      imd->setInbodyDocumentation(md->inbodyDocumentation(),md->inbodyFile(),md->inbodyLine());
+      imd->setDocumentation(md->documentation(),md->docFile(),md->docLoc());
+      imd->setBriefDescription(md->briefDescription(),md->briefFile(),md->briefLoc());
+      imd->setInbodyDocumentation(md->inbodyDocumentation(),md->inbodyFile(),md->inbodyLoc());
       imd->setMemberSpecifiers(md->getMemberSpecifiers());
       imd->setMemberGroupId(md->getMemberGroupId());
       insertMember(imd);

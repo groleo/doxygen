@@ -388,8 +388,8 @@ void RTFDocVisitor::visit(DocInclude *inc)
                                            inc->isExample(),
                                            inc->exampleFile(),
                                            &fd,   // fileDef,
-                                           -1,    // start line
-                                           -1,    // end line
+                                           Location(0,0),    // start location
+                                           Location(0,0),    // end location
                                            FALSE, // inline fragment
                                            0,     // memberDef
                                            TRUE   // show line numbers
@@ -407,8 +407,8 @@ void RTFDocVisitor::visit(DocInclude *inc)
                                         inc->text(),langExt,inc->isExample(),
                                         inc->exampleFile(),
                                         0,     // fileDef
-                                        -1,    // startLine
-                                        -1,    // endLine
+                                        Location(0,0),    // startLocation
+                                        Location(0,0),    // endLocation
                                         TRUE,  // inlineFragment
                                         0,     // memberDef
                                         FALSE  // show line numbers
@@ -460,7 +460,7 @@ void RTFDocVisitor::visit(DocInclude *inc)
                                            inc->exampleFile(), 
                                            &fd,
                                            lineBlock(inc->text(),inc->blockId()),
-                                           -1,    // endLine
+                                           Location(0,0),    // endLocation
                                            FALSE, // inlineFragment
                                            0,     // memberDef
                                            TRUE   // show line number

@@ -64,18 +64,18 @@
 
 struct CondCtx
 {
-  CondCtx(int line,QCString id,bool b) 
-    : lineNr(line),sectionId(id), skip(b) {}
-  int lineNr;
+  CondCtx(Location loc,QCString id,bool b) 
+    : loc(loc),sectionId(id), skip(b) {}
+  Location loc;
   QCString sectionId;
   bool skip;
 };
 
 struct FileState
 {
-  FileState(int size) : lineNr(1), fileBuf(size),
+  FileState(int size) : loc(1,1), fileBuf(size),
                         oldFileBuf(0), oldFileBufPos(0), bufState(0) {}
-  int lineNr;
+  Location loc;
   BufStr fileBuf;
   BufStr *oldFileBuf;
   int oldFileBufPos;
@@ -1378,10 +1378,9 @@ Define *newDefine()
   def->name       = g_defName;
   def->definition = g_defText.stripWhiteSpace();
   def->nargs      = g_defArgs;
-  def->fileName   = g_yyFileName; 
+  def->fileName   = g_yyFileName;
   def->fileDef    = g_yyFileDef;
-  def->lineNr     = g_yyLineNr-g_yyMLines;
-  def->columnNr   = g_yyColNr;
+  def->loc        = Location(g_yyLineNr-g_yyMLines, g_yyColNr);
   def->varArgs    = g_defVarArgs;
   //printf("newDefine: %s %s file: %s\n",def->name.data(),def->definition.data(),
   //    def->fileDef ? def->fileDef->name().data() : def->fileName.data());
@@ -1403,7 +1402,7 @@ void addDefine()
   //ArgumentList *al = new ArgumentList;
   //stringToArgumentList(g_defArgsStr,al);
   MemberDef *md=new MemberDef(
-      g_yyFileName,g_yyLineNr-g_yyMLines,g_yyColNr,
+      g_yyFileName,Location(g_yyLineNr-g_yyMLines,g_yyColNr),
       "#define",g_defName,g_defArgsStr,0,
       Public,Normal,FALSE,Member,MemberType_Define,0,0);
   if (!g_defArgsStr.isEmpty())
@@ -1569,7 +1568,7 @@ static void readIncludeFile(const QCString &inc)
         g_inputFileDef->addIncludeDependency(0,absIncFileName,localInclude,g_isImported,TRUE);
       }
       fs->bufState = YY_CURRENT_BUFFER;
-      fs->lineNr   = oldLineNr;
+      fs->loc.line = oldLineNr;
       fs->fileName = oldFileName;
       // push the state on the stack
       g_includeStack.push(fs);
@@ -1643,7 +1642,7 @@ static void startCondSection(const char *sectId)
   //printf("startCondSection: skip=%d stack=%d\n",g_skip,g_condStack.count());
   CondParser prs;
   bool expResult = prs.parse(g_yyFileName,g_yyLineNr,sectId);
-  g_condStack.push(new CondCtx(g_yyLineNr,sectId,g_skip));
+  g_condStack.push(new CondCtx(Location(g_yyLineNr,g_yyColNr),sectId,g_skip));
   if (!expResult)
   {
     g_skip=TRUE;
@@ -2799,9 +2798,9 @@ CHARLIT   (("'"\\[0-7]{1,3}"'")|("'"\\."'")|("'"[^'\\\n]{1,4}"'"))
 					      def->name = g_defName;
 					      def->definition = g_defText.stripWhiteSpace();
 					      def->nargs = g_defArgs;
-					      def->fileName = g_yyFileName.copy(); 
-					      def->lineNr = g_yyLineNr-g_yyMLines;
-					      def->columnNr = g_yyColNr;
+					      def->fileName = g_yyFileName.copy();
+					      def->loc = Location(g_yyLineNr-g_yyMLines,
+					                          g_yyColNr);
 					    }
 					    else
 					    {
@@ -2863,7 +2862,7 @@ CHARLIT   (("'"\\[0-7]{1,3}"'")|("'"\\."'")|("'"[^'\\\n]{1,4}"'"))
 					    YY_BUFFER_STATE oldBuf = YY_CURRENT_BUFFER;
 					    yy_switch_to_buffer( fs->bufState );
 					    yy_delete_buffer( oldBuf );
-					    g_yyLineNr    = fs->lineNr;
+					    g_yyLineNr    = fs->loc.line;
                                             //preYYin = fs->oldYYin;
                                             g_inputBuf    = fs->oldFileBuf;
 					    g_inputBufPos = fs->oldFileBufPos;
@@ -3178,7 +3177,7 @@ void preprocessFile(const char *fileName,BufStr &input,BufStr &output)
     CondCtx *ctx = g_condStack.pop();
     QCString sectionInfo = " ";
     if (ctx->sectionId!=" ") sectionInfo.sprintf(" with label %s ",ctx->sectionId.data()); 
-    warn(fileName,ctx->lineNr,"Conditional section%sdoes not have "
+    warn(fileName,ctx->loc.line,"Conditional section%sdoes not have "
 	"a corresponding \\endcond command within this file.",sectionInfo.data());
     delete ctx;
   }

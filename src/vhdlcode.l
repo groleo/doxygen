@@ -84,7 +84,7 @@ static QCString      g_parmName;
 static const char *  g_inputString;     //!< the code fragment as text
 static int           g_inputPosition;   //!< read offset during parsing 
 static int           g_inputLines;      //!< number of line in the code fragment
-static int           g_yyLineNr;        //!< current line number
+static Location      g_yyLocation;      //!< current location
 static bool          g_needsTermination;
 static Definition   *g_searchCtx;
 
@@ -186,16 +186,16 @@ static void startCodeLine()
   if (g_sourceFileDef)
   {
     //QCString lineNumber,lineAnchor;
-    //lineNumber.sprintf("%05d",g_yyLineNr);
-    //lineAnchor.sprintf("l%05d",g_yyLineNr);
-    //  if ((g_yyLineNr % 500) == 0) 
-    //         fprintf(stderr,"\n starting Line %d:",g_yyLineNr);
-    Definition *d   = g_sourceFileDef->getSourceDefinition(g_yyLineNr);
-    //printf("startCodeLine %d d=%s\n", g_yyLineNr,d ? d->name().data() : "<null>");
+    //lineNumber.sprintf("%05d",g_yyLocation.line);
+    //lineAnchor.sprintf("l%05d",g_yyLocation.line);
+    //  if ((g_yyLocation.line % 500) == 0) 
+    //         fprintf(stderr,"\n starting Line %d:",g_yyLocation.line);
+    Definition *d   = g_sourceFileDef->getSourceDefinition(g_yyLocation);
+    //printf("startCodeLine %d d=%s\n", g_yyLocation.line,d ? d->name().data() : "<null>");
     if (!g_includeCodeFragment && d)
     {
       g_currentDefinition = d;
-      g_currentMemberDef = g_sourceFileDef->getSourceMember(g_yyLineNr);
+      g_currentMemberDef = g_sourceFileDef->getSourceMember(g_yyLocation);
       if (!g_tempComp.isEmpty() && g_currentMemberDef )
       {
         //ClassDef *cf=VhdlDocGen::getClass(g_tempComp.data());
@@ -210,25 +210,25 @@ static void startCodeLine()
       g_parmType.resize(0);
       g_parmName.resize(0);
       QCString lineAnchor;
-      lineAnchor.sprintf("l%05d",g_yyLineNr);
+      lineAnchor.sprintf("l%05d",g_yyLocation.line);
       if (g_currentMemberDef)
       {
         g_code->writeLineNumber(g_currentMemberDef->getReference(),
                                 g_currentMemberDef->getOutputFileBase(),
-                                g_currentMemberDef->anchor(),g_yyLineNr);
+                                g_currentMemberDef->anchor(),g_yyLocation.line);
         setCurrentDoc(lineAnchor);
       }
       else if (d->isLinkableInProject())
       {
         g_code->writeLineNumber(d->getReference(),
                                 d->getOutputFileBase(),
-                                0,g_yyLineNr);
+                                0,g_yyLocation.line);
         setCurrentDoc(lineAnchor);
       }
     }
     else
     {
-      g_code->writeLineNumber(0,0,0,g_yyLineNr);
+      g_code->writeLineNumber(0,0,0,g_yyLocation.line);
     }
   }
   g_code->startCodeLine(g_sourceFileDef); 
@@ -252,7 +252,7 @@ static void nextCodeLine()
     endCodeLine();    // </div>
   }
   const char *fc = g_currentFontClass;
-  if (g_yyLineNr<g_inputLines) 
+  if (g_yyLocation.line<g_inputLines) 
   {
     g_currentFontClass = fc;
     startCodeLine();  //<div>
@@ -353,7 +353,7 @@ static void writeWord(const char *word,const char* curr_class=0,bool classLink=F
 static void codifyLines(const char *text,const char *cl=0,bool classlink=FALSE,bool comment=FALSE)
 {
   if (text==0) return;
-  //printf("codifyLines(%d,\"%s\")\n",g_yyLineNr,text);
+  //printf("codifyLines(%d,\"%s\")\n",g_yyLocation.line,text);
   const char *p=text,*sp=p;
   char c;
   bool done=FALSE;
@@ -363,7 +363,7 @@ static void codifyLines(const char *text,const char *cl=0,bool classlink=FALSE,b
     while ((c=*p++) && c!='\n') {}
     if (c=='\n')
     {
-      g_yyLineNr++;
+      g_yyLocation.line++;
       QCString line = sp;
       line = line.left((int)(p-sp)-1);
       //*(p-1)='\0';
@@ -416,7 +416,7 @@ static void writeMultiLineCodeLink(CodeOutputInterface &ol,
     while ((c=*p++) && c!='\n') {}
     if (c=='\n')
     {
-      g_yyLineNr++;
+      g_yyLocation.line++;
       *(p-1)='\0';
       // printf("writeCodeLink(%s,%s,%s,%s)\n",ref,file,anchor,sp);
       ol.writeCodeLink(ref,file,anchor,sp,tooltip);
@@ -593,7 +593,7 @@ static void startFontClass(const char *s)
 static void writeFont(const char *s,const char* text)
 {
   if (s==0 || text==0) return;
-  //printf("writeFont(%d,\"%s\")\n",g_yyLineNr,text);
+  //printf("writeFont(%d,\"%s\")\n",g_yyLocation.line,text);
   g_code->startFontClass(s);
   g_code->codify(text);
   g_code->endFontClass();
@@ -625,7 +625,7 @@ static void codifyMapLines(const char *text)
   //bool dot=FALSE;
   int wordCounter=0;
   QCString ctemp;
-  //printf("codifyLines(%d,\"%s\")\n",g_yyLineNr,text);
+  //printf("codifyLines(%d,\"%s\")\n",g_yyLocation.line,text);
   const char *p=text; //,*sp=p;
   char c;
   bool done=FALSE;
@@ -1469,7 +1469,7 @@ XILINX      "INST"|"NET"|"PIN"|"BLKNM"|"BUFG"|"COLLAPSE"|"CPLD"|"COMPGRP"|"CONFI
 			   if (text.mid(i,3)=="--!" && // hide special comment
                                Config_getBool(STRIP_CODE_COMMENTS)) 
 			   { 
-			     g_yyLineNr++; // skip complete line
+			     g_yyLocation.line++; // skip complete line
 			   }  
 			   else // normal comment
 			   {
@@ -1508,7 +1508,7 @@ void resetVhdlCodeParserState()
 
 void parseVhdlCode(CodeOutputInterface &od,const char *className,const QCString &s, 
                   bool exBlock, const char *exName,FileDef *fd,
-                  int startLine,int endLine,bool inlineFragment,
+                  Location startLoc,Location endLoc,bool inlineFragment,
                   MemberDef *memberDef,bool,Definition *searchCtx,
                   bool /* collectXRefs */)
 {
@@ -1520,7 +1520,7 @@ void parseVhdlCode(CodeOutputInterface &od,const char *className,const QCString 
   {
     ClassDef *dd=memberDef->getClassDef();
     if (dd) g_CurrClass=dd->name();
-    startLine--;
+    startLoc.line--;
   }
   resetVhdlCodeParserState();
   g_code = &od;
@@ -1530,15 +1530,15 @@ void parseVhdlCode(CodeOutputInterface &od,const char *className,const QCString 
   g_needsTermination = FALSE;
   g_searchCtx = searchCtx;
 
-  if (startLine!=-1)
-    g_yyLineNr    = startLine;
+  if (startLoc!=Location(0,0))
+    g_yyLocation = startLoc;
   else
-    g_yyLineNr    = 1;
+    g_yyLocation.line    = 1;
 
-  if (endLine!=-1)
-    g_inputLines  = endLine+1;
+  if (endLoc!=Location(0,0))
+    g_inputLines  = endLoc.line+1;
   else
-    g_inputLines  = g_yyLineNr + countLines() - 1;
+    g_inputLines  = g_yyLocation.line + countLines() - 1;
 
 
   // g_theCallContext.clear();

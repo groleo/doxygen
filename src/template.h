@@ -18,6 +18,8 @@
 
 #include <qcstring.h>
 #include <qvaluelist.h>
+#include "location.h"
+
 
 class FTextStream;
 
@@ -136,7 +138,7 @@ class TemplateVariant
     };
 
     /** Types of data that can be stored in a TemplateVariant */
-    enum Type { None, Bool, Integer, String, Struct, List, Function };
+    enum Type { None, Bool, Integer, String, Struct, List, Function, Lokation };
 
     /** Returns the type of the value stored in the variant */
     Type type() const { return m_type; }
@@ -153,6 +155,7 @@ class TemplateVariant
         case Struct:   return "struct";
         case List:     return "list";
         case Function: return "function";
+        case Lokation: return "location";
       }
       return "invalid";
     }
@@ -168,6 +171,9 @@ class TemplateVariant
 
     /** Constructs a new variant with a integer value \a v. */
     TemplateVariant(int v) : m_type(Integer), m_intVal(v), m_raw(FALSE) {}
+
+    /** Constructs a new variant with a location value \a v. */
+    TemplateVariant(Location v) : m_type(Lokation), m_location(v), m_raw(FALSE) {}
 
     /** Constructs a new variant with a string value \a s. */
     TemplateVariant(const char *s,bool raw=FALSE) : m_type(String), m_strVal(s), m_strukt(0), m_raw(raw) {}
@@ -240,6 +246,7 @@ class TemplateVariant
         case Struct:   return "[struct]";
         case List:     return "[list]";
         case Function: return "[function]";
+        case Lokation: return m_location.str();
       }
       return QCString();
     }
@@ -289,6 +296,7 @@ class TemplateVariant
   private:
     Type                  m_type;
     QCString              m_strVal;
+    Location              m_location;
     union
     {
       int                 m_intVal;
