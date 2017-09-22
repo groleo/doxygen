@@ -17,6 +17,8 @@
 #include <stdio.h>
 #include "settings.h"
 #include "message.h"
+#include <future>
+#include <vector>
 
 #if USE_SQLITE3
 
@@ -1466,6 +1468,7 @@ void generateSqlite3()
   {
     msg("Generating Sqlite3 output for class %s\n",cd->name().data());
     generateSqlite3ForClass(db,cd);
+    std::async(std::launch::async, generateSqlite3ForClass, db, cd);
   }
 
   // + namespaces
@@ -1480,6 +1483,7 @@ void generateSqlite3()
   // + files
   FileNameListIterator fnli(*Doxygen::inputNameList);
   FileName *fn;
+  std::vector<std::future<void>> futures;
   for (;(fn=fnli.current());++fnli)
   {
     FileNameIterator fni(*fn);
@@ -1487,8 +1491,11 @@ void generateSqlite3()
     for (;(fd=fni.current());++fni)
     {
       msg("Generating Sqlite3 output for file %s\n",fd->name().data());
-      generateSqlite3ForFile(db,fd);
+      futures.push_back(std::async(std::launch::async, generateSqlite3ForFile,db,fd));
     }
+  }
+  for(auto &e : futures) {
+    e.get();
   }
 
   // + groups
