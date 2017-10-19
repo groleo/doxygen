@@ -38,7 +38,7 @@ extern bool g_successfulRun;
 #define WAIT_T int
 /* Different systems have different requirements for pid_t.
    Plus we have to support gettext string translation... Argh.  */
-	static const char *
+static const char *
 pid2str (pid_t pid)
 {
 	static char pidstring[100];
@@ -67,8 +67,7 @@ static unsigned int job_slots_used = 0;
    print an error message first.  */
 
 
-	void
-reap_children (int block, int err)
+static void reap_children (int block, int err)
 {
 	WAIT_T status;
 	/* Initially, assume we have some.  */
@@ -188,25 +187,17 @@ reap_children (int block, int err)
 }
 
 
-	void
-block_sigs ()
+static void block_sigs ()
 {
 	(void) sigprocmask (SIG_BLOCK, &fatal_signal_set, (sigset_t *) 0);
 }
 
-	void
-unblock_sigs ()
+static void unblock_sigs ()
 {
 	sigset_t empty;
 	sigemptyset (&empty);
 	sigprocmask (SIG_SETMASK, &empty, (sigset_t *) 0);
 }
-
-	void
-job_noop (int)
-{
-}
-
 
 /* Start a job to run the commands specified in CHILD.
    CHILD is updated to reflect the commands and ID of the child process.
@@ -215,8 +206,7 @@ NOTE: On return fatal signals are blocked!  The caller is responsible
 for calling 'unblock_sigs', once the new child is safely on the chain so
 it can be cleaned up in the event of a fatal signal.  */
 
-	static void
-start_job_command (struct child *child)
+static void start_job_command (struct child *child)
 {
 	/* If we have a completely empty commandset, stop now.  */
 	if (!child->command_ptr) {
@@ -262,8 +252,7 @@ error:
    Returns nonzero if the child was started (and maybe finished), or zero if
    the load was too high and the child was put on the 'waiting_jobs' chain.  */
 
-	static int
-start_waiting_job (struct child *c)
+static int start_waiting_job (struct child *c)
 {
 	/* Start the first command; reap_children will run later command lines.  */
 	start_job_command (c);
@@ -292,8 +281,7 @@ start_waiting_job (struct child *c)
 
 /* Create a 'struct child' for FILE and start its commands running.  */
 
-void
-job_spawn (const char*name, void (*fptr)())
+void job_spawn (const char*name, void (*fptr)())
 {
 	if (g_job_slots == 1) {
 		fptr();
@@ -315,7 +303,7 @@ job_spawn (const char*name, void (*fptr)())
 
 
 
-void cleanup_jobserver()
+void job_cleanup()
 {
 	while (job_slots_used > 0)
 		reap_children(1,1);

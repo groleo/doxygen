@@ -42,4 +42,4 @@ struct child
   };
 
 void job_spawn (const char*name,void (*fptr)());
-void cleanup_jobserver();
+void job_cleanup();

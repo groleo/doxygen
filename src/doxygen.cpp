@@ -10098,7 +10098,7 @@ void initDoxygen()
 
 void cleanUpDoxygen()
 {
-  cleanup_jobserver();
+  job_cleanup();
   delete Doxygen::sectionDict;
   delete Doxygen::formulaNameDict;
   delete Doxygen::formulaDict;
