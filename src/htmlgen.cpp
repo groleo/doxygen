@@ -762,7 +762,7 @@ void HtmlGenerator::init()
       t << mgr.getAsString("dynsections.js");
       if (Config_getBool(SOURCE_BROWSER) && Config_getBool(SOURCE_TOOLTIPS))
       {
-        QCString tooltipsUrl = Config_getString("SOURCE_TOOLTIPS_URL");
+        QCString tooltipsUrl = Config_getString(SOURCE_TOOLTIPS_URL);
         if (tooltipsUrl!="")
         {
           t << endl <<

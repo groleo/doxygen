@@ -11543,7 +11543,7 @@ void generateOutput()
     }
   }
   g_s.end();
-  bool sourceBrowserOnly = Config_getBool("SOURCE_BROWSER_ONLY");
+  bool sourceBrowserOnly = Config_getBool(SOURCE_BROWSER_ONLY);
 
   if (!sourceBrowserOnly)
   {
@@ -11571,6 +11571,7 @@ void generateOutput()
     g_s.begin("Generating page documentation...\n");
     job_spawn("dox:pagedocs",generatePageDocs);
     g_s.end();
+  }
 
   if (!sourceBrowserOnly)
   {

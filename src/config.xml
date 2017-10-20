@@ -1522,6 +1522,16 @@ FILE_VERSION_INFO = "cleartool desc -fmt \%Vn"
 ]]>
       </docs>
     </option>
+    <option type='bool' id='SOURCE_BROWSER_ONLY' defval='0'>
+      <docs>
+<![CDATA[
+ If the \c SOURCE_BROWSER_ONLY tag is set to \c YES then only the list of source files will
+ be generated. Documented entities will not be generated.
+ <br>Note: To get rid of all source code in the generated output, make sure that also
+ \ref cfg_verbatim_headers "VERBATIM_HEADERS" is set to \c NO.
+]]>
+      </docs>
+    </option>
     <option type='bool' id='INLINE_SOURCES' defval='0'>
       <docs>
 <![CDATA[
