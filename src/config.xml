@@ -1512,7 +1512,7 @@ FILE_VERSION_INFO = "cleartool desc -fmt \%Vn"
     </option>
   </group>
   <group name='Source_Browser' docs='Configuration options related to source browsing'>
-    <option type='bool' id='SOURCE_BROWSER' defval='0'>
+    <option type='bool' id='SOURCE_BROWSER' defval='1'>
       <docs>
 <![CDATA[
  If the \c SOURCE_BROWSER tag is set to \c YES then a list of source files will
@@ -1522,7 +1522,7 @@ FILE_VERSION_INFO = "cleartool desc -fmt \%Vn"
 ]]>
       </docs>
     </option>
-    <option type='bool' id='SOURCE_BROWSER_ONLY' defval='0'>
+    <option type='bool' id='SOURCE_BROWSER_ONLY' defval='1'>
       <docs>
 <![CDATA[
  If the \c SOURCE_BROWSER_ONLY tag is set to \c YES then only the list of source files will

@@ -1047,25 +1047,27 @@ void ConfigImpl::init()
       }
     }
   }
-
+#if 0
   // disable any boolean options that depend on disabled options
   for (it.toFirst();(option=it.current());++it)
   {
-    QCString depName = option->dependsOn();
-    if (!depName.isEmpty())
+    QCString need = option->dependsOn();
+    if (need.isEmpty()) continue;
+
+    ConfigOption * needOpt = ConfigImpl::instance()->get(need);
+
+    if (needOpt->kind()==ConfigOption::O_Bool
+     && ConfigImpl_getBool(need)==FALSE)
     {
-      ConfigOption * dep = ConfigImpl::instance()->get(depName);
-      if (dep->kind()==ConfigOption::O_Bool &&
-          ConfigImpl_getBool(depName)==FALSE) // if dependent option is disabled
+      if (option->kind()==ConfigOption::O_Bool)
       {
-        if (option->kind()==ConfigOption::O_Bool)
-        {
-          printf("disabling option %s that depends on %s\n",option->name().data(), depName.data());
-          ConfigImpl_getBool(option->name())=FALSE; // also disable this option
-        }
+        printf("disabling %s that depends on %s which is disabled\n"
+              ,option->name().data(), need.data());
+        ConfigImpl_getBool(option->name())=FALSE; // also disable this option
       }
     }
   }
+#endif
 }
 
 void ConfigImpl::create()
