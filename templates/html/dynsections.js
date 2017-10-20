@@ -175,7 +175,7 @@ function jsonToHtml(content) {
     str += jsonToList(content['result']);
   }
   if (content['error']) {
-    str += jsonToList(content['error']);
+    str += content['error'];
   }
 
   return str;
