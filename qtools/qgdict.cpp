@@ -81,8 +81,8 @@ public:
 /*!
   \internal
   Returns the hash key for \e key, when key is a string.
+  ELF Hashing function
 */
-
 int QGDict::hashKeyString( const QString &key )
 {
 #if defined(CHECK_NULL)
@@ -90,23 +90,17 @@ int QGDict::hashKeyString( const QString &key )
 	qWarning( "QGDict::hashStringKey: Invalid null key" ); 
 #endif
     int i;
-    register uint h=0;
+    register uint h=5381;
     uint g;
     int len = key.length();
     const QChar *p = key.unicode();
     if ( cases ) {				// case sensitive
 	for ( i=0; i<len; i++ ) {
-	    h = (h<<4) + p[i].cell();
-	    if ( (g = h & 0xf0000000) )
-		h ^= g >> 24;
-	    h &= ~g;
+	    h = ((h << 5) + h) + p[i].cell();
 	}
     } else {					// case insensitive
 	for ( i=0; i<len; i++ ) {
-	    h = (h<<4) + p[i].lower().cell();
-	    if ( (g = h & 0xf0000000) )
-		h ^= g >> 24;
-	    h &= ~g;
+	    h = ((h << 5) + h) + p[i].lower().cell();
 	}
     }
     int index = h;
@@ -130,21 +124,15 @@ int QGDict::hashKeyAscii( const char *key )
     }
 #endif
     register const char *k = key;
-    register uint h=0;
+    register uint h=5381;
     uint g;
     if ( cases ) {				// case sensitive
 	while ( *k ) {
-	    h = (h<<4) + *k++;
-	    if ( (g = h & 0xf0000000) )
-		h ^= g >> 24;
-	    h &= ~g;
+	    h = ((h << 5) + h) + *k++;
 	}
     } else {					// case insensitive
 	while ( *k ) {
-	    h = (h<<4) + tolower(*k);
-	    if ( (g = h & 0xf0000000) )
-		h ^= g >> 24;
-	    h &= ~g;
+	    h = ((h << 5) + h) + tolower(*k);
 	    k++;
 	}
     }
