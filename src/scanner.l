@@ -195,403 +195,31 @@ static bool             g_nestedComment=0;
 //static void handleGroupStartCommand(const char *header);
 //static void handleGroupEndCommand();
 
-//-----------------------------------------------------------------------------
-
-static void initParser()
-{
-  sectionLabel.resize(0);
-  sectionTitle.resize(0);
-  baseName.resize(0);
-  formulaText.resize(0);
-  protection = Public;
-  baseProt = Public;
-  sharpCount = 0;
-  roundCount = 0;
-  curlyCount = 0;
-  mtype = Method;
-  gstat = FALSE;
-  virt = Normal;
-  baseVirt = Normal;
-  isTypedef = FALSE;
-  autoGroupStack.clear();
-  insideTryBlock = FALSE;
-  autoGroupStack.setAutoDelete(TRUE);
-  insideFormula = FALSE;
-  insideCode=FALSE;
-  insideCli=Config_getBool(CPP_CLI_SUPPORT);
-  previous = 0;
-  firstTypedefEntry = 0;
-  tempEntry = 0;
-  memspecEntry =0;
-}
-
-static void initEntry()
-{
-  if (insideJava) 
-  {
-    protection = (current_root->spec & (Entry::Interface|Entry::Enum)) ?  Public : Package;
-  }
-  current->protection = protection ;
-  current->mtype      = mtype;
-  current->virt       = virt;
-  current->stat       = gstat;
-  current->lang       = language;
-  //printf("*** initEntry() language=%d\n",language);
-  //if (!autoGroupStack.isEmpty())
-  //{
-  //  //printf("Appending group %s\n",autoGroupStack.top()->groupname.data());
-  //  current->groups->append(new Grouping(*autoGroupStack.top()));
-  //}
-  initGroupInfo(current);
-  isTypedef=FALSE;
-}
-
-
-//-----------------------------------------------------------------------------
-
-///// remove any automatic grouping and add new one (if given)
-//static void setCurrentGroup( QCString *newgroup, Grouping::GroupPri_t pri )
-//{
-//   /* remove auto group name from current entry and discard it */
-//   Grouping *g = current->groups->first();
-//   int i=0; 
-//   while (g)
-//   {
-//     if (g->pri <= Grouping::GROUPING_AUTO_DEF)
-//     {
-//       current->groups->remove(i);
-//       i--;
-//     }
-//     g=current->groups->next();
-//     i++;
-//   }
-//
-//   /* use new group name instead? */
-//   if ( newgroup )
-//   {
-//      current->groups->append(new Grouping(*newgroup, pri));
-//   } 
-//}
-//
-//static int newMemberGroupId()
-//{
-//  static int curGroupId=0;
-//  return curGroupId++;
-//}
-//
-// forward declarations
-//static void startGroupInDoc();
-//static void endGroup();
-
-//-----------------------------------------------------------------------------
-
-static void lineCount()
-{
-  static int tabSize = Config_getInt(TAB_SIZE);
-  const char *p;
-  for (p = yytext ; *p ; ++p )
-  {
-    if (*p=='\n') 
-    {
-      yyLineNr++,g_column=0,yyColNr=1;
-    }
-    else if (*p=='\t') 
-    {
-      g_column+=tabSize - (g_column%tabSize);
-    }
-    else 
-    {
-      g_column++,yyColNr++;
-    }
-  }
-  //printf("lineCount()=%d\n",g_column);
-}
-
-static inline int computeIndent(const char *s,int startIndent)
-{
-  int col=startIndent;
-  static int tabSize=Config_getInt(TAB_SIZE);
-  const char *p=s;
-  char c;
-  while ((c=*p++))
-  {
-    if (c=='\t') col+=tabSize-(col%tabSize);
-    else if (c=='\n') col=0;
-    else col++;
-  }
-  return col;
-}
-
-static void addType( Entry* current )
-{
-    uint tl=current->type.length();
-    if( tl>0 && !current->name.isEmpty() && current->type.at(tl-1)!='.') 
-    {
-      current->type += ' ' ;
-    }
-    current->type += current->name ;
-    current->name.resize(0) ;
-    tl=current->type.length();
-    if( tl>0 && !current->args.isEmpty() && current->type.at(tl-1)!='.') 
-    {
-      current->type += ' ' ;
-    }
-    current->type += current->args ;
-    current->args.resize(0) ;
-    current->argList->clear();
-}
-
-
-static QCString stripQuotes(const char *s)
-{
-  QCString name;
-  if (s==0 || *s==0) return name;
-  name=s;
-  if (name.at(0)=='"' && name.at(name.length()-1)=='"')
-  {
-    name=name.mid(1,name.length()-2);
-  }
-  return name;
-}
-
-//-----------------------------------------------------------------
+static void initParser();
+static void initEntry();
+static void lineCount();
+static inline int computeIndent(const char *s,int startIndent);
+static void addType( Entry* current );
+static QCString stripQuotes(const char *s);
 
 static void startCommentBlock(bool);
 static void handleCommentBlock(const QCString &doc,bool brief);
 static void handleParametersCommentBlocks(ArgumentList *al);
-
-//-----------------------------------------------------------------
-
-static bool nameIsOperator(QCString &name)
-{
-  int i=name.find("operator");
-  if (i==-1) return FALSE;
-  if (i==0 && !isId(name.at(8))) return TRUE; // case operator ::X
-  if (i>0 && !isId(name.at(i-1)) && !isId(name.at(i+8))) return TRUE; // case X::operator
-  return FALSE; // case TEXToperatorTEXT
-}
-
-//-----------------------------------------------------------------------------
-
-static void setContext()
-{
-  QCString fileName = yyFileName;
-  language   = getLanguageFromFileName(fileName);
-  insideIDL  = language==SrcLangExt_IDL;
-  insideJava = language==SrcLangExt_Java;
-  insideCS   = language==SrcLangExt_CSharp; 
-  insideD    = language==SrcLangExt_D;
-  insidePHP  = language==SrcLangExt_PHP;
-  insideObjC = language==SrcLangExt_ObjC;
-  insideJS   = language==SrcLangExt_JS;
-  insideCpp  = language==SrcLangExt_Cpp;
-  if ( insidePHP )
-  {
-    useOverrideCommands = TRUE;
-  }
-  //printf("setContext(%s) insideIDL=%d insideJava=%d insideCS=%d "
-  //       "insideD=%d insidePHP=%d insideObjC=%d\n",
-  //       yyFileName.data(),insideIDL,insideJava,insideCS,insideD,insidePHP,insideObjC
-  //	);
-}
-
-//-----------------------------------------------------------------------------
-
-static void prependScope()
-{
-  if (current_root->section & Entry::SCOPE_MASK)
-  {
-    //printf("--- prependScope %s to %s\n",current_root->name.data(),current->name.data());
-    current->name.prepend(current_root->name+"::");
-    if (current_root->tArgLists)
-    {
-      if (current->tArgLists==0)
-      {
-	current->tArgLists = new QList<ArgumentList>;
-	current->tArgLists->setAutoDelete(TRUE);
-      }
-      //printf("prependScope #=%d #current=%d\n",current_root->tArgLists->count(),current->tArgLists->count());
-      QListIterator<ArgumentList> talsi(*current_root->tArgLists);
-      ArgumentList *srcAl=0;
-      for (talsi.toLast();(srcAl=talsi.current());--talsi)
-      {
-        ArgumentList *dstAl = new ArgumentList;
-	QListIterator<Argument> tali(*srcAl);
-        Argument *a;
-        for (;(a=tali.current());++tali)
-        {
-          dstAl->append(new Argument(*a));
-        //printf("appending argument %s %s\n",a->type.data(),a->name.data());
-        }	  
-        current->tArgLists->insert(0,dstAl);	
-      }
-    }
-  }
-}
-
-//-----------------------------------------------------------------------------
-
-/*! Returns TRUE iff the current entry could be a K&R style C function */
-static bool checkForKnRstyleC()
-{
-  if (((QCString)yyFileName).right(2).lower()!=".c") return FALSE; // must be a C file
-  if (!current->argList) return FALSE; // must have arguments
-  ArgumentListIterator ali(*current->argList);
-  Argument *a;
-  for (ali.toFirst();(a=ali.current());++ali)
-  {
-    // in K&R style argument do not have a type, but doxygen expects a type
-    // so it will think the argument has no name
-    if (a->type.isEmpty() || !a->name.isEmpty()) return FALSE;
-  }
-  return TRUE;
-}
-
-//-----------------------------------------------------------------------------
-
-static void splitKnRArg(QCString &oldStyleArgPtr,QCString &oldStyleArgName)
-{
-  int si = current->args.length();
-  if (oldStyleArgType.isEmpty()) // new argument
-  {
-    static QRegExp re("([^)]*)");
-    int bi1 = current->args.findRev(re);
-    int bi2 = bi1!=-1 ? current->args.findRev(re,bi1-1) : -1; 
-    char c;
-    if (bi1!=-1 && bi2!=-1) // found something like "int (*func)(int arg)"
-    {
-      int s=bi2+1;
-      oldStyleArgType = current->args.left(s);
-      int i=s;
-      while (i<si && ((c=current->args.at(i))=='*' || isspace((uchar)c))) i++;
-      oldStyleArgType += current->args.mid(s,i-s);
-      s=i;
-      while (i<si && isId(current->args.at(i))) i++;
-      oldStyleArgName = current->args.mid(s,i-s);
-      oldStyleArgType+=current->args.mid(i);
-    }
-    else if (bi1!=-1) // redundant braces like in "int (*var)"
-    {
-      int s=bi1;
-      oldStyleArgType = current->args.left(s);
-      s++;
-      int i=s+1;
-      while (i<si && ((c=current->args.at(i))=='*' || isspace((uchar)c))) i++;
-      oldStyleArgType += current->args.mid(s,i-s);
-      s=i;
-      while (i<si && isId(current->args.at(i))) i++;
-      oldStyleArgName = current->args.mid(s,i-s);
-    }
-    else // normal "int *var"
-    {
-      int l=si,i=l-1,j;
-      char c;
-      // look for start of name in "type *name"
-      while (i>=0 && isId(current->args.at(i))) i--;
-      j=i+1;
-      // look for start of *'s
-      while (i>=0 && ((c=current->args.at(i))=='*' || isspace((uchar)c))) i--;
-      i++;
-      if (i!=l)
-      {
-	oldStyleArgType=current->args.left(i);
-	oldStyleArgPtr=current->args.mid(i,j-i);
-	oldStyleArgName=current->args.mid(j).stripWhiteSpace();
-      }
-      else
-      {
-	oldStyleArgName=current->args.copy().stripWhiteSpace();
-      }
-    }
-  }
-  else // continuation like *arg2 in "int *args,*arg2"
-  {
-    int l=si,j=0;
-    char c;
-    while (j<l && ((c=current->args.at(j))=='*' || isspace((uchar)c))) j++;
-    if (j>0)
-    {
-      oldStyleArgPtr=current->args.left(j);
-      oldStyleArgName=current->args.mid(j).stripWhiteSpace();
-    }
-    else
-    {
-      oldStyleArgName=current->args.copy().stripWhiteSpace();
-    }
-  }
-}
-
-//-----------------------------------------------------------------------------
-
-/*! Update the argument \a name with additional \a type info. For K&R style
- *  function the type is found \e after the argument list, so this routine
- *  in needed to fix up.
- */
+static bool nameIsOperator(QCString &name);
+static void setContext();
+static void prependScope();
+static bool checkForKnRstyleC();
+static void splitKnRArg(QCString &oldStyleArgPtr,QCString &oldStyleArgName);
 static void addKnRArgInfo(const QCString &type,const QCString &name,
-                          const QCString &brief,const QCString &docs)
-{
-  if (current->argList==0) return;
-  ArgumentListIterator ali(*current->argList);
-  Argument *a;
-  for (ali.toFirst();(a=ali.current());++ali)
-  {
-    if (a->type==name)
-    {
-      a->type=type.stripWhiteSpace();
-      if (a->type.left(9)=="register ") // strip keyword
-      {
-	a->type=a->type.mid(9);
-      }
-      a->name=name.stripWhiteSpace();
-      if (!brief.isEmpty() && !docs.isEmpty())
-      {
-        a->docs=brief+"\n\n"+docs;
-      }
-      else if (!brief.isEmpty())
-      {
-        a->docs=brief;
-      }
-      else
-      {
-	a->docs=docs;
-      }
-    }
-  }
-}
-
+                          const QCString &brief,const QCString &docs);
+static void fixArgumentListForJavaScript(ArgumentList *al);
+static int yyread(char *buf,int max_size);
 //-----------------------------------------------------------------------------
 
-
-void fixArgumentListForJavaScript(ArgumentList *al)
-{
-  if (al==0) return;
-  ArgumentListIterator ali(*al);
-  Argument *a;
-  for (ali.toFirst();(a=ali.current());++ali)
-  {
-    if (!a->type.isEmpty() && a->name.isEmpty())
-    { // a->type is actually the (typeless) parameter name, so move it
-      a->name=a->type;
-      a->type.resize(0);
-    }
-  }
-}
 
 /* ----------------------------------------------------------------- */
 #undef	YY_INPUT
 #define	YY_INPUT(buf,result,max_size) result=yyread(buf,max_size);
-
-static int yyread(char *buf,int max_size)
-{
-    int c=0;
-    while( c < max_size && inputString[inputPosition] )
-    {
-      *buf = inputString[inputPosition++] ;
-      //printf("%d (%c)\n",*buf,*buf);
-      c++; buf++;
-    }
-    return c;
-}
 
 %}
 
@@ -6617,6 +6245,392 @@ OPERATOR  "operator"{B}*({ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP})
 					  BEGIN( SkipCxxComment ) ;
 					}
 %%
+
+static void initParser()
+{
+  sectionLabel.resize(0);
+  sectionTitle.resize(0);
+  baseName.resize(0);
+  formulaText.resize(0);
+  protection = Public;
+  baseProt = Public;
+  sharpCount = 0;
+  roundCount = 0;
+  curlyCount = 0;
+  mtype = Method;
+  gstat = FALSE;
+  virt = Normal;
+  baseVirt = Normal;
+  isTypedef = FALSE;
+  autoGroupStack.clear();
+  insideTryBlock = FALSE;
+  autoGroupStack.setAutoDelete(TRUE);
+  insideFormula = FALSE;
+  insideCode=FALSE;
+  insideCli=Config_getBool(CPP_CLI_SUPPORT);
+  previous = 0;
+  firstTypedefEntry = 0;
+  tempEntry = 0;
+  memspecEntry =0;
+}
+
+static void initEntry()
+{
+  if (insideJava) 
+  {
+    protection = (current_root->spec & (Entry::Interface|Entry::Enum)) ?  Public : Package;
+  }
+  current->protection = protection ;
+  current->mtype      = mtype;
+  current->virt       = virt;
+  current->stat       = gstat;
+  current->lang       = language;
+  //printf("*** initEntry() language=%d\n",language);
+  //if (!autoGroupStack.isEmpty())
+  //{
+  //  //printf("Appending group %s\n",autoGroupStack.top()->groupname.data());
+  //  current->groups->append(new Grouping(*autoGroupStack.top()));
+  //}
+  initGroupInfo(current);
+  isTypedef=FALSE;
+}
+
+
+//-----------------------------------------------------------------------------
+
+///// remove any automatic grouping and add new one (if given)
+//static void setCurrentGroup( QCString *newgroup, Grouping::GroupPri_t pri )
+//{
+//   /* remove auto group name from current entry and discard it */
+//   Grouping *g = current->groups->first();
+//   int i=0; 
+//   while (g)
+//   {
+//     if (g->pri <= Grouping::GROUPING_AUTO_DEF)
+//     {
+//       current->groups->remove(i);
+//       i--;
+//     }
+//     g=current->groups->next();
+//     i++;
+//   }
+//
+//   /* use new group name instead? */
+//   if ( newgroup )
+//   {
+//      current->groups->append(new Grouping(*newgroup, pri));
+//   } 
+//}
+//
+//static int newMemberGroupId()
+//{
+//  static int curGroupId=0;
+//  return curGroupId++;
+//}
+//
+// forward declarations
+//static void startGroupInDoc();
+//static void endGroup();
+
+//-----------------------------------------------------------------------------
+
+static void lineCount()
+{
+  static int tabSize = Config_getInt(TAB_SIZE);
+  const char *p;
+  for (p = yytext ; *p ; ++p )
+  {
+    if (*p=='\n') 
+    {
+      yyLineNr++,g_column=0,yyColNr=1;
+    }
+    else if (*p=='\t') 
+    {
+      g_column+=tabSize - (g_column%tabSize);
+    }
+    else 
+    {
+      g_column++,yyColNr++;
+    }
+  }
+  //printf("lineCount()=%d\n",g_column);
+}
+
+static inline int computeIndent(const char *s,int startIndent)
+{
+  int col=startIndent;
+  static int tabSize=Config_getInt(TAB_SIZE);
+  const char *p=s;
+  char c;
+  while ((c=*p++))
+  {
+    if (c=='\t') col+=tabSize-(col%tabSize);
+    else if (c=='\n') col=0;
+    else col++;
+  }
+  return col;
+}
+
+static void addType( Entry* current )
+{
+    uint tl=current->type.length();
+    if( tl>0 && !current->name.isEmpty() && current->type.at(tl-1)!='.') 
+    {
+      current->type += ' ' ;
+    }
+    current->type += current->name ;
+    current->name.resize(0) ;
+    tl=current->type.length();
+    if( tl>0 && !current->args.isEmpty() && current->type.at(tl-1)!='.') 
+    {
+      current->type += ' ' ;
+    }
+    current->type += current->args ;
+    current->args.resize(0) ;
+    current->argList->clear();
+}
+
+
+static QCString stripQuotes(const char *s)
+{
+  QCString name;
+  if (s==0 || *s==0) return name;
+  name=s;
+  if (name.at(0)=='"' && name.at(name.length()-1)=='"')
+  {
+    name=name.mid(1,name.length()-2);
+  }
+  return name;
+}
+
+
+static bool nameIsOperator(QCString &name)
+{
+  int i=name.find("operator");
+  if (i==-1) return FALSE;
+  if (i==0 && !isId(name.at(8))) return TRUE; // case operator ::X
+  if (i>0 && !isId(name.at(i-1)) && !isId(name.at(i+8))) return TRUE; // case X::operator
+  return FALSE; // case TEXToperatorTEXT
+}
+
+//-----------------------------------------------------------------------------
+
+static void setContext()
+{
+  QCString fileName = yyFileName;
+  language   = getLanguageFromFileName(fileName);
+  insideIDL  = language==SrcLangExt_IDL;
+  insideJava = language==SrcLangExt_Java;
+  insideCS   = language==SrcLangExt_CSharp; 
+  insideD    = language==SrcLangExt_D;
+  insidePHP  = language==SrcLangExt_PHP;
+  insideObjC = language==SrcLangExt_ObjC;
+  insideJS   = language==SrcLangExt_JS;
+  insideCpp  = language==SrcLangExt_Cpp;
+  if ( insidePHP )
+  {
+    useOverrideCommands = TRUE;
+  }
+  //printf("setContext(%s) insideIDL=%d insideJava=%d insideCS=%d "
+  //       "insideD=%d insidePHP=%d insideObjC=%d\n",
+  //       yyFileName.data(),insideIDL,insideJava,insideCS,insideD,insidePHP,insideObjC
+  //	);
+}
+
+//-----------------------------------------------------------------------------
+
+static void prependScope()
+{
+  if (current_root->section & Entry::SCOPE_MASK)
+  {
+    //printf("--- prependScope %s to %s\n",current_root->name.data(),current->name.data());
+    current->name.prepend(current_root->name+"::");
+    if (current_root->tArgLists)
+    {
+      if (current->tArgLists==0)
+      {
+	current->tArgLists = new QList<ArgumentList>;
+	current->tArgLists->setAutoDelete(TRUE);
+      }
+      //printf("prependScope #=%d #current=%d\n",current_root->tArgLists->count(),current->tArgLists->count());
+      QListIterator<ArgumentList> talsi(*current_root->tArgLists);
+      ArgumentList *srcAl=0;
+      for (talsi.toLast();(srcAl=talsi.current());--talsi)
+      {
+        ArgumentList *dstAl = new ArgumentList;
+	QListIterator<Argument> tali(*srcAl);
+        Argument *a;
+        for (;(a=tali.current());++tali)
+        {
+          dstAl->append(new Argument(*a));
+        //printf("appending argument %s %s\n",a->type.data(),a->name.data());
+        }	  
+        current->tArgLists->insert(0,dstAl);	
+      }
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+/*! Returns TRUE iff the current entry could be a K&R style C function */
+static bool checkForKnRstyleC()
+{
+  if (((QCString)yyFileName).right(2).lower()!=".c") return FALSE; // must be a C file
+  if (!current->argList) return FALSE; // must have arguments
+  ArgumentListIterator ali(*current->argList);
+  Argument *a;
+  for (ali.toFirst();(a=ali.current());++ali)
+  {
+    // in K&R style argument do not have a type, but doxygen expects a type
+    // so it will think the argument has no name
+    if (a->type.isEmpty() || !a->name.isEmpty()) return FALSE;
+  }
+  return TRUE;
+}
+
+//-----------------------------------------------------------------------------
+
+static void splitKnRArg(QCString &oldStyleArgPtr,QCString &oldStyleArgName)
+{
+  int si = current->args.length();
+  if (oldStyleArgType.isEmpty()) // new argument
+  {
+    static QRegExp re("([^)]*)");
+    int bi1 = current->args.findRev(re);
+    int bi2 = bi1!=-1 ? current->args.findRev(re,bi1-1) : -1; 
+    char c;
+    if (bi1!=-1 && bi2!=-1) // found something like "int (*func)(int arg)"
+    {
+      int s=bi2+1;
+      oldStyleArgType = current->args.left(s);
+      int i=s;
+      while (i<si && ((c=current->args.at(i))=='*' || isspace((uchar)c))) i++;
+      oldStyleArgType += current->args.mid(s,i-s);
+      s=i;
+      while (i<si && isId(current->args.at(i))) i++;
+      oldStyleArgName = current->args.mid(s,i-s);
+      oldStyleArgType+=current->args.mid(i);
+    }
+    else if (bi1!=-1) // redundant braces like in "int (*var)"
+    {
+      int s=bi1;
+      oldStyleArgType = current->args.left(s);
+      s++;
+      int i=s+1;
+      while (i<si && ((c=current->args.at(i))=='*' || isspace((uchar)c))) i++;
+      oldStyleArgType += current->args.mid(s,i-s);
+      s=i;
+      while (i<si && isId(current->args.at(i))) i++;
+      oldStyleArgName = current->args.mid(s,i-s);
+    }
+    else // normal "int *var"
+    {
+      int l=si,i=l-1,j;
+      char c;
+      // look for start of name in "type *name"
+      while (i>=0 && isId(current->args.at(i))) i--;
+      j=i+1;
+      // look for start of *'s
+      while (i>=0 && ((c=current->args.at(i))=='*' || isspace((uchar)c))) i--;
+      i++;
+      if (i!=l)
+      {
+	oldStyleArgType=current->args.left(i);
+	oldStyleArgPtr=current->args.mid(i,j-i);
+	oldStyleArgName=current->args.mid(j).stripWhiteSpace();
+      }
+      else
+      {
+	oldStyleArgName=current->args.copy().stripWhiteSpace();
+      }
+    }
+  }
+  else // continuation like *arg2 in "int *args,*arg2"
+  {
+    int l=si,j=0;
+    char c;
+    while (j<l && ((c=current->args.at(j))=='*' || isspace((uchar)c))) j++;
+    if (j>0)
+    {
+      oldStyleArgPtr=current->args.left(j);
+      oldStyleArgName=current->args.mid(j).stripWhiteSpace();
+    }
+    else
+    {
+      oldStyleArgName=current->args.copy().stripWhiteSpace();
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+/*! Update the argument \a name with additional \a type info. For K&R style
+ *  function the type is found \e after the argument list, so this routine
+ *  in needed to fix up.
+ */
+static void addKnRArgInfo(const QCString &type,const QCString &name,
+                          const QCString &brief,const QCString &docs)
+{
+  if (current->argList==0) return;
+  ArgumentListIterator ali(*current->argList);
+  Argument *a;
+  for (ali.toFirst();(a=ali.current());++ali)
+  {
+    if (a->type==name)
+    {
+      a->type=type.stripWhiteSpace();
+      if (a->type.left(9)=="register ") // strip keyword
+      {
+	a->type=a->type.mid(9);
+      }
+      a->name=name.stripWhiteSpace();
+      if (!brief.isEmpty() && !docs.isEmpty())
+      {
+        a->docs=brief+"\n\n"+docs;
+      }
+      else if (!brief.isEmpty())
+      {
+        a->docs=brief;
+      }
+      else
+      {
+	a->docs=docs;
+      }
+    }
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+
+static void fixArgumentListForJavaScript(ArgumentList *al)
+{
+  if (al==0) return;
+  ArgumentListIterator ali(*al);
+  Argument *a;
+  for (ali.toFirst();(a=ali.current());++ali)
+  {
+    if (!a->type.isEmpty() && a->name.isEmpty())
+    { // a->type is actually the (typeless) parameter name, so move it
+      a->name=a->type;
+      a->type.resize(0);
+    }
+  }
+}
+
+
+static int yyread(char *buf,int max_size)
+{
+    int c=0;
+    while( c < max_size && inputString[inputPosition] )
+    {
+      *buf = inputString[inputPosition++] ;
+      //printf("%d (%c)\n",*buf,*buf);
+      c++; buf++;
+    }
+    return c;
+}
 
 //----------------------------------------------------------------------------
 
