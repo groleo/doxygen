@@ -16,6 +16,7 @@
  */
 %option never-interactive
 %option prefix="codeYY"
+%option noyywrap
 
 %{
 
@@ -1836,8 +1837,6 @@ BITOP   "&"|"|"|"^"|"<<"|">>"|"~"
 OPERATOR {ARITHOP}|{ASSIGNOP}|{LOGICOP}|{BITOP}
 RAWBEGIN  (u|U|L|u8)?R\"[^ \t\(\)\\]{0,16}"("
 RAWEND    ")"[^ \t\(\)\\]{0,16}\"
-
-%option noyywrap
 
 %x      SkipString
 %x      SkipStringS
