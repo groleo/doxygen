@@ -55,10 +55,213 @@
 #define SCOPEBLOCK (int *)8
 #define INNERBLOCK (int *)12
 
+/*! Represents a stack of variable to class mappings as found in the
+ *  code. Each scope is enclosed in pushScope() and popScope() calls.
+ *  Variables are added by calling addVariables() and one can search
+ *  for variable using findVariable().
+ */
+class VariableContext
+{
+  public:
+    static const ClassDef *dummyContext;
+    
+    class Scope : public SDict<ClassDef>
+    {
+      public:
+	Scope() : SDict<ClassDef>(17) {}
+    };
+    
+    VariableContext() 
+    {
+      m_scopes.setAutoDelete(TRUE);
+    }
+    virtual ~VariableContext()
+    {
+    }
+    
+    void pushScope()
+    {
+      m_scopes.append(new Scope);
+      DBG_CTX((stderr,"** Push var context %d\n",m_scopes.count()));
+    }
+
+    void popScope()
+    {
+      if (m_scopes.count()>0)
+      {
+        DBG_CTX((stderr,"** Pop var context %d\n",m_scopes.count()));
+	m_scopes.remove(m_scopes.count()-1);
+      }
+      else
+      {
+        DBG_CTX((stderr,"** ILLEGAL: Pop var context\n"));
+      }
+    }
+
+    void clear()
+    {
+      m_scopes.clear();
+      m_globalScope.clear();
+    }
+
+    void clearExceptGlobal()
+    {
+      DBG_CTX((stderr,"** Clear var context\n"));
+      m_scopes.clear();
+    }
+
+    void addVariable(const QCString &type,const QCString &name);
+    ClassDef *findVariable(const QCString &name);
+
+    int count() const { return m_scopes.count(); }
+    
+  private:
+    Scope        m_globalScope;
+    QList<Scope> m_scopes;
+};
+
+//-------------------------------------------------------------------
+
+class CallContext
+{
+  public:
+    struct Ctx
+    {
+      Ctx() : name(g_name), type(g_type), d(0) {}
+      QCString name;
+      QCString type;
+      Definition *d;
+    };
+
+    CallContext() 
+    {
+      m_defList.append(new Ctx);
+      m_defList.setAutoDelete(TRUE);
+    }
+    virtual ~CallContext() {}
+    void setScope(Definition *d)
+    {
+      Ctx *ctx = m_defList.getLast();
+      if (ctx)
+      {
+	DBG_CTX((stderr,"** Set call context %s (%p)\n",d==0 ? "<null>" : d->name().data(),d));
+        ctx->d=d;
+      }
+    }
+    void pushScope()
+    {
+      m_defList.append(new Ctx);
+      DBG_CTX((stderr,"** Push call context %d\n",m_defList.count()));
+    }
+    void popScope()
+    {
+      if (m_defList.count()>1)
+      {
+        DBG_CTX((stderr,"** Pop call context %d\n",m_defList.count()));
+	Ctx *ctx = m_defList.getLast();
+	if (ctx)
+	{
+	  g_name = ctx->name;
+	  g_type = ctx->type;
+	}
+	m_defList.removeLast();
+      }
+      else
+      {
+        DBG_CTX((stderr,"** ILLEGAL: Pop call context\n"));
+      }
+    }
+    void clear()
+    {
+      DBG_CTX((stderr,"** Clear call context\n"));
+      m_defList.clear();
+      m_defList.append(new Ctx);
+    }
+    Definition *getScope() const
+    {
+      Ctx *ctx = m_defList.getLast();
+      if (ctx) return ctx->d; else return 0;
+    }
+
+  private:
+    QList<Ctx> m_defList;
+};
+
+// context for an Objective-C method call
+struct ObjCCallCtx
+{
+  int id;
+  QCString methodName;
+  QCString objectTypeOrName;
+  QGString comment;
+  ClassDef *objectType;
+  MemberDef *objectVar;
+  MemberDef *method;
+  QCString format;
+  int lexState;
+  int braceCount;
+};
+
+//-----------------------------------------------------------------------------
+// forward declarations
+static void saveObjCContext();
+static void restoreObjCContext();
+static void pushScope(const char *s);
+static void popScope();
+static void setCurrentDoc(const QCString &anchor);
+static void addToSearchIndex(const char *text);
+static void setClassScope(const QCString &name);
+static void startCodeLine();
+static void endFontClass();
+static void startFontClass(const char *s);
+static void endCodeLine();
+static void nextCodeLine();
+static void codifyLines(const char *text);
+static void writeMultiLineCodeLink(CodeOutputInterface &ol,
+                                   Definition *d,
+                                   const char *text);
+static void addType();
+static void addParmType();
+static void addUsingDirective(const char *name);
+static void setParameterList(MemberDef *md);
+static ClassDef *stripClassName(const char *s,Definition *d=g_currentDefinition);
+static MemberDef *setCallContextForVar(const QCString &name);
+static void updateCallContextForSmartPointer();
+static bool getLinkInScope(const QCString &c,  // scope
+                           const QCString &m,  // member
+			   const char *memberText, // exact text
+			   CodeOutputInterface &ol,
+			   const char *text,
+			   bool varOnly=FALSE
+			  );
+static bool getLink(const char *className,
+                    const char *memberName,
+		    CodeOutputInterface &ol,
+		    const char *text=0,
+		    bool varOnly=FALSE);
+static void generateClassOrGlobalLink(CodeOutputInterface &ol,const char *clName,
+                                      bool typeOnly=FALSE,bool varOnly=FALSE);
+static bool generateClassMemberLink(CodeOutputInterface &ol,MemberDef *xmd,const char *memName);
+static bool generateClassMemberLink(CodeOutputInterface &ol,Definition *def,const char *memName);
+static void generateMemberLink(CodeOutputInterface &ol,const QCString &varName,
+            char *memName);
+static void generatePHPVariableLink(CodeOutputInterface &ol,const char *varName);
+static void generateFunctionLink(CodeOutputInterface &ol,const char *funcName);
+static int countLines();
+static void endFontClass();
+static void startFontClass(const char *s);
+static void writeObjCMethodCall(ObjCCallCtx *ctx);
+static QCString escapeName(const char *s);
+static QCString escapeObject(const char *s);
+static QCString escapeWord(const char *s);
+static QCString escapeComment(const char *s);
+static int yyread(char *buf,int max_size);
+//-------------------------------------------------------------------
+
+
 /* -----------------------------------------------------------------
  *	statics
  */
-  
 static CodeOutputInterface * g_code;
 
 static ClassSDict    *g_codeClassSDict = 0;
@@ -131,21 +334,6 @@ static int           g_prefixed_with_this_keyword = FALSE;
 static Definition   *g_searchCtx;
 static bool          g_collectXRefs;
 
-// context for an Objective-C method call
-struct ObjCCallCtx
-{
-  int id;
-  QCString methodName;
-  QCString objectTypeOrName;
-  QGString comment;
-  ClassDef *objectType;
-  MemberDef *objectVar;
-  MemberDef *method;
-  QCString format;
-  int lexState;
-  int braceCount;
-};
-
 // globals for objective-C method calls 
 static ObjCCallCtx *g_currentCtx=0;
 static int g_currentCtxId=0;
@@ -160,1658 +348,18 @@ static QIntDict<QCString> g_objectDict;
 static QIntDict<QCString> g_wordDict;
 static QIntDict<QCString> g_commentDict;
 static int g_braceCount=0;
-  
-static void saveObjCContext();
-static void restoreObjCContext();
 
 static QCString g_forceTagReference;
-
-
-//-------------------------------------------------------------------
-
-/*! Represents a stack of variable to class mappings as found in the
- *  code. Each scope is enclosed in pushScope() and popScope() calls.
- *  Variables are added by calling addVariables() and one can search
- *  for variable using findVariable().
- */
-class VariableContext
-{
-  public:
-    static const ClassDef *dummyContext;
-    
-    class Scope : public SDict<ClassDef>
-    {
-      public:
-	Scope() : SDict<ClassDef>(17) {}
-    };
-    
-    VariableContext() 
-    {
-      m_scopes.setAutoDelete(TRUE);
-    }
-    virtual ~VariableContext()
-    {
-    }
-    
-    void pushScope()
-    {
-      m_scopes.append(new Scope);
-      DBG_CTX((stderr,"** Push var context %d\n",m_scopes.count()));
-    }
-
-    void popScope()
-    {
-      if (m_scopes.count()>0)
-      {
-        DBG_CTX((stderr,"** Pop var context %d\n",m_scopes.count()));
-	m_scopes.remove(m_scopes.count()-1);
-      }
-      else
-      {
-        DBG_CTX((stderr,"** ILLEGAL: Pop var context\n"));
-      }
-    }
-
-    void clear()
-    {
-      m_scopes.clear();
-      m_globalScope.clear();
-    }
-
-    void clearExceptGlobal()
-    {
-      DBG_CTX((stderr,"** Clear var context\n"));
-      m_scopes.clear();
-    }
-
-    void addVariable(const QCString &type,const QCString &name);
-    ClassDef *findVariable(const QCString &name);
-
-    int count() const { return m_scopes.count(); }
-    
-  private:
-    Scope        m_globalScope;
-    QList<Scope> m_scopes;
-};
-
-void VariableContext::addVariable(const QCString &type,const QCString &name)
-{
-  //printf("VariableContext::addVariable(%s,%s)\n",type.data(),name.data());
-  QCString ltype = type.simplifyWhiteSpace();
-  QCString lname = name.simplifyWhiteSpace();
-  if (ltype.left(7)=="struct ") 
-  {
-    ltype = ltype.right(ltype.length()-7);
-  }
-  else if (ltype.left(6)=="union ")
-  {
-    ltype = ltype.right(ltype.length()-6);
-  }
-  if (ltype.isEmpty() || lname.isEmpty()) return;
-  DBG_CTX((stderr,"** addVariable trying: type='%s' name='%s' g_currentDefinition=%s\n",
-	ltype.data(),lname.data(),g_currentDefinition?g_currentDefinition->name().data():"<none>"));
-  Scope *scope = m_scopes.count()==0 ? &m_globalScope : m_scopes.getLast();
-  ClassDef *varType;
-  int i=0;
-  if (
-      (varType=g_codeClassSDict->find(ltype)) ||  // look for class definitions inside the code block
-      (varType=getResolvedClass(g_currentDefinition,g_sourceFileDef,ltype)) // look for global class definitions
-     ) 
-  {
-    DBG_CTX((stderr,"** addVariable type='%s' name='%s'\n",ltype.data(),lname.data()));
-    scope->append(lname,varType); // add it to a list
-  }
-  else if ((i=ltype.find('<'))!=-1)
-  {
-    // probably a template class
-    QCString typeName(ltype.left(i));
-    ClassDef* newDef = 0;
-    QCString templateArgs(ltype.right(ltype.length() - i));
-    if (  
-         ( // look for class definitions inside the code block
-	   (varType=g_codeClassSDict->find(typeName)) ||
-           // otherwise look for global class definitions
-           (varType=getResolvedClass(g_currentDefinition,g_sourceFileDef,typeName,0,0,TRUE,TRUE))
-	 ) && // and it must be a template
-         varType->templateArguments())
-    {
-      newDef = varType->getVariableInstance( templateArgs );
-    }
-    if (newDef)
-    {
-      DBG_CTX((stderr,"** addVariable type='%s' templ='%s' name='%s'\n",typeName.data(),templateArgs.data(),lname.data()));
-      scope->append(lname, newDef);
-    }
-    else
-    {
-      // Doesn't seem to be a template. Try just the base name.
-      addVariable(typeName,name);
-    }
-  }
-  else 
-  {
-    if (m_scopes.count()>0) // for local variables add a dummy entry so the name 
-                            // is hidden to avoid false links to global variables with the same name
-                            // TODO: make this work for namespaces as well!
-    {
-      DBG_CTX((stderr,"** addVariable: dummy context for '%s'\n",lname.data()));
-      scope->append(lname,dummyContext);
-    }
-    else
-    {
-      DBG_CTX((stderr,"** addVariable: not adding variable!\n"));
-    }
-  }
-}
-
-ClassDef *VariableContext::findVariable(const QCString &name)
-{
-  if (name.isEmpty()) return 0;
-  ClassDef *result = 0;
-  QListIterator<Scope> sli(m_scopes);
-  Scope *scope;
-  QCString key = name;
-  // search from inner to outer scope
-  for (sli.toLast();(scope=sli.current());--sli)
-  {
-    result = scope->find(key);
-    if (result)
-    {
-      DBG_CTX((stderr,"** findVariable(%s)=%p\n",name.data(),result));
-      return result;
-    }
-  }
-  // nothing found -> also try the global scope
-  result=m_globalScope.find(name);
-  DBG_CTX((stderr,"** findVariable(%s)=%p\n",name.data(),result));
-  return result;
-}
-
 static VariableContext g_theVarContext;
 const ClassDef *VariableContext::dummyContext = (ClassDef*)0x8;
-
-//-------------------------------------------------------------------
-
-class CallContext
-{
-  public:
-    struct Ctx
-    {
-      Ctx() : name(g_name), type(g_type), d(0) {}
-      QCString name;
-      QCString type;
-      Definition *d;
-    };
-
-    CallContext() 
-    {
-      m_defList.append(new Ctx);
-      m_defList.setAutoDelete(TRUE);
-    }
-    virtual ~CallContext() {}
-    void setScope(Definition *d)
-    {
-      Ctx *ctx = m_defList.getLast();
-      if (ctx)
-      {
-	DBG_CTX((stderr,"** Set call context %s (%p)\n",d==0 ? "<null>" : d->name().data(),d));
-        ctx->d=d;
-      }
-    }
-    void pushScope()
-    {
-      m_defList.append(new Ctx);
-      DBG_CTX((stderr,"** Push call context %d\n",m_defList.count()));
-    }
-    void popScope()
-    {
-      if (m_defList.count()>1)
-      {
-        DBG_CTX((stderr,"** Pop call context %d\n",m_defList.count()));
-	Ctx *ctx = m_defList.getLast();
-	if (ctx)
-	{
-	  g_name = ctx->name;
-	  g_type = ctx->type;
-	}
-	m_defList.removeLast();
-      }
-      else
-      {
-        DBG_CTX((stderr,"** ILLEGAL: Pop call context\n"));
-      }
-    }
-    void clear()
-    {
-      DBG_CTX((stderr,"** Clear call context\n"));
-      m_defList.clear();
-      m_defList.append(new Ctx);
-    }
-    Definition *getScope() const
-    {
-      Ctx *ctx = m_defList.getLast();
-      if (ctx) return ctx->d; else return 0;
-    }
-
-  private:
-    QList<Ctx> m_defList;
-};
-
 static CallContext g_theCallContext;
 
 //-------------------------------------------------------------------
-
-/*! add class/namespace name s to the scope */
-static void pushScope(const char *s)
-{
-  g_classScopeLengthStack.push(new int(g_classScope.length()));
-  if (g_classScope.isEmpty() || leftScopeMatch(s,g_classScope))
-  {
-    g_classScope = s;
-  }
-  else
-  {
-    g_classScope += "::";
-    g_classScope += s;
-  }
-  //printf("pushScope(%s) result: `%s'\n",s,g_classScope.data());
-}
-
-/*! remove the top class/namespace name from the scope */
-static void popScope()
-{
-  if (!g_classScopeLengthStack.isEmpty())
-  {
-    int *pLength = g_classScopeLengthStack.pop();
-    g_classScope.truncate(*pLength);
-    delete pLength;
-  }
-  else
-  {
-    //err("Too many end of scopes found!\n");
-  }
-  //printf("popScope() result: `%s'\n",g_classScope.data());
-}
-
-static void setCurrentDoc(const QCString &anchor)
-{
-  if (Doxygen::searchIndex)
-  {
-    if (g_searchCtx)
-    {
-      g_code->setCurrentDoc(g_searchCtx,g_searchCtx->anchor(),FALSE);
-    }
-    else
-    {
-      g_code->setCurrentDoc(g_sourceFileDef,anchor,TRUE);
-    }
-  }
-}
-
-static void addToSearchIndex(const char *text)
-{
-  if (Doxygen::searchIndex)
-  {
-    g_code->addWord(text,FALSE);
-  }
-}
-
-static void setClassScope(const QCString &name)
-{
-  //printf("setClassScope(%s)\n",name.data());
-  QCString n=name;
-  n=n.simplifyWhiteSpace();
-  int ts=n.find('<'); // start of template
-  int te=n.findRev('>'); // end of template
-  //printf("ts=%d te=%d\n",ts,te);
-  if (ts!=-1 && te!=-1 && te>ts)
-  {
-    // remove template from scope
-    n=n.left(ts)+n.right(n.length()-te-1);
-  }
-  while (!g_classScopeLengthStack.isEmpty())
-  {
-    popScope();
-  }
-  g_classScope.resize(0);
-  int i;
-  while ((i=n.find("::"))!=-1)
-  {
-    pushScope(n.left(i));
-    n = n.mid(i+2);
-  }
-  pushScope(n);
-  //printf("--->New class scope `%s'\n",g_classScope.data());
-}
-
-/*! start a new line of code, inserting a line number if g_sourceFileDef
- * is TRUE. If a definition starts at the current line, then the line
- * number is linked to the documentation of that definition.
- */
-static void startCodeLine()
-{
-  //if (g_currentFontClass) { g_code->endFontClass(); }
-  if (g_sourceFileDef && g_lineNumbers)
-  {
-    //QCString lineNumber,lineAnchor;
-    //lineNumber.sprintf("%05d",g_yyLineNr);
-    //lineAnchor.sprintf("l%05d",g_yyLineNr);
-   
-    Definition *d   = g_sourceFileDef->getSourceDefinition(g_yyLineNr);
-    //printf("%s:startCodeLine(%d)=%p\n",g_sourceFileDef->name().data(),g_yyLineNr,d);
-    if (!g_includeCodeFragment && d)
-    {
-      g_currentDefinition = d;
-      g_currentMemberDef = g_sourceFileDef->getSourceMember(g_yyLineNr);
-      g_insideBody = FALSE;
-      g_searchingForBody = TRUE;
-      g_realScope = d->name();
-      //g_classScope = "";
-      g_type.resize(0);
-      g_name.resize(0);
-      g_args.resize(0);
-      g_parmType.resize(0);
-      g_parmName.resize(0);
-      //printf("Real scope: `%s'\n",g_realScope.data());
-      g_bodyCurlyCount = 0;
-      QCString lineAnchor;
-      lineAnchor.sprintf("l%05d",g_yyLineNr);
-      if (g_currentMemberDef)
-      {
-        g_code->writeLineNumber(g_currentMemberDef->getReference(),
-	                        g_currentMemberDef->getOutputFileBase(),
-	                        g_currentMemberDef->anchor(),g_yyLineNr);
-        setCurrentDoc(lineAnchor);
-      }
-      else if (d->isLinkableInProject())
-      {
-        g_code->writeLineNumber(d->getReference(),
-	                        d->getOutputFileBase(),
-	                        0,g_yyLineNr);
-        setCurrentDoc(lineAnchor);
-      }
-    }
-    else
-    {
-      g_code->writeLineNumber(0,0,0,g_yyLineNr);
-    }
-  }
-  DBG_CTX((stderr,"startCodeLine(%d)\n",g_yyLineNr));
-  g_code->startCodeLine(g_sourceFileDef && g_lineNumbers); 
-  if (g_currentFontClass)
-  {
-    g_code->startFontClass(g_currentFontClass);
-  }
-}
-
-
-static void endFontClass();
-static void startFontClass(const char *s);
-
-static void endCodeLine()
-{
-  DBG_CTX((stderr,"endCodeLine(%d)\n",g_yyLineNr));
-  endFontClass();
-  g_code->endCodeLine();
-}
-
-static void nextCodeLine()
-{
-  const char * fc = g_currentFontClass;
-  endCodeLine();
-  if (g_yyLineNr<g_inputLines) 
-  {
-    g_currentFontClass = fc;
-    startCodeLine();
-  }
-}
-
-/*! write a code fragment `text' that may span multiple lines, inserting
- * line numbers for each line.
- */
-static void codifyLines(const char *text)
-{
-  //printf("codifyLines(%d,\"%s\")\n",g_yyLineNr,text);
-  const char *p=text,*sp=p;
-  char c;
-  bool done=FALSE;
-  while (!done)
-  {
-    sp=p;
-    while ((c=*p++) && c!='\n') { g_yyColNr++; }
-    if (c=='\n')
-    {
-      g_yyLineNr++;
-      g_yyColNr=1;
-      //*(p-1)='\0';
-      int l = (int)(p-sp-1);
-      char *tmp = (char*)malloc(l+1);
-      memcpy(tmp,sp,l);
-      tmp[l]='\0';
-      g_code->codify(tmp);
-      free(tmp);
-      nextCodeLine();
-    }
-    else
-    {
-      g_code->codify(sp);
-      done=TRUE;
-    }
-  }
-}
-
-/*! writes a link to a fragment \a text that may span multiple lines, inserting
- * line numbers for each line. If \a text contains newlines, the link will be 
- * split into multiple links with the same destination, one for each line.
- */
-static void writeMultiLineCodeLink(CodeOutputInterface &ol,
-                                   Definition *d,
-                                   const char *text)
-{
-  static bool sourceTooltips = Config_getBool(SOURCE_TOOLTIPS);
-  TooltipManager::instance()->addTooltip(d);
-  QCString ref  = d->getReference();
-  QCString file = d->getOutputFileBase();
-  QCString anchor = d->anchor();
-  QCString tooltip; 
-  if (!sourceTooltips) // fall back to simple "title" tooltips
-  {
-    tooltip = d->briefDescriptionAsTooltip();
-  }
-  bool done=FALSE;
-  char *p=(char *)text;
-  while (!done)
-  {
-    char *sp=p;
-    char c;
-    while ((c=*p++) && c!='\n') { }
-    if (c=='\n')
-    {
-      g_yyLineNr++;
-      *(p-1)='\0';
-      //printf("writeCodeLink(%s,%s,%s,%s)\n",ref,file,anchor,sp);
-      ol.writeCodeLink(ref,file,anchor,sp,tooltip);
-      nextCodeLine();
-    }
-    else
-    {
-      //printf("writeCodeLink(%s,%s,%s,%s)\n",ref,file,anchor,sp);
-      ol.writeCodeLink(ref,file,anchor,sp,tooltip);
-      done=TRUE;
-    }
-  }
-}
-
-static void addType()
-{
-  if (g_name=="const") { g_name.resize(0); return; }
-  if (!g_type.isEmpty()) g_type += ' ' ;
-  g_type += g_name ;
-  g_name.resize(0) ;
-  if (!g_type.isEmpty()) g_type += ' ' ;
-  g_type += g_args ;
-  g_args.resize(0) ;
-}
-
-static void addParmType()
-{
-  if (g_parmName=="const") { g_parmName.resize(0); return; }
-  if (!g_parmType.isEmpty()) g_parmType += ' ' ;
-  g_parmType += g_parmName ;
-  g_parmName.resize(0) ;
-}
-
-static void addUsingDirective(const char *name)
-{
-  if (g_sourceFileDef && name)
-  {
-    NamespaceDef *nd = Doxygen::namespaceSDict->find(name);
-    if (nd)
-    {
-      g_sourceFileDef->addUsingDirective(nd);
-    }
-  }
-}
-
-static void setParameterList(MemberDef *md)
-{
-  g_classScope = md->getClassDef() ? md->getClassDef()->name().data() : "";
-  ArgumentList *al = md->argumentList();
-  if (al==0) return;
-  ArgumentListIterator it(*al);
-  Argument *a;
-  for (;(a=it.current());++it)
-  {
-    g_parmName = a->name.copy();
-    g_parmType = a->type.copy();
-    int i = g_parmType.find('*');
-    if (i!=-1) g_parmType = g_parmType.left(i);
-    i = g_parmType.find('&');
-    if (i!=-1) g_parmType = g_parmType.left(i);
-    g_parmType.stripPrefix("const ");
-    g_parmType=g_parmType.stripWhiteSpace();
-    g_theVarContext.addVariable(g_parmType,g_parmName);
-  }
-}
-
-static ClassDef *stripClassName(const char *s,Definition *d=g_currentDefinition)
-{
-  int pos=0;
-  QCString type = s;
-  QCString className;
-  QCString templSpec;
-  while (extractClassNameFromType(type,pos,className,templSpec)!=-1)
-  {
-    QCString clName=className+templSpec;
-    ClassDef *cd=0;
-    if (!g_classScope.isEmpty())
-    {
-      cd=getResolvedClass(d,g_sourceFileDef,g_classScope+"::"+clName);
-    }
-    if (cd==0)
-    {
-      cd=getResolvedClass(d,g_sourceFileDef,clName);
-    }
-    //printf("stripClass trying `%s' = %p\n",clName.data(),cd);
-    if (cd)
-    {
-      return cd;
-    }
-  }
-
-  return 0;
-}
-
-static MemberDef *setCallContextForVar(const QCString &name)
-{
-  if (name.isEmpty()) return 0;
-  DBG_CTX((stderr,"setCallContextForVar(%s) g_classScope=%s\n",name.data(),g_classScope.data()));
-
-  int scopeEnd = name.findRev("::");
-  if (scopeEnd!=-1) // name with explicit scope
-  {
-    QCString scope   = name.left(scopeEnd);
-    QCString locName = name.right(name.length()-scopeEnd-2);
-    //printf("explicit scope: name=%s scope=%s\n",locName.data(),scope.data());
-    ClassDef *mcd = getClass(scope); 
-    if (mcd && !locName.isEmpty())
-    {
-      MemberDef *md=mcd->getMemberByName(locName);
-      if (md)
-      {
-        //printf("name=%s scope=%s\n",locName.data(),scope.data());
-        g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
-        return md;
-      }
-    }
-    else // check namespace as well
-    {
-      NamespaceDef *mnd = getResolvedNamespace(scope);
-      if (mnd && !locName.isEmpty())
-      {
-	MemberDef *md=mnd->getMemberByName(locName);
-	if (md)
-	{
-	  //printf("name=%s scope=%s\n",locName.data(),scope.data());
-	  g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
-	  return md;
-	}
-      }
-    }
-  }
-  
-  MemberName *mn;
-  ClassDef *mcd = g_theVarContext.findVariable(name);
-  if (mcd) // local variable
-  {
-    DBG_CTX((stderr,"local variable?\n"));
-    if (mcd!=VariableContext::dummyContext)
-    {
-      DBG_CTX((stderr,"local var `%s' mcd=%s\n",name.data(),mcd->name().data()));
-      g_theCallContext.setScope(mcd);
-    }
-  }
-  else
-  {
-    DBG_CTX((stderr,"class member? scope=%s\n",g_classScope.data()));
-    // look for a class member 
-    mcd = getClass(g_classScope);
-    if (mcd)
-    {
-      DBG_CTX((stderr,"Inside class %s\n",mcd->name().data()));
-      MemberDef *md=mcd->getMemberByName(name);
-      if (md) 
-      {
-        DBG_CTX((stderr,"Found member %s\n",md->name().data()));
-	if (g_scopeStack.top()!=CLASSBLOCK)
-	{
-          DBG_CTX((stderr,"class member `%s' mcd=%s\n",name.data(),mcd->name().data()));
-	  g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
-	}
-	return md;
-      }
-    }
-  }
-
-  // look for a global member
-  if ((mn=Doxygen::functionNameSDict->find(name)))
-  {
-    //printf("global var `%s'\n",name.data());
-    if (mn->count()==1) // global defined only once
-    {
-      MemberDef *md=mn->getFirst();
-      if (!md->isStatic() || md->getBodyDef()==g_sourceFileDef)
-      {
-        g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
-        return md;
-      }
-      return 0;
-    }
-    else if (mn->count()>1) // global defined more than once
-    {
-      MemberNameIterator it(*mn);
-      MemberDef *md;
-      for (;(md=it.current());++it)
-      {
-	//printf("mn=%p md=%p md->getBodyDef()=%p g_sourceFileDef=%p\n",
-	//    mn,md,
-	//    md->getBodyDef(),g_sourceFileDef);
-
-	// in case there are multiple members we could link to, we 
-	// only link to members if defined in the same file or 
-	// defined as external.
-        if ((!md->isStatic() || md->getBodyDef()==g_sourceFileDef) &&
-	    (g_forceTagReference.isEmpty() || g_forceTagReference==md->getReference())
-	   )
-        {
-          g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
-	  //printf("returning member %s in source file %s\n",md->name().data(),g_sourceFileDef->name().data());
-          return md;
-        }
-      }
-      return 0;
-    }
-  }
-  return 0;
-}
-
-static void updateCallContextForSmartPointer()
-{
-  Definition *d = g_theCallContext.getScope();
-  //printf("updateCallContextForSmartPointer() cd=%s\n",cd ? d->name().data() : "<none>");
-  MemberDef *md;
-  if (d && d->definitionType()==Definition::TypeClass && (md=((ClassDef*)d)->isSmartPointer()))
-  {
-    ClassDef *ncd = stripClassName(md->typeString(),md->getOuterScope());
-    if (ncd)
-    {
-      g_theCallContext.setScope(ncd);
-      //printf("Found smart pointer call %s->%s!\n",cd->name().data(),ncd->name().data());
-    }
-  }
-}
-
-static bool getLinkInScope(const QCString &c,  // scope
-                           const QCString &m,  // member
-			   const char *memberText, // exact text
-			   CodeOutputInterface &ol,
-			   const char *text,
-			   bool varOnly=FALSE
-			  )
-{
-  MemberDef    *md;
-  ClassDef     *cd;
-  FileDef      *fd;
-  NamespaceDef *nd;
-  GroupDef     *gd;
-  DBG_CTX((stderr,"getLinkInScope: trying `%s'::`%s' varOnly=%d\n",c.data(),m.data(),varOnly));
-  if (getDefs(c,m,"()",md,cd,fd,nd,gd,FALSE,g_sourceFileDef,FALSE,g_forceTagReference) && 
-      (!varOnly || md->isVariable()))
-  {
-    if (md->isLinkable())
-    {
-      //printf("found it %s!\n",md->qualifiedName().data());
-      if (g_exampleBlock)
-      {
-        QCString anchor;
-        anchor.sprintf("a%d",g_anchorCount);
-        //printf("addExampleFile(%s,%s,%s)\n",anchor.data(),g_exampleName.data(),
-        //                                  g_exampleFile.data());
-        if (md->addExample(anchor,g_exampleName,g_exampleFile))
-        {
-          ol.writeCodeAnchor(anchor);
-          g_anchorCount++;
-        }
-      }
-
-      Definition *d = md->getOuterScope()==Doxygen::globalScope ?
-        md->getFileDef() : md->getOuterScope();
-      if (md->getGroupDef()) d = md->getGroupDef();
-      if (d && d->isLinkable())
-      {
-        g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
-        //printf("g_currentDefinition=%p g_currentMemberDef=%p g_insideBody=%d\n",
-        //        g_currentDefinition,g_currentMemberDef,g_insideBody);
-
-        if (g_currentDefinition && g_currentMemberDef &&
-            md!=g_currentMemberDef && g_insideBody && g_collectXRefs)
-        {
-          addDocCrossReference(g_currentMemberDef,md);
-        }
-        //printf("d->getReference()=`%s' d->getOutputBase()=`%s' name=`%s' member name=`%s'\n",d->getReference().data(),d->getOutputFileBase().data(),d->name().data(),md->name().data());
-
-        writeMultiLineCodeLink(ol,md, text ? text : memberText);
-        addToSearchIndex(text ? text : memberText);
-        return TRUE;
-      }
-    }
-    else // found member, but is is not linkable, so make sure content inside is not assign
-         // to the previous member, see bug762760
-    {
-      DBG_CTX((stderr,"unlinkable member %s\n",md->name().data()));
-      g_currentMemberDef = 0;
-    }
-  }
-  return FALSE;
-}
-
-static bool getLink(const char *className,
-                    const char *memberName,
-		    CodeOutputInterface &ol,
-		    const char *text=0,
-		    bool varOnly=FALSE)
-{
-  //printf("getLink(%s,%s) g_curClassName=%s\n",className,memberName,g_curClassName.data());
-  QCString m=removeRedundantWhiteSpace(memberName);
-  QCString c=className;
-  if (!getLinkInScope(c,m,memberName,ol,text,varOnly))
-  {
-    if (!g_curClassName.isEmpty())
-    {
-      if (!c.isEmpty()) c.prepend("::");
-      c.prepend(g_curClassName);
-      return getLinkInScope(c,m,memberName,ol,text,varOnly);
-    }
-    return FALSE;
-  }
-  return TRUE;
-}
-
-static void generateClassOrGlobalLink(CodeOutputInterface &ol,const char *clName,
-                                      bool typeOnly=FALSE,bool varOnly=FALSE)
-{
-  int i=0;
-  if (*clName=='~') // correct for matching negated values i.s.o. destructors.
-  {
-    g_code->codify("~");
-    clName++;
-  }
-  QCString className=clName;
-  if (className.isEmpty()) return;
-  if (g_insideProtocolList) // for Obj-C
-  {
-    className+="-p";
-  }
-  if (g_insidePHP)
-  {
-    className = substitute(className,"\\","::"); // for PHP namespaces
-  }
-  else if (g_insideCS || g_insideJava)
-  {
-    className = substitute(className,".","::"); // for PHP namespaces
-  }
-  ClassDef *cd=0,*lcd=0;
-  MemberDef *md=0;
-  bool isLocal=FALSE;
-
-  //printf("generateClassOrGlobalLink(className=%s)\n",className.data());
-  if (!g_prefixed_with_this_keyword || (lcd=g_theVarContext.findVariable(className))==0) // not a local variable
-  {
-    Definition *d = g_currentDefinition;
-    //printf("d=%s g_sourceFileDef=%s\n",d?d->name().data():"<none>",g_sourceFileDef?g_sourceFileDef->name().data():"<none>");
-    cd = getResolvedClass(d,g_sourceFileDef,className,&md);
-    DBG_CTX((stderr,"non-local variable name=%s context=%d cd=%s md=%s!\n",
-    className.data(),g_theVarContext.count(),cd?cd->name().data():"<none>",
-        md?md->name().data():"<none>"));
-    if (cd==0 && md==0 && (i=className.find('<'))!=-1)
-    {
-      QCString bareName = className.left(i); //stripTemplateSpecifiersFromScope(className);
-      DBG_CTX((stderr,"bareName=%s\n",bareName.data()));
-      if (bareName!=className)
-      {
-	cd=getResolvedClass(d,g_sourceFileDef,bareName,&md); // try unspecialized version
-      }
-    }
-    NamespaceDef *nd = getResolvedNamespace(className);
-    if (nd)
-    {
-      g_theCallContext.setScope(nd);
-      addToSearchIndex(className);
-      writeMultiLineCodeLink(*g_code,nd,clName);
-      return;
-    }
-    //printf("md=%s\n",md?md->name().data():"<none>");
-    DBG_CTX((stderr,"is found as a type cd=%s nd=%s\n",
-          cd?cd->name().data():"<null>",
-          nd?nd->name().data():"<null>"));
-    if (cd==0 && md==0) // also see if it is variable or enum or enum value
-    {
-      if (getLink(g_classScope,clName,ol,clName,varOnly))
-      {
-	return;
-      }
-    }
-  }
-  else
-  {
-    //printf("local variable!\n");
-    if (lcd!=VariableContext::dummyContext) 
-    {
-      //printf("non-dummy context lcd=%s!\n",lcd->name().data());
-      g_theCallContext.setScope(lcd);
-
-      // to following is needed for links to a global variable, but is
-      // no good for a link to a local variable that is also a global symbol.
-       
-      //if (getLink(g_classScope,clName,ol,clName))
-      //{
-	//return;
-      //}
-    }
-    isLocal=TRUE;
-    DBG_CTX((stderr,"is a local variable cd=%p!\n",cd));
-  }
-  g_prefixed_with_this_keyword = FALSE; // discard the "this" prefix for the next calls
-
-  if (cd && cd->isLinkable()) // is it a linkable class
-  {
-    DBG_CTX((stderr,"is linkable class %s\n",clName));
-    if (g_exampleBlock)
-    {
-      QCString anchor;
-      anchor.sprintf("_a%d",g_anchorCount);
-      //printf("addExampleClass(%s,%s,%s)\n",anchor.data(),g_exampleName.data(),
-      //                                   g_exampleFile.data());
-      if (cd->addExample(anchor,g_exampleName,g_exampleFile))
-      {
-	ol.writeCodeAnchor(anchor);
-	g_anchorCount++;
-      }
-    }
-    writeMultiLineCodeLink(ol,cd,clName);
-    addToSearchIndex(className);
-    g_theCallContext.setScope(cd);
-    if (md)
-    {
-      Definition *d = md->getOuterScope()==Doxygen::globalScope ?
-                      md->getFileDef() : md->getOuterScope();
-      if (md->getGroupDef()) d = md->getGroupDef();
-      if (d && d->isLinkable() && md->isLinkable() && 
-          g_currentMemberDef && g_collectXRefs)
-      {
-        addDocCrossReference(g_currentMemberDef,md);
-      }
-    }
-  }
-  else // not a class, maybe a global member
-  {
-    DBG_CTX((stderr,"class %s not linkable! cd=%p md=%p typeOnly=%d\n",clName,cd,md,typeOnly));
-    if (!isLocal && (md!=0 || (cd==0 && !typeOnly))) // not a class, see if it is a global enum/variable/typedef.
-    {
-      if (md==0) // not found as a typedef
-      {
-	md = setCallContextForVar(clName);
-	//printf("setCallContextForVar(%s) md=%p g_currentDefinition=%p\n",clName,md,g_currentDefinition);
-	if (md && g_currentDefinition)
-	{
-	  DBG_CTX((stderr,"%s accessible from %s? %d md->getOuterScope=%s\n",
-	      md->name().data(),g_currentDefinition->name().data(),
-	      isAccessibleFrom(g_currentDefinition,g_sourceFileDef,md),
-	      md->getOuterScope()->name().data()));
-	}
-	     
-        if (md && g_currentDefinition && 
-	    isAccessibleFrom(g_currentDefinition,g_sourceFileDef,md)==-1)
-	{
-	  md=0; // variable not accessible
-	}
-      }
-      if (md && (!varOnly || md->isVariable()))
-      {
-        DBG_CTX((stderr,"is a global md=%p g_currentDefinition=%s linkable=%d\n",md,g_currentDefinition?g_currentDefinition->name().data():"<none>",md->isLinkable()));
-	if (md->isLinkable())
-	{
-	  QCString text;
-	  if (!g_forceTagReference.isEmpty()) // explicit reference to symbol in tag file
-	  {
-	    text=g_forceTagReference;
-	    if (text.right(4)==".tag") // strip .tag if present
-	    {
-	      text=text.left(text.length()-4);
-	    }
-	    text+=getLanguageSpecificSeparator(md->getLanguage());
-	    text+=clName;
-	    md->setName(text);
-	    md->setLocalName(text);
-	  }
-	  else // normal reference
-	  {
-	    text=clName;
-	  }
-	  writeMultiLineCodeLink(ol,md,text);
-          addToSearchIndex(clName);
-	  if (g_currentMemberDef && g_collectXRefs)
-	  {
-	    addDocCrossReference(g_currentMemberDef,md);
-	  }
-	  return;
-	}
-      }
-    }
-    
-    // nothing found, just write out the word
-    DBG_CTX((stderr,"not found!\n"));
-    codifyLines(clName);
-    addToSearchIndex(clName);
-  }
-}
-
-static bool generateClassMemberLink(CodeOutputInterface &ol,MemberDef *xmd,const char *memName)
-{
-  // extract class definition of the return type in order to resolve
-  // a->b()->c() like call chains
-
-  //printf("type=`%s' args=`%s' class=%s\n",
-  //  xmd->typeString(),xmd->argsString(),
-  //  xmd->getClassDef()->name().data());
-
-  if (g_exampleBlock)
-  {
-    QCString anchor;
-    anchor.sprintf("a%d",g_anchorCount);
-    //printf("addExampleFile(%s,%s,%s)\n",anchor.data(),g_exampleName.data(),
-    //                                  g_exampleFile.data());
-    if (xmd->addExample(anchor,g_exampleName,g_exampleFile))
-    {
-      ol.writeCodeAnchor(anchor);
-      g_anchorCount++;
-    }
-  }
-
-  ClassDef *typeClass = stripClassName(removeAnonymousScopes(xmd->typeString()),xmd->getOuterScope());
-  DBG_CTX((stderr,"%s -> typeName=%p\n",xmd->typeString(),typeClass));
-  g_theCallContext.setScope(typeClass);
-
-  Definition *xd = xmd->getOuterScope()==Doxygen::globalScope ?
-                   xmd->getFileDef() : xmd->getOuterScope();
-  if (xmd->getGroupDef()) xd = xmd->getGroupDef();
-  if (xd && xd->isLinkable())
-  {
-
-    //printf("g_currentDefiniton=%p g_currentMemberDef=%p xmd=%p g_insideBody=%d\n",g_currentDefinition,g_currentMemberDef,xmd,g_insideBody);
-
-    if (xmd->templateMaster()) xmd = xmd->templateMaster();
-
-    if (xmd->isLinkable())
-    {
-      // add usage reference
-      if (g_currentDefinition && g_currentMemberDef &&
-	  /*xmd!=g_currentMemberDef &&*/ g_insideBody && g_collectXRefs)
-      {
-	addDocCrossReference(g_currentMemberDef,xmd);
-      }
-
-      // write the actual link
-      writeMultiLineCodeLink(ol,xmd,memName);
-      addToSearchIndex(memName);
-      return TRUE;
-    }
-  }
-
-  return FALSE;
-}
-
-static bool generateClassMemberLink(CodeOutputInterface &ol,Definition *def,const char *memName)
-{
-  if (def && def->definitionType()==Definition::TypeClass)
-  {
-    ClassDef *cd = (ClassDef*)def;
-    MemberDef *xmd = cd->getMemberByName(memName);
-    //printf("generateClassMemberLink(class=%s,member=%s)=%p\n",def->name().data(),memName,xmd);
-    if (xmd)
-    {
-      return generateClassMemberLink(ol,xmd,memName);
-    }
-    else
-    {
-      Definition *innerDef = cd->findInnerCompound(memName);
-      if (innerDef)
-      {
-        g_theCallContext.setScope(innerDef);
-        addToSearchIndex(memName);
-        writeMultiLineCodeLink(*g_code,innerDef,memName);
-        return TRUE;
-      }
-    }
-  }
-  else if (def && def->definitionType()==Definition::TypeNamespace)
-  {
-    NamespaceDef *nd = (NamespaceDef*)def;
-    //printf("Looking for %s inside namespace %s\n",memName,nd->name().data());
-    Definition *innerDef = nd->findInnerCompound(memName);
-    if (innerDef)
-    {
-      g_theCallContext.setScope(innerDef);
-      addToSearchIndex(memName);
-      writeMultiLineCodeLink(*g_code,innerDef,memName);
-      return TRUE;
-    }
-  }
-  return FALSE;
-}
-
-static void generateMemberLink(CodeOutputInterface &ol,const QCString &varName,
-            char *memName)
-{
-  //printf("generateMemberLink(object=%s,mem=%s) classScope=%s\n",
-  //    varName.data(),memName,g_classScope.data());
-
-  if (varName.isEmpty()) return;
-
-  // look for the variable in the current context
-  ClassDef *vcd = g_theVarContext.findVariable(varName);
-  if (vcd) 
-  {
-    if (vcd!=VariableContext::dummyContext)
-    {
-      //printf("Class found!\n");
-      if (getLink(vcd->name(),memName,ol)) 
-      {
-	//printf("Found result!\n");
-	return;
-      }
-      if (vcd->baseClasses())
-      {
-	BaseClassListIterator bcli(*vcd->baseClasses());
-	for ( ; bcli.current() ; ++bcli)
-	{
-	  if (getLink(bcli.current()->classDef->name(),memName,ol)) 
-	  {
-	    //printf("Found result!\n");
-	    return;
-	  }
-	}
-      }
-    }
-  }
-  else // variable not in current context, maybe it is in a parent context
-  {
-    vcd = getResolvedClass(g_currentDefinition,g_sourceFileDef,g_classScope);
-    if (vcd && vcd->isLinkable())
-    {
-      //printf("Found class %s for variable `%s'\n",g_classScope.data(),varName.data());
-      MemberName *vmn=Doxygen::memberNameSDict->find(varName);
-      if (vmn==0)
-      {
-	int vi;
-	QCString vn=varName;
-	if ((vi=vn.findRev("::"))!=-1 || (vi=vn.findRev('.'))!=-1)  // explicit scope A::b(), probably static member
-	{
-	  ClassDef *jcd = getClass(vn.left(vi));
-	  vn=vn.right(vn.length()-vi-2);
-	  vmn=Doxygen::memberNameSDict->find(vn);
-	  //printf("Trying name `%s' scope=%s\n",vn.data(),scope.data());
-	  if (vmn)
-	  {
-	    MemberNameIterator vmni(*vmn);
-	    MemberDef *vmd;
-	    for (;(vmd=vmni.current());++vmni)
-	    {
-	      if (/*(vmd->isVariable() || vmd->isFunction()) && */
-		  vmd->getClassDef()==jcd)
-	      {
-		//printf("Found variable type=%s\n",vmd->typeString());
-		ClassDef *mcd=stripClassName(vmd->typeString(),vmd->getOuterScope());
-		if (mcd && mcd->isLinkable())
-		{
-		  if (generateClassMemberLink(ol,mcd,memName)) return;
-		}
-	      }
-	    }
-	  }
-	}
-      }
-      if (vmn)
-      {
-	//printf("There is a variable with name `%s'\n",varName);
-	MemberNameIterator vmni(*vmn);
-	MemberDef *vmd;
-	for (;(vmd=vmni.current());++vmni)
-	{
-	  if (/*(vmd->isVariable() || vmd->isFunction()) && */
-	      vmd->getClassDef()==vcd)
-	  {
-	    //printf("Found variable type=%s\n",vmd->typeString());
-	    ClassDef *mcd=stripClassName(vmd->typeString(),vmd->getOuterScope());
-	    if (mcd && mcd->isLinkable())
-	    {
-	      if (generateClassMemberLink(ol,mcd,memName)) return;
-	    }
-	  }
-	}
-      }
-    }
-  }
-  // nothing found -> write result as is
-  codifyLines(memName);
-  addToSearchIndex(memName);
-  return;
-}
-
-static void generatePHPVariableLink(CodeOutputInterface &ol,const char *varName)
-{
-  QCString name = varName+7; // strip $this->
-  name.prepend("$");
-  //printf("generatePHPVariableLink(%s) name=%s scope=%s\n",varName,name.data(),g_classScope.data());
-  if (!getLink(g_classScope,name,ol,varName))
-  {
-    codifyLines(varName);
-  }
-}
-
-static void generateFunctionLink(CodeOutputInterface &ol,const char *funcName)
-{
-  //CodeClassDef *ccd=0;
-  ClassDef *ccd=0;
-  QCString locScope=g_classScope;
-  QCString locFunc=removeRedundantWhiteSpace(funcName);
-  QCString funcScope;
-  QCString funcWithScope=locFunc;
-  QCString funcWithFullScope=locFunc;
-  QCString fullScope=locScope;
-  DBG_CTX((stdout,"*** locScope=%s locFunc=%s\n",locScope.data(),locFunc.data()));
-  int len=2;
-  int i=locFunc.findRev("::");
-  if (g_currentMemberDef && g_currentMemberDef->getClassDef() &&
-      funcName==g_currentMemberDef->localName() && 
-      g_currentMemberDef->getDefLine()==g_yyLineNr &&
-      generateClassMemberLink(ol,g_currentMemberDef,funcName)
-     )
-  {
-    // special case where funcName is the name of a method that is also
-    // defined on this line. In this case we can directly link to 
-    // g_currentMemberDef, which is not only faster, but
-    // in case of overloaded methods, this will make sure that we link to
-    // the correct method, and thereby get the correct reimplemented relations.
-    // See also bug 549022.
-    goto exit;
-  }
-  if (i==-1) i=locFunc.findRev("."),len=1;
-  if (i==-1) i=locFunc.findRev("\\"),len=1; // for PHP
-  if (i>0)
-  {
-    funcScope=locFunc.left(i);
-    locFunc=locFunc.right(locFunc.length()-i-len).stripWhiteSpace();
-    int ts=locScope.find('<'); // start of template
-    int te=locScope.findRev('>'); // end of template
-    //printf("ts=%d te=%d\n",ts,te);
-    if (ts!=-1 && te!=-1 && te>ts)
-    {
-      // remove template from scope
-      locScope=locScope.left(ts)+locScope.right(locScope.length()-te-1);
-    }
-    ts=funcScope.find('<'); // start of template
-    te=funcScope.findRev('>'); // end of template
-    //printf("ts=%d te=%d\n",ts,te);
-    if (ts!=-1 && te!=-1 && te>ts)
-    {
-      // remove template from scope
-      funcScope=funcScope.left(ts)+funcScope.right(funcScope.length()-te-1);
-    }
-    if (!funcScope.isEmpty())
-    {
-      funcWithScope = funcScope+"::"+locFunc;
-      if (!locScope.isEmpty())
-      {
-        fullScope=locScope+"::"+funcScope;
-      }
-    }
-    if (!locScope.isEmpty())
-    {
-      funcWithFullScope = locScope+"::"+funcWithScope;
-    }
-  }
-  if (!fullScope.isEmpty() && (ccd=g_codeClassSDict->find(fullScope)))
-  {
-    //printf("using classScope %s\n",g_classScope.data());
-    if (ccd->baseClasses())
-    {
-      BaseClassListIterator bcli(*ccd->baseClasses());
-      for ( ; bcli.current() ; ++bcli)
-      {
-	if (getLink(bcli.current()->classDef->name(),locFunc,ol,funcName)) 
-	{
-	  goto exit;
-	}
-      }
-    }
-  }
-  if (!locScope.isEmpty() && fullScope!=locScope && (ccd=g_codeClassSDict->find(locScope)))
-  {
-    //printf("using classScope %s\n",g_classScope.data());
-    if (ccd->baseClasses())
-    {
-      BaseClassListIterator bcli(*ccd->baseClasses());
-      for ( ; bcli.current() ; ++bcli)
-      {
-	if (getLink(bcli.current()->classDef->name(),funcWithScope,ol,funcName)) 
-	{
-	  goto exit;
-	}
-      }
-    }
-  }
-  if (!getLink(locScope,funcWithScope,ol,funcName))
-  {
-    generateClassOrGlobalLink(ol,funcName);
-  }
-exit:  
-  g_forceTagReference.resize(0);
-  return;
-}
-
-/*! counts the number of lines in the input */
-static int countLines()
-{
-  const char *p=g_inputString;
-  char c;
-  int count=1;
-  while ((c=*p)) 
-  { 
-    p++ ; 
-    if (c=='\n') count++;  
-  }
-  if (p>g_inputString && *(p-1)!='\n') 
-  { // last line does not end with a \n, so we add an extra
-    // line and explicitly terminate the line after parsing.
-    count++, 
-    g_needsTermination=TRUE; 
-  } 
-  return count;
-}
-
-static void endFontClass()
-{
-  if (g_currentFontClass)
-  {
-    g_code->endFontClass();
-    g_currentFontClass=0;
-  }
-}
-
-static void startFontClass(const char *s)
-{
-  endFontClass();
-  g_code->startFontClass(s);
-  g_currentFontClass=s;
-}
-
-//----------------------------------------------------------------------------
-
-// recursively writes a linkified Objective-C method call
-static void writeObjCMethodCall(ObjCCallCtx *ctx)
-{
-  if (ctx==0) return;
-  char c;
-  const char *p = ctx->format.data();
-  if (!ctx->methodName.isEmpty())
-  {
-    //printf("writeObjCMethodCall(%s) obj=%s method=%s\n",
-    //    ctx->format.data(),ctx->objectTypeOrName.data(),ctx->methodName.data());
-    if (!ctx->objectTypeOrName.isEmpty() && ctx->objectTypeOrName.at(0)!='$')
-    {
-      //printf("Looking for object=%s method=%s\n",ctx->objectTypeOrName.data(),
-      //	ctx->methodName.data());
-      ClassDef *cd = g_theVarContext.findVariable(ctx->objectTypeOrName);
-      if (cd==0) // not a local variable
-      {
-	if (ctx->objectTypeOrName=="self")
-	{
-	  if (g_currentDefinition && 
-	      g_currentDefinition->definitionType()==Definition::TypeClass)
-	  {
-	    ctx->objectType = (ClassDef *)g_currentDefinition;
-	  }
-	}
-	else
-	{
-	  ctx->objectType = getResolvedClass(
-	      g_currentDefinition,
-	      g_sourceFileDef,
-	      ctx->objectTypeOrName,
-	      &ctx->method);
-	}
-	//printf("  object is class? %p\n",ctx->objectType);
-	if (ctx->objectType) // found class
-	{
-	  ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
-	  //printf("    yes->method=%s\n",ctx->method?ctx->method->name().data():"<none>");
-	}
-	else if (ctx->method==0) // search for class variable with the same name
-	{
-	  //printf("    no\n");
-	  //printf("g_currentDefinition=%p\n",g_currentDefinition);
-	  if (g_currentDefinition && 
-	      g_currentDefinition->definitionType()==Definition::TypeClass)
-	  {
-	    ctx->objectVar = ((ClassDef *)g_currentDefinition)->getMemberByName(ctx->objectTypeOrName);
-	    //printf("      ctx->objectVar=%p\n",ctx->objectVar);
-	    if (ctx->objectVar)
-	    {
-	      ctx->objectType = stripClassName(ctx->objectVar->typeString());
-	      //printf("        ctx->objectType=%p\n",ctx->objectType);
-	      if (ctx->objectType)
-	      {
-		ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
-		//printf("          ctx->method=%p\n",ctx->method);
-	      }
-	    }
-	  }
-	}
-      }
-      else // local variable
-      {
-	//printf("  object is local variable\n");
-	if (cd!=VariableContext::dummyContext)
-	{
-	  ctx->method = cd->getMemberByName(ctx->methodName);
-	  //printf("   class=%p method=%p\n",cd,ctx->method);
-	}
-      }
-    }
-  }
-
-  //printf("[");
-  while ((c=*p++)) // for each character in ctx->format
-  {
-    if (c=='$')
-    {
-      char nc=*p++;
-      if (nc=='$') // escaped $
-      {
-	g_code->codify("$");
-      }
-      else // name fragment or reference to a nested call 
-      {
-	if (nc=='n') // name fragment
-	{
-          nc=*p++;
-	  QCString refIdStr;
-	  while (nc!=0 && isdigit(nc)) { refIdStr+=nc; nc=*p++; }
-	  p--;
-	  int refId=refIdStr.toInt();
-	  QCString *pName = g_nameDict.find(refId);
-	  if (pName)
-	  {
-	    if (ctx->method && ctx->method->isLinkable())
-	    {
-              writeMultiLineCodeLink(*g_code,ctx->method,pName->data());
-	      if (g_currentMemberDef && g_collectXRefs)
-	      {
-	        addDocCrossReference(g_currentMemberDef,ctx->method);
-	      }
-	    }
-	    else
-	    {
-   	      codifyLines(pName->data());
-	    }
-	  }
-	  else
-	  {
-	    //printf("Invalid name: id=%d\n",refId);
-	  }
-	}
-	else if (nc=='o') // reference to potential object name
-	{
-          nc=*p++;
-	  QCString refIdStr;
-	  while (nc!=0 && isdigit(nc)) { refIdStr+=nc; nc=*p++; }
-	  p--;
-	  int refId=refIdStr.toInt();
-	  QCString *pObject = g_objectDict.find(refId);
-	  if (pObject)
-	  {
-	    if (*pObject=="self")
-	    {
-	      if (g_currentDefinition && 
-		  g_currentDefinition->definitionType()==Definition::TypeClass)
-	      {
-	        ctx->objectType = (ClassDef *)g_currentDefinition;
-	        if (ctx->objectType->categoryOf()) 
-	        {
-	          ctx->objectType = ctx->objectType->categoryOf();
-	        }
-	        if (ctx->objectType)
-	        {
-	          ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
-	        }
-	      }
- 	      startFontClass("keyword");
-              codifyLines(pObject->data());
-	      endFontClass();
-	    }
-	    else if (*pObject=="super")
-	    {
-	      if (g_currentDefinition &&
-		  g_currentDefinition->definitionType()==Definition::TypeClass)
-	      {
-		ClassDef *cd = (ClassDef *)g_currentDefinition;
-		if (cd->categoryOf()) 
-		{
-		  cd = cd->categoryOf();
-		}
-		BaseClassList *bcd = cd->baseClasses();
-		if (bcd) // get direct base class (there should be only one)
-		{
-		  BaseClassListIterator bli(*bcd);
-		  BaseClassDef *bclass;
-		  for (bli.toFirst();(bclass=bli.current());++bli)
-		  {
-		    if (bclass->classDef->compoundType()!=ClassDef::Protocol)
-		    {
-		      ctx->objectType = bclass->classDef;
-		      if (ctx->objectType)
-		      {
-			ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
-		      }
-		    }
-		  }
-		}
-	      }
- 	      startFontClass("keyword");
-              codifyLines(pObject->data());
-	      endFontClass();
-	    }
-	    else if (ctx->objectVar && ctx->objectVar->isLinkable()) // object is class variable
-	    {
-	      writeMultiLineCodeLink(*g_code,ctx->objectVar,pObject->data());
-	      if (g_currentMemberDef && g_collectXRefs)
-	      {
-	        addDocCrossReference(g_currentMemberDef,ctx->objectVar);
-	      }
-	    }
-	    else if (ctx->objectType && 
-		     ctx->objectType!=VariableContext::dummyContext && 
-		     ctx->objectType->isLinkable()
-		    ) // object is class name
-	    {
-	      ClassDef *cd = ctx->objectType;
-	      writeMultiLineCodeLink(*g_code,cd,pObject->data());
-	    }
-	    else // object still needs to be resolved
-	    {
-	      ClassDef *cd = getResolvedClass(g_currentDefinition, 
-		  g_sourceFileDef, *pObject);
-	      if (cd && cd->isLinkable())
-	      {
-		if (ctx->objectType==0) ctx->objectType=cd;
-	   	writeMultiLineCodeLink(*g_code,cd,pObject->data());
-	      }
-	      else
-	      {
-		codifyLines(pObject->data());
-	      }
-	    }
-	  }
-	  else
-	  {
-	    //printf("Invalid object: id=%d\n",refId);
-	  }
-	}
-	else if (nc=='c') // reference to nested call
-	{
-          nc=*p++;
-	  QCString refIdStr;
-	  while (nc!=0 && isdigit(nc)) { refIdStr+=nc; nc=*p++; }
-	  p--;
-	  int refId=refIdStr.toInt();
-	  ObjCCallCtx *ictx = g_contextDict.find(refId);
-	  if (ictx) // recurse into nested call
-	  {
-	    writeObjCMethodCall(ictx);
-	    if (ictx->method) // link to nested call successfully
-	    {
-	      // get the ClassDef representing the method's return type
-	      if (QCString(ictx->method->typeString())=="id")
-	      {
-		// see if the method name is unique, if so we link to it
-		MemberName *mn=Doxygen::memberNameSDict->find(ctx->methodName);
-		//printf("mn->count=%d ictx->method=%s ctx->methodName=%s\n",
-		//    mn==0?-1:(int)mn->count(),
-		//    ictx->method->name().data(),
-		//    ctx->methodName.data());
-		if (mn && mn->count()==1) // member name unique
-		{
-		  ctx->method = mn->getFirst();
-		}
-	      } 
-	      else
-	      {
-		ctx->objectType = stripClassName(ictx->method->typeString());
-		if (ctx->objectType)
-		{
-		  ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
-		}
-	      }
-	      //printf("  ***** method=%s -> object=%p\n",ictx->method->name().data(),ctx->objectType);
-	    }
-	  }
-	  else
-	  {
-	    //printf("Invalid context: id=%d\n",refId);
-	  }
-	}
-	else if (nc=='w') // some word
-	{
-          nc=*p++;
-	  QCString refIdStr;
-	  while (nc!=0 && isdigit(nc)) { refIdStr+=nc; nc=*p++; }
-	  p--;
-	  int refId=refIdStr.toInt();
-	  QCString *pWord = g_wordDict.find(refId);
-	  if (pWord)
-	  {
-            codifyLines(pWord->data());
-	  }
-	}
-        else if (nc=='d') // comment block
-        {
-          nc=*p++;
-	  QCString refIdStr;
-	  while (nc!=0 && isdigit(nc)) { refIdStr+=nc; nc=*p++; }
-	  p--;
-	  int refId=refIdStr.toInt();
-	  QCString *pComment = g_commentDict.find(refId);
-          if (pComment)
-          {
-            startFontClass("comment");
-	    codifyLines(pComment->data());
-	    endFontClass();
-          }
-        }
-	else // illegal marker
-	{
-	  ASSERT(!"invalid escape sequence");
-	}
-      }
-    }
-    else // normal non-marker character
-    {
-      char s[2];
-      s[0]=c;s[1]=0;
-      codifyLines(s);
-    }
-  }
-  //printf("%s %s]\n",ctx->objectTypeOrName.data(),ctx->methodName.data());
-  //printf("}=(type='%s',name='%s')",
-  //    ctx->objectTypeOrName.data(),
-  //    ctx->methodName.data());
-}
-
-// Replaces an Objective-C method name fragment s by a marker of the form
-// $n12, the number (12) can later be used as a key for obtaining the name 
-// fragment, from g_nameDict
-static QCString escapeName(const char *s)
-{
-  QCString result;
-  result.sprintf("$n%d",g_currentNameId);
-  g_nameDict.insert(g_currentNameId,new QCString(s));
-  g_currentNameId++;
-  return result;
-}
-
-static QCString escapeObject(const char *s)
-{
-  QCString result;
-  result.sprintf("$o%d",g_currentObjId);
-  g_objectDict.insert(g_currentObjId,new QCString(s));
-  g_currentObjId++;
-  return result;
-}
-
-static QCString escapeWord(const char *s)
-{
-  QCString result;
-  result.sprintf("$w%d",g_currentWordId);
-  g_wordDict.insert(g_currentWordId,new QCString(s));
-  g_currentWordId++;
-  return result;
-}
-
-static QCString escapeComment(const char *s)
-{
-  QCString result;
-  result.sprintf("$d%d",g_currentCommentId);
-  g_commentDict.insert(g_currentCommentId,new QCString(s));
-  g_currentCommentId++;
-  return result;
-}
 
 /* -----------------------------------------------------------------
  */
 #undef	YY_INPUT
 #define	YY_INPUT(buf,result,max_size) result=yyread(buf,max_size);
-
-static int yyread(char *buf,int max_size)
-{
-    int c=0;
-    while( c < max_size && g_inputString[g_inputPosition] )
-    {
-	*buf = g_inputString[g_inputPosition++] ;
-	c++; buf++;
-    }
-    return c;
-}
 
 %}
 
@@ -3619,6 +2167,99 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 /*@ ----------------------------------------------------------------------------
  */
 
+void VariableContext::addVariable(const QCString &type,const QCString &name)
+{
+  //printf("VariableContext::addVariable(%s,%s)\n",type.data(),name.data());
+  QCString ltype = type.simplifyWhiteSpace();
+  QCString lname = name.simplifyWhiteSpace();
+  if (ltype.left(7)=="struct ") 
+  {
+    ltype = ltype.right(ltype.length()-7);
+  }
+  else if (ltype.left(6)=="union ")
+  {
+    ltype = ltype.right(ltype.length()-6);
+  }
+  if (ltype.isEmpty() || lname.isEmpty()) return;
+  DBG_CTX((stderr,"** addVariable trying: type='%s' name='%s' g_currentDefinition=%s\n",
+	ltype.data(),lname.data(),g_currentDefinition?g_currentDefinition->name().data():"<none>"));
+  Scope *scope = m_scopes.count()==0 ? &m_globalScope : m_scopes.getLast();
+  ClassDef *varType;
+  int i=0;
+  if (
+      (varType=g_codeClassSDict->find(ltype)) ||  // look for class definitions inside the code block
+      (varType=getResolvedClass(g_currentDefinition,g_sourceFileDef,ltype)) // look for global class definitions
+     ) 
+  {
+    DBG_CTX((stderr,"** addVariable type='%s' name='%s'\n",ltype.data(),lname.data()));
+    scope->append(lname,varType); // add it to a list
+  }
+  else if ((i=ltype.find('<'))!=-1)
+  {
+    // probably a template class
+    QCString typeName(ltype.left(i));
+    ClassDef* newDef = 0;
+    QCString templateArgs(ltype.right(ltype.length() - i));
+    if (  
+         ( // look for class definitions inside the code block
+	   (varType=g_codeClassSDict->find(typeName)) ||
+           // otherwise look for global class definitions
+           (varType=getResolvedClass(g_currentDefinition,g_sourceFileDef,typeName,0,0,TRUE,TRUE))
+	 ) && // and it must be a template
+         varType->templateArguments())
+    {
+      newDef = varType->getVariableInstance( templateArgs );
+    }
+    if (newDef)
+    {
+      DBG_CTX((stderr,"** addVariable type='%s' templ='%s' name='%s'\n",typeName.data(),templateArgs.data(),lname.data()));
+      scope->append(lname, newDef);
+    }
+    else
+    {
+      // Doesn't seem to be a template. Try just the base name.
+      addVariable(typeName,name);
+    }
+  }
+  else 
+  {
+    if (m_scopes.count()>0) // for local variables add a dummy entry so the name 
+                            // is hidden to avoid false links to global variables with the same name
+                            // TODO: make this work for namespaces as well!
+    {
+      DBG_CTX((stderr,"** addVariable: dummy context for '%s'\n",lname.data()));
+      scope->append(lname,dummyContext);
+    }
+    else
+    {
+      DBG_CTX((stderr,"** addVariable: not adding variable!\n"));
+    }
+  }
+}
+
+ClassDef *VariableContext::findVariable(const QCString &name)
+{
+  if (name.isEmpty()) return 0;
+  ClassDef *result = 0;
+  QListIterator<Scope> sli(m_scopes);
+  Scope *scope;
+  QCString key = name;
+  // search from inner to outer scope
+  for (sli.toLast();(scope=sli.current());--sli)
+  {
+    result = scope->find(key);
+    if (result)
+    {
+      DBG_CTX((stderr,"** findVariable(%s)=%p\n",name.data(),result));
+      return result;
+    }
+  }
+  // nothing found -> also try the global scope
+  result=m_globalScope.find(name);
+  DBG_CTX((stderr,"** findVariable(%s)=%p\n",name.data(),result));
+  return result;
+}
+
 static void saveObjCContext()
 {
   if (g_currentCtx)
@@ -3663,6 +2304,1413 @@ static void restoreObjCContext()
     g_currentCtx = 0;
     //printf("Trying to pop context while g_contextStack is empty!\n");
   }
+}
+
+/*! add class/namespace name s to the scope */
+static void pushScope(const char *s)
+{
+  g_classScopeLengthStack.push(new int(g_classScope.length()));
+  if (g_classScope.isEmpty() || leftScopeMatch(s,g_classScope))
+  {
+    g_classScope = s;
+  }
+  else
+  {
+    g_classScope += "::";
+    g_classScope += s;
+  }
+  //printf("pushScope(%s) result: `%s'\n",s,g_classScope.data());
+}
+
+/*! remove the top class/namespace name from the scope */
+static void popScope()
+{
+  if (!g_classScopeLengthStack.isEmpty())
+  {
+    int *pLength = g_classScopeLengthStack.pop();
+    g_classScope.truncate(*pLength);
+    delete pLength;
+  }
+  else
+  {
+    //err("Too many end of scopes found!\n");
+  }
+  //printf("popScope() result: `%s'\n",g_classScope.data());
+}
+
+static void setCurrentDoc(const QCString &anchor)
+{
+  if (Doxygen::searchIndex)
+  {
+    if (g_searchCtx)
+    {
+      g_code->setCurrentDoc(g_searchCtx,g_searchCtx->anchor(),FALSE);
+    }
+    else
+    {
+      g_code->setCurrentDoc(g_sourceFileDef,anchor,TRUE);
+    }
+  }
+}
+
+static void addToSearchIndex(const char *text)
+{
+  if (Doxygen::searchIndex)
+  {
+    g_code->addWord(text,FALSE);
+  }
+}
+
+static void setClassScope(const QCString &name)
+{
+  //printf("setClassScope(%s)\n",name.data());
+  QCString n=name;
+  n=n.simplifyWhiteSpace();
+  int ts=n.find('<'); // start of template
+  int te=n.findRev('>'); // end of template
+  //printf("ts=%d te=%d\n",ts,te);
+  if (ts!=-1 && te!=-1 && te>ts)
+  {
+    // remove template from scope
+    n=n.left(ts)+n.right(n.length()-te-1);
+  }
+  while (!g_classScopeLengthStack.isEmpty())
+  {
+    popScope();
+  }
+  g_classScope.resize(0);
+  int i;
+  while ((i=n.find("::"))!=-1)
+  {
+    pushScope(n.left(i));
+    n = n.mid(i+2);
+  }
+  pushScope(n);
+  //printf("--->New class scope `%s'\n",g_classScope.data());
+}
+
+/*! start a new line of code, inserting a line number if g_sourceFileDef
+ * is TRUE. If a definition starts at the current line, then the line
+ * number is linked to the documentation of that definition.
+ */
+static void startCodeLine()
+{
+  //if (g_currentFontClass) { g_code->endFontClass(); }
+  if (g_sourceFileDef && g_lineNumbers)
+  {
+    //QCString lineNumber,lineAnchor;
+    //lineNumber.sprintf("%05d",g_yyLineNr);
+    //lineAnchor.sprintf("l%05d",g_yyLineNr);
+   
+    Definition *d   = g_sourceFileDef->getSourceDefinition(g_yyLineNr);
+    //printf("%s:startCodeLine(%d)=%p\n",g_sourceFileDef->name().data(),g_yyLineNr,d);
+    if (!g_includeCodeFragment && d)
+    {
+      g_currentDefinition = d;
+      g_currentMemberDef = g_sourceFileDef->getSourceMember(g_yyLineNr);
+      g_insideBody = FALSE;
+      g_searchingForBody = TRUE;
+      g_realScope = d->name();
+      //g_classScope = "";
+      g_type.resize(0);
+      g_name.resize(0);
+      g_args.resize(0);
+      g_parmType.resize(0);
+      g_parmName.resize(0);
+      //printf("Real scope: `%s'\n",g_realScope.data());
+      g_bodyCurlyCount = 0;
+      QCString lineAnchor;
+      lineAnchor.sprintf("l%05d",g_yyLineNr);
+      if (g_currentMemberDef)
+      {
+        g_code->writeLineNumber(g_currentMemberDef->getReference(),
+	                        g_currentMemberDef->getOutputFileBase(),
+	                        g_currentMemberDef->anchor(),g_yyLineNr);
+        setCurrentDoc(lineAnchor);
+      }
+      else if (d->isLinkableInProject())
+      {
+        g_code->writeLineNumber(d->getReference(),
+	                        d->getOutputFileBase(),
+	                        0,g_yyLineNr);
+        setCurrentDoc(lineAnchor);
+      }
+    }
+    else
+    {
+      g_code->writeLineNumber(0,0,0,g_yyLineNr);
+    }
+  }
+  DBG_CTX((stderr,"startCodeLine(%d)\n",g_yyLineNr));
+  g_code->startCodeLine(g_sourceFileDef && g_lineNumbers); 
+  if (g_currentFontClass)
+  {
+    g_code->startFontClass(g_currentFontClass);
+  }
+}
+
+
+static void endFontClass();
+static void startFontClass(const char *s);
+
+static void endCodeLine()
+{
+  DBG_CTX((stderr,"endCodeLine(%d)\n",g_yyLineNr));
+  endFontClass();
+  g_code->endCodeLine();
+}
+
+static void nextCodeLine()
+{
+  const char * fc = g_currentFontClass;
+  endCodeLine();
+  if (g_yyLineNr<g_inputLines) 
+  {
+    g_currentFontClass = fc;
+    startCodeLine();
+  }
+}
+
+/*! write a code fragment `text' that may span multiple lines, inserting
+ * line numbers for each line.
+ */
+static void codifyLines(const char *text)
+{
+  //printf("codifyLines(%d,\"%s\")\n",g_yyLineNr,text);
+  const char *p=text,*sp=p;
+  char c;
+  bool done=FALSE;
+  while (!done)
+  {
+    sp=p;
+    while ((c=*p++) && c!='\n') { g_yyColNr++; }
+    if (c=='\n')
+    {
+      g_yyLineNr++;
+      g_yyColNr=1;
+      //*(p-1)='\0';
+      int l = (int)(p-sp-1);
+      char *tmp = (char*)malloc(l+1);
+      memcpy(tmp,sp,l);
+      tmp[l]='\0';
+      g_code->codify(tmp);
+      free(tmp);
+      nextCodeLine();
+    }
+    else
+    {
+      g_code->codify(sp);
+      done=TRUE;
+    }
+  }
+}
+
+/*! writes a link to a fragment \a text that may span multiple lines, inserting
+ * line numbers for each line. If \a text contains newlines, the link will be 
+ * split into multiple links with the same destination, one for each line.
+ */
+static void writeMultiLineCodeLink(CodeOutputInterface &ol,
+                                   Definition *d,
+                                   const char *text)
+{
+  static bool sourceTooltips = Config_getBool(SOURCE_TOOLTIPS);
+  TooltipManager::instance()->addTooltip(d);
+  QCString ref  = d->getReference();
+  QCString file = d->getOutputFileBase();
+  QCString anchor = d->anchor();
+  QCString tooltip; 
+  if (!sourceTooltips) // fall back to simple "title" tooltips
+  {
+    tooltip = d->briefDescriptionAsTooltip();
+  }
+  bool done=FALSE;
+  char *p=(char *)text;
+  while (!done)
+  {
+    char *sp=p;
+    char c;
+    while ((c=*p++) && c!='\n') { }
+    if (c=='\n')
+    {
+      g_yyLineNr++;
+      *(p-1)='\0';
+      //printf("writeCodeLink(%s,%s,%s,%s)\n",ref,file,anchor,sp);
+      ol.writeCodeLink(ref,file,anchor,sp,tooltip);
+      nextCodeLine();
+    }
+    else
+    {
+      //printf("writeCodeLink(%s,%s,%s,%s)\n",ref,file,anchor,sp);
+      ol.writeCodeLink(ref,file,anchor,sp,tooltip);
+      done=TRUE;
+    }
+  }
+}
+
+static void addType()
+{
+  if (g_name=="const") { g_name.resize(0); return; }
+  if (!g_type.isEmpty()) g_type += ' ' ;
+  g_type += g_name ;
+  g_name.resize(0) ;
+  if (!g_type.isEmpty()) g_type += ' ' ;
+  g_type += g_args ;
+  g_args.resize(0) ;
+}
+
+static void addParmType()
+{
+  if (g_parmName=="const") { g_parmName.resize(0); return; }
+  if (!g_parmType.isEmpty()) g_parmType += ' ' ;
+  g_parmType += g_parmName ;
+  g_parmName.resize(0) ;
+}
+
+static void addUsingDirective(const char *name)
+{
+  if (g_sourceFileDef && name)
+  {
+    NamespaceDef *nd = Doxygen::namespaceSDict->find(name);
+    if (nd)
+    {
+      g_sourceFileDef->addUsingDirective(nd);
+    }
+  }
+}
+
+static void setParameterList(MemberDef *md)
+{
+  g_classScope = md->getClassDef() ? md->getClassDef()->name().data() : "";
+  ArgumentList *al = md->argumentList();
+  if (al==0) return;
+  ArgumentListIterator it(*al);
+  Argument *a;
+  for (;(a=it.current());++it)
+  {
+    g_parmName = a->name.copy();
+    g_parmType = a->type.copy();
+    int i = g_parmType.find('*');
+    if (i!=-1) g_parmType = g_parmType.left(i);
+    i = g_parmType.find('&');
+    if (i!=-1) g_parmType = g_parmType.left(i);
+    g_parmType.stripPrefix("const ");
+    g_parmType=g_parmType.stripWhiteSpace();
+    g_theVarContext.addVariable(g_parmType,g_parmName);
+  }
+}
+
+static ClassDef *stripClassName(const char *s,Definition *d)
+{
+  int pos=0;
+  QCString type = s;
+  QCString className;
+  QCString templSpec;
+  while (extractClassNameFromType(type,pos,className,templSpec)!=-1)
+  {
+    QCString clName=className+templSpec;
+    ClassDef *cd=0;
+    if (!g_classScope.isEmpty())
+    {
+      cd=getResolvedClass(d,g_sourceFileDef,g_classScope+"::"+clName);
+    }
+    if (cd==0)
+    {
+      cd=getResolvedClass(d,g_sourceFileDef,clName);
+    }
+    //printf("stripClass trying `%s' = %p\n",clName.data(),cd);
+    if (cd)
+    {
+      return cd;
+    }
+  }
+
+  return 0;
+}
+
+static MemberDef *setCallContextForVar(const QCString &name)
+{
+  if (name.isEmpty()) return 0;
+  DBG_CTX((stderr,"setCallContextForVar(%s) g_classScope=%s\n",name.data(),g_classScope.data()));
+
+  int scopeEnd = name.findRev("::");
+  if (scopeEnd!=-1) // name with explicit scope
+  {
+    QCString scope   = name.left(scopeEnd);
+    QCString locName = name.right(name.length()-scopeEnd-2);
+    //printf("explicit scope: name=%s scope=%s\n",locName.data(),scope.data());
+    ClassDef *mcd = getClass(scope); 
+    if (mcd && !locName.isEmpty())
+    {
+      MemberDef *md=mcd->getMemberByName(locName);
+      if (md)
+      {
+        //printf("name=%s scope=%s\n",locName.data(),scope.data());
+        g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
+        return md;
+      }
+    }
+    else // check namespace as well
+    {
+      NamespaceDef *mnd = getResolvedNamespace(scope);
+      if (mnd && !locName.isEmpty())
+      {
+	MemberDef *md=mnd->getMemberByName(locName);
+	if (md)
+	{
+	  //printf("name=%s scope=%s\n",locName.data(),scope.data());
+	  g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
+	  return md;
+	}
+      }
+    }
+  }
+  
+  MemberName *mn;
+  ClassDef *mcd = g_theVarContext.findVariable(name);
+  if (mcd) // local variable
+  {
+    DBG_CTX((stderr,"local variable?\n"));
+    if (mcd!=VariableContext::dummyContext)
+    {
+      DBG_CTX((stderr,"local var `%s' mcd=%s\n",name.data(),mcd->name().data()));
+      g_theCallContext.setScope(mcd);
+    }
+  }
+  else
+  {
+    DBG_CTX((stderr,"class member? scope=%s\n",g_classScope.data()));
+    // look for a class member 
+    mcd = getClass(g_classScope);
+    if (mcd)
+    {
+      DBG_CTX((stderr,"Inside class %s\n",mcd->name().data()));
+      MemberDef *md=mcd->getMemberByName(name);
+      if (md) 
+      {
+        DBG_CTX((stderr,"Found member %s\n",md->name().data()));
+	if (g_scopeStack.top()!=CLASSBLOCK)
+	{
+          DBG_CTX((stderr,"class member `%s' mcd=%s\n",name.data(),mcd->name().data()));
+	  g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
+	}
+	return md;
+      }
+    }
+  }
+
+  // look for a global member
+  if ((mn=Doxygen::functionNameSDict->find(name)))
+  {
+    //printf("global var `%s'\n",name.data());
+    if (mn->count()==1) // global defined only once
+    {
+      MemberDef *md=mn->getFirst();
+      if (!md->isStatic() || md->getBodyDef()==g_sourceFileDef)
+      {
+        g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
+        return md;
+      }
+      return 0;
+    }
+    else if (mn->count()>1) // global defined more than once
+    {
+      MemberNameIterator it(*mn);
+      MemberDef *md;
+      for (;(md=it.current());++it)
+      {
+	//printf("mn=%p md=%p md->getBodyDef()=%p g_sourceFileDef=%p\n",
+	//    mn,md,
+	//    md->getBodyDef(),g_sourceFileDef);
+
+	// in case there are multiple members we could link to, we 
+	// only link to members if defined in the same file or 
+	// defined as external.
+        if ((!md->isStatic() || md->getBodyDef()==g_sourceFileDef) &&
+	    (g_forceTagReference.isEmpty() || g_forceTagReference==md->getReference())
+	   )
+        {
+          g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
+	  //printf("returning member %s in source file %s\n",md->name().data(),g_sourceFileDef->name().data());
+          return md;
+        }
+      }
+      return 0;
+    }
+  }
+  return 0;
+}
+
+static void updateCallContextForSmartPointer()
+{
+  Definition *d = g_theCallContext.getScope();
+  //printf("updateCallContextForSmartPointer() cd=%s\n",cd ? d->name().data() : "<none>");
+  MemberDef *md;
+  if (d && d->definitionType()==Definition::TypeClass && (md=((ClassDef*)d)->isSmartPointer()))
+  {
+    ClassDef *ncd = stripClassName(md->typeString(),md->getOuterScope());
+    if (ncd)
+    {
+      g_theCallContext.setScope(ncd);
+      //printf("Found smart pointer call %s->%s!\n",cd->name().data(),ncd->name().data());
+    }
+  }
+}
+
+static bool getLinkInScope(const QCString &c,  // scope
+                           const QCString &m,  // member
+			   const char *memberText, // exact text
+			   CodeOutputInterface &ol,
+			   const char *text,
+			   bool varOnly
+			  )
+{
+  MemberDef    *md;
+  ClassDef     *cd;
+  FileDef      *fd;
+  NamespaceDef *nd;
+  GroupDef     *gd;
+  DBG_CTX((stderr,"getLinkInScope: trying `%s'::`%s' varOnly=%d\n",c.data(),m.data(),varOnly));
+  if (getDefs(c,m,"()",md,cd,fd,nd,gd,FALSE,g_sourceFileDef,FALSE,g_forceTagReference) && 
+      (!varOnly || md->isVariable()))
+  {
+    if (md->isLinkable())
+    {
+      //printf("found it %s!\n",md->qualifiedName().data());
+      if (g_exampleBlock)
+      {
+        QCString anchor;
+        anchor.sprintf("a%d",g_anchorCount);
+        //printf("addExampleFile(%s,%s,%s)\n",anchor.data(),g_exampleName.data(),
+        //                                  g_exampleFile.data());
+        if (md->addExample(anchor,g_exampleName,g_exampleFile))
+        {
+          ol.writeCodeAnchor(anchor);
+          g_anchorCount++;
+        }
+      }
+
+      Definition *d = md->getOuterScope()==Doxygen::globalScope ?
+        md->getFileDef() : md->getOuterScope();
+      if (md->getGroupDef()) d = md->getGroupDef();
+      if (d && d->isLinkable())
+      {
+        g_theCallContext.setScope(stripClassName(md->typeString(),md->getOuterScope()));
+        //printf("g_currentDefinition=%p g_currentMemberDef=%p g_insideBody=%d\n",
+        //        g_currentDefinition,g_currentMemberDef,g_insideBody);
+
+        if (g_currentDefinition && g_currentMemberDef &&
+            md!=g_currentMemberDef && g_insideBody && g_collectXRefs)
+        {
+          addDocCrossReference(g_currentMemberDef,md);
+        }
+        //printf("d->getReference()=`%s' d->getOutputBase()=`%s' name=`%s' member name=`%s'\n",d->getReference().data(),d->getOutputFileBase().data(),d->name().data(),md->name().data());
+
+        writeMultiLineCodeLink(ol,md, text ? text : memberText);
+        addToSearchIndex(text ? text : memberText);
+        return TRUE;
+      }
+    }
+    else // found member, but is is not linkable, so make sure content inside is not assign
+         // to the previous member, see bug762760
+    {
+      DBG_CTX((stderr,"unlinkable member %s\n",md->name().data()));
+      g_currentMemberDef = 0;
+    }
+  }
+  return FALSE;
+}
+
+static bool getLink(const char *className,
+                    const char *memberName,
+		    CodeOutputInterface &ol,
+		    const char *text,
+		    bool varOnly)
+{
+  //printf("getLink(%s,%s) g_curClassName=%s\n",className,memberName,g_curClassName.data());
+  QCString m=removeRedundantWhiteSpace(memberName);
+  QCString c=className;
+  if (!getLinkInScope(c,m,memberName,ol,text,varOnly))
+  {
+    if (!g_curClassName.isEmpty())
+    {
+      if (!c.isEmpty()) c.prepend("::");
+      c.prepend(g_curClassName);
+      return getLinkInScope(c,m,memberName,ol,text,varOnly);
+    }
+    return FALSE;
+  }
+  return TRUE;
+}
+
+static void generateClassOrGlobalLink(CodeOutputInterface &ol,const char *clName,
+                                      bool typeOnly,bool varOnly)
+{
+  int i=0;
+  if (*clName=='~') // correct for matching negated values i.s.o. destructors.
+  {
+    g_code->codify("~");
+    clName++;
+  }
+  QCString className=clName;
+  if (className.isEmpty()) return;
+  if (g_insideProtocolList) // for Obj-C
+  {
+    className+="-p";
+  }
+  if (g_insidePHP)
+  {
+    className = substitute(className,"\\","::"); // for PHP namespaces
+  }
+  else if (g_insideCS || g_insideJava)
+  {
+    className = substitute(className,".","::"); // for PHP namespaces
+  }
+  ClassDef *cd=0,*lcd=0;
+  MemberDef *md=0;
+  bool isLocal=FALSE;
+
+  //printf("generateClassOrGlobalLink(className=%s)\n",className.data());
+  if (!g_prefixed_with_this_keyword || (lcd=g_theVarContext.findVariable(className))==0) // not a local variable
+  {
+    Definition *d = g_currentDefinition;
+    //printf("d=%s g_sourceFileDef=%s\n",d?d->name().data():"<none>",g_sourceFileDef?g_sourceFileDef->name().data():"<none>");
+    cd = getResolvedClass(d,g_sourceFileDef,className,&md);
+    DBG_CTX((stderr,"non-local variable name=%s context=%d cd=%s md=%s!\n",
+    className.data(),g_theVarContext.count(),cd?cd->name().data():"<none>",
+        md?md->name().data():"<none>"));
+    if (cd==0 && md==0 && (i=className.find('<'))!=-1)
+    {
+      QCString bareName = className.left(i); //stripTemplateSpecifiersFromScope(className);
+      DBG_CTX((stderr,"bareName=%s\n",bareName.data()));
+      if (bareName!=className)
+      {
+	cd=getResolvedClass(d,g_sourceFileDef,bareName,&md); // try unspecialized version
+      }
+    }
+    NamespaceDef *nd = getResolvedNamespace(className);
+    if (nd)
+    {
+      g_theCallContext.setScope(nd);
+      addToSearchIndex(className);
+      writeMultiLineCodeLink(*g_code,nd,clName);
+      return;
+    }
+    //printf("md=%s\n",md?md->name().data():"<none>");
+    DBG_CTX((stderr,"is found as a type cd=%s nd=%s\n",
+          cd?cd->name().data():"<null>",
+          nd?nd->name().data():"<null>"));
+    if (cd==0 && md==0) // also see if it is variable or enum or enum value
+    {
+      if (getLink(g_classScope,clName,ol,clName,varOnly))
+      {
+	return;
+      }
+    }
+  }
+  else
+  {
+    //printf("local variable!\n");
+    if (lcd!=VariableContext::dummyContext) 
+    {
+      //printf("non-dummy context lcd=%s!\n",lcd->name().data());
+      g_theCallContext.setScope(lcd);
+
+      // to following is needed for links to a global variable, but is
+      // no good for a link to a local variable that is also a global symbol.
+       
+      //if (getLink(g_classScope,clName,ol,clName))
+      //{
+	//return;
+      //}
+    }
+    isLocal=TRUE;
+    DBG_CTX((stderr,"is a local variable cd=%p!\n",cd));
+  }
+  g_prefixed_with_this_keyword = FALSE; // discard the "this" prefix for the next calls
+
+  if (cd && cd->isLinkable()) // is it a linkable class
+  {
+    DBG_CTX((stderr,"is linkable class %s\n",clName));
+    if (g_exampleBlock)
+    {
+      QCString anchor;
+      anchor.sprintf("_a%d",g_anchorCount);
+      //printf("addExampleClass(%s,%s,%s)\n",anchor.data(),g_exampleName.data(),
+      //                                   g_exampleFile.data());
+      if (cd->addExample(anchor,g_exampleName,g_exampleFile))
+      {
+	ol.writeCodeAnchor(anchor);
+	g_anchorCount++;
+      }
+    }
+    writeMultiLineCodeLink(ol,cd,clName);
+    addToSearchIndex(className);
+    g_theCallContext.setScope(cd);
+    if (md)
+    {
+      Definition *d = md->getOuterScope()==Doxygen::globalScope ?
+                      md->getFileDef() : md->getOuterScope();
+      if (md->getGroupDef()) d = md->getGroupDef();
+      if (d && d->isLinkable() && md->isLinkable() && 
+          g_currentMemberDef && g_collectXRefs)
+      {
+        addDocCrossReference(g_currentMemberDef,md);
+      }
+    }
+  }
+  else // not a class, maybe a global member
+  {
+    DBG_CTX((stderr,"class %s not linkable! cd=%p md=%p typeOnly=%d\n",clName,cd,md,typeOnly));
+    if (!isLocal && (md!=0 || (cd==0 && !typeOnly))) // not a class, see if it is a global enum/variable/typedef.
+    {
+      if (md==0) // not found as a typedef
+      {
+	md = setCallContextForVar(clName);
+	//printf("setCallContextForVar(%s) md=%p g_currentDefinition=%p\n",clName,md,g_currentDefinition);
+	if (md && g_currentDefinition)
+	{
+	  DBG_CTX((stderr,"%s accessible from %s? %d md->getOuterScope=%s\n",
+	      md->name().data(),g_currentDefinition->name().data(),
+	      isAccessibleFrom(g_currentDefinition,g_sourceFileDef,md),
+	      md->getOuterScope()->name().data()));
+	}
+	     
+        if (md && g_currentDefinition && 
+	    isAccessibleFrom(g_currentDefinition,g_sourceFileDef,md)==-1)
+	{
+	  md=0; // variable not accessible
+	}
+      }
+      if (md && (!varOnly || md->isVariable()))
+      {
+        DBG_CTX((stderr,"is a global md=%p g_currentDefinition=%s linkable=%d\n",md,g_currentDefinition?g_currentDefinition->name().data():"<none>",md->isLinkable()));
+	if (md->isLinkable())
+	{
+	  QCString text;
+	  if (!g_forceTagReference.isEmpty()) // explicit reference to symbol in tag file
+	  {
+	    text=g_forceTagReference;
+	    if (text.right(4)==".tag") // strip .tag if present
+	    {
+	      text=text.left(text.length()-4);
+	    }
+	    text+=getLanguageSpecificSeparator(md->getLanguage());
+	    text+=clName;
+	    md->setName(text);
+	    md->setLocalName(text);
+	  }
+	  else // normal reference
+	  {
+	    text=clName;
+	  }
+	  writeMultiLineCodeLink(ol,md,text);
+          addToSearchIndex(clName);
+	  if (g_currentMemberDef && g_collectXRefs)
+	  {
+	    addDocCrossReference(g_currentMemberDef,md);
+	  }
+	  return;
+	}
+      }
+    }
+    
+    // nothing found, just write out the word
+    DBG_CTX((stderr,"not found!\n"));
+    codifyLines(clName);
+    addToSearchIndex(clName);
+  }
+}
+
+static bool generateClassMemberLink(CodeOutputInterface &ol,MemberDef *xmd,const char *memName)
+{
+  // extract class definition of the return type in order to resolve
+  // a->b()->c() like call chains
+
+  //printf("type=`%s' args=`%s' class=%s\n",
+  //  xmd->typeString(),xmd->argsString(),
+  //  xmd->getClassDef()->name().data());
+
+  if (g_exampleBlock)
+  {
+    QCString anchor;
+    anchor.sprintf("a%d",g_anchorCount);
+    //printf("addExampleFile(%s,%s,%s)\n",anchor.data(),g_exampleName.data(),
+    //                                  g_exampleFile.data());
+    if (xmd->addExample(anchor,g_exampleName,g_exampleFile))
+    {
+      ol.writeCodeAnchor(anchor);
+      g_anchorCount++;
+    }
+  }
+
+  ClassDef *typeClass = stripClassName(removeAnonymousScopes(xmd->typeString()),xmd->getOuterScope());
+  DBG_CTX((stderr,"%s -> typeName=%p\n",xmd->typeString(),typeClass));
+  g_theCallContext.setScope(typeClass);
+
+  Definition *xd = xmd->getOuterScope()==Doxygen::globalScope ?
+                   xmd->getFileDef() : xmd->getOuterScope();
+  if (xmd->getGroupDef()) xd = xmd->getGroupDef();
+  if (xd && xd->isLinkable())
+  {
+
+    //printf("g_currentDefiniton=%p g_currentMemberDef=%p xmd=%p g_insideBody=%d\n",g_currentDefinition,g_currentMemberDef,xmd,g_insideBody);
+
+    if (xmd->templateMaster()) xmd = xmd->templateMaster();
+
+    if (xmd->isLinkable())
+    {
+      // add usage reference
+      if (g_currentDefinition && g_currentMemberDef &&
+	  /*xmd!=g_currentMemberDef &&*/ g_insideBody && g_collectXRefs)
+      {
+	addDocCrossReference(g_currentMemberDef,xmd);
+      }
+
+      // write the actual link
+      writeMultiLineCodeLink(ol,xmd,memName);
+      addToSearchIndex(memName);
+      return TRUE;
+    }
+  }
+
+  return FALSE;
+}
+
+static bool generateClassMemberLink(CodeOutputInterface &ol,Definition *def,const char *memName)
+{
+  if (def && def->definitionType()==Definition::TypeClass)
+  {
+    ClassDef *cd = (ClassDef*)def;
+    MemberDef *xmd = cd->getMemberByName(memName);
+    //printf("generateClassMemberLink(class=%s,member=%s)=%p\n",def->name().data(),memName,xmd);
+    if (xmd)
+    {
+      return generateClassMemberLink(ol,xmd,memName);
+    }
+    else
+    {
+      Definition *innerDef = cd->findInnerCompound(memName);
+      if (innerDef)
+      {
+        g_theCallContext.setScope(innerDef);
+        addToSearchIndex(memName);
+        writeMultiLineCodeLink(*g_code,innerDef,memName);
+        return TRUE;
+      }
+    }
+  }
+  else if (def && def->definitionType()==Definition::TypeNamespace)
+  {
+    NamespaceDef *nd = (NamespaceDef*)def;
+    //printf("Looking for %s inside namespace %s\n",memName,nd->name().data());
+    Definition *innerDef = nd->findInnerCompound(memName);
+    if (innerDef)
+    {
+      g_theCallContext.setScope(innerDef);
+      addToSearchIndex(memName);
+      writeMultiLineCodeLink(*g_code,innerDef,memName);
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
+static void generateMemberLink(CodeOutputInterface &ol,const QCString &varName,
+            char *memName)
+{
+  //printf("generateMemberLink(object=%s,mem=%s) classScope=%s\n",
+  //    varName.data(),memName,g_classScope.data());
+
+  if (varName.isEmpty()) return;
+
+  // look for the variable in the current context
+  ClassDef *vcd = g_theVarContext.findVariable(varName);
+  if (vcd) 
+  {
+    if (vcd!=VariableContext::dummyContext)
+    {
+      //printf("Class found!\n");
+      if (getLink(vcd->name(),memName,ol)) 
+      {
+	//printf("Found result!\n");
+	return;
+      }
+      if (vcd->baseClasses())
+      {
+	BaseClassListIterator bcli(*vcd->baseClasses());
+	for ( ; bcli.current() ; ++bcli)
+	{
+	  if (getLink(bcli.current()->classDef->name(),memName,ol)) 
+	  {
+	    //printf("Found result!\n");
+	    return;
+	  }
+	}
+      }
+    }
+  }
+  else // variable not in current context, maybe it is in a parent context
+  {
+    vcd = getResolvedClass(g_currentDefinition,g_sourceFileDef,g_classScope);
+    if (vcd && vcd->isLinkable())
+    {
+      //printf("Found class %s for variable `%s'\n",g_classScope.data(),varName.data());
+      MemberName *vmn=Doxygen::memberNameSDict->find(varName);
+      if (vmn==0)
+      {
+	int vi;
+	QCString vn=varName;
+	if ((vi=vn.findRev("::"))!=-1 || (vi=vn.findRev('.'))!=-1)  // explicit scope A::b(), probably static member
+	{
+	  ClassDef *jcd = getClass(vn.left(vi));
+	  vn=vn.right(vn.length()-vi-2);
+	  vmn=Doxygen::memberNameSDict->find(vn);
+	  //printf("Trying name `%s' scope=%s\n",vn.data(),scope.data());
+	  if (vmn)
+	  {
+	    MemberNameIterator vmni(*vmn);
+	    MemberDef *vmd;
+	    for (;(vmd=vmni.current());++vmni)
+	    {
+	      if (/*(vmd->isVariable() || vmd->isFunction()) && */
+		  vmd->getClassDef()==jcd)
+	      {
+		//printf("Found variable type=%s\n",vmd->typeString());
+		ClassDef *mcd=stripClassName(vmd->typeString(),vmd->getOuterScope());
+		if (mcd && mcd->isLinkable())
+		{
+		  if (generateClassMemberLink(ol,mcd,memName)) return;
+		}
+	      }
+	    }
+	  }
+	}
+      }
+      if (vmn)
+      {
+	//printf("There is a variable with name `%s'\n",varName);
+	MemberNameIterator vmni(*vmn);
+	MemberDef *vmd;
+	for (;(vmd=vmni.current());++vmni)
+	{
+	  if (/*(vmd->isVariable() || vmd->isFunction()) && */
+	      vmd->getClassDef()==vcd)
+	  {
+	    //printf("Found variable type=%s\n",vmd->typeString());
+	    ClassDef *mcd=stripClassName(vmd->typeString(),vmd->getOuterScope());
+	    if (mcd && mcd->isLinkable())
+	    {
+	      if (generateClassMemberLink(ol,mcd,memName)) return;
+	    }
+	  }
+	}
+      }
+    }
+  }
+  // nothing found -> write result as is
+  codifyLines(memName);
+  addToSearchIndex(memName);
+  return;
+}
+
+static void generatePHPVariableLink(CodeOutputInterface &ol,const char *varName)
+{
+  QCString name = varName+7; // strip $this->
+  name.prepend("$");
+  //printf("generatePHPVariableLink(%s) name=%s scope=%s\n",varName,name.data(),g_classScope.data());
+  if (!getLink(g_classScope,name,ol,varName))
+  {
+    codifyLines(varName);
+  }
+}
+
+static void generateFunctionLink(CodeOutputInterface &ol,const char *funcName)
+{
+  //CodeClassDef *ccd=0;
+  ClassDef *ccd=0;
+  QCString locScope=g_classScope;
+  QCString locFunc=removeRedundantWhiteSpace(funcName);
+  QCString funcScope;
+  QCString funcWithScope=locFunc;
+  QCString funcWithFullScope=locFunc;
+  QCString fullScope=locScope;
+  DBG_CTX((stdout,"*** locScope=%s locFunc=%s\n",locScope.data(),locFunc.data()));
+  int len=2;
+  int i=locFunc.findRev("::");
+  if (g_currentMemberDef && g_currentMemberDef->getClassDef() &&
+      funcName==g_currentMemberDef->localName() && 
+      g_currentMemberDef->getDefLine()==g_yyLineNr &&
+      generateClassMemberLink(ol,g_currentMemberDef,funcName)
+     )
+  {
+    // special case where funcName is the name of a method that is also
+    // defined on this line. In this case we can directly link to 
+    // g_currentMemberDef, which is not only faster, but
+    // in case of overloaded methods, this will make sure that we link to
+    // the correct method, and thereby get the correct reimplemented relations.
+    // See also bug 549022.
+    goto exit;
+  }
+  if (i==-1) i=locFunc.findRev("."),len=1;
+  if (i==-1) i=locFunc.findRev("\\"),len=1; // for PHP
+  if (i>0)
+  {
+    funcScope=locFunc.left(i);
+    locFunc=locFunc.right(locFunc.length()-i-len).stripWhiteSpace();
+    int ts=locScope.find('<'); // start of template
+    int te=locScope.findRev('>'); // end of template
+    //printf("ts=%d te=%d\n",ts,te);
+    if (ts!=-1 && te!=-1 && te>ts)
+    {
+      // remove template from scope
+      locScope=locScope.left(ts)+locScope.right(locScope.length()-te-1);
+    }
+    ts=funcScope.find('<'); // start of template
+    te=funcScope.findRev('>'); // end of template
+    //printf("ts=%d te=%d\n",ts,te);
+    if (ts!=-1 && te!=-1 && te>ts)
+    {
+      // remove template from scope
+      funcScope=funcScope.left(ts)+funcScope.right(funcScope.length()-te-1);
+    }
+    if (!funcScope.isEmpty())
+    {
+      funcWithScope = funcScope+"::"+locFunc;
+      if (!locScope.isEmpty())
+      {
+        fullScope=locScope+"::"+funcScope;
+      }
+    }
+    if (!locScope.isEmpty())
+    {
+      funcWithFullScope = locScope+"::"+funcWithScope;
+    }
+  }
+  if (!fullScope.isEmpty() && (ccd=g_codeClassSDict->find(fullScope)))
+  {
+    //printf("using classScope %s\n",g_classScope.data());
+    if (ccd->baseClasses())
+    {
+      BaseClassListIterator bcli(*ccd->baseClasses());
+      for ( ; bcli.current() ; ++bcli)
+      {
+	if (getLink(bcli.current()->classDef->name(),locFunc,ol,funcName)) 
+	{
+	  goto exit;
+	}
+      }
+    }
+  }
+  if (!locScope.isEmpty() && fullScope!=locScope && (ccd=g_codeClassSDict->find(locScope)))
+  {
+    //printf("using classScope %s\n",g_classScope.data());
+    if (ccd->baseClasses())
+    {
+      BaseClassListIterator bcli(*ccd->baseClasses());
+      for ( ; bcli.current() ; ++bcli)
+      {
+	if (getLink(bcli.current()->classDef->name(),funcWithScope,ol,funcName)) 
+	{
+	  goto exit;
+	}
+      }
+    }
+  }
+  if (!getLink(locScope,funcWithScope,ol,funcName))
+  {
+    generateClassOrGlobalLink(ol,funcName);
+  }
+exit:  
+  g_forceTagReference.resize(0);
+  return;
+}
+
+/*! counts the number of lines in the input */
+static int countLines()
+{
+  const char *p=g_inputString;
+  char c;
+  int count=1;
+  while ((c=*p)) 
+  { 
+    p++ ; 
+    if (c=='\n') count++;  
+  }
+  if (p>g_inputString && *(p-1)!='\n') 
+  { // last line does not end with a \n, so we add an extra
+    // line and explicitly terminate the line after parsing.
+    count++, 
+    g_needsTermination=TRUE; 
+  } 
+  return count;
+}
+
+static void endFontClass()
+{
+  if (g_currentFontClass)
+  {
+    g_code->endFontClass();
+    g_currentFontClass=0;
+  }
+}
+
+static void startFontClass(const char *s)
+{
+  endFontClass();
+  g_code->startFontClass(s);
+  g_currentFontClass=s;
+}
+
+//----------------------------------------------------------------------------
+
+// recursively writes a linkified Objective-C method call
+static void writeObjCMethodCall(ObjCCallCtx *ctx)
+{
+  if (ctx==0) return;
+  char c;
+  const char *p = ctx->format.data();
+  if (!ctx->methodName.isEmpty())
+  {
+    //printf("writeObjCMethodCall(%s) obj=%s method=%s\n",
+    //    ctx->format.data(),ctx->objectTypeOrName.data(),ctx->methodName.data());
+    if (!ctx->objectTypeOrName.isEmpty() && ctx->objectTypeOrName.at(0)!='$')
+    {
+      //printf("Looking for object=%s method=%s\n",ctx->objectTypeOrName.data(),
+      //	ctx->methodName.data());
+      ClassDef *cd = g_theVarContext.findVariable(ctx->objectTypeOrName);
+      if (cd==0) // not a local variable
+      {
+	if (ctx->objectTypeOrName=="self")
+	{
+	  if (g_currentDefinition && 
+	      g_currentDefinition->definitionType()==Definition::TypeClass)
+	  {
+	    ctx->objectType = (ClassDef *)g_currentDefinition;
+	  }
+	}
+	else
+	{
+	  ctx->objectType = getResolvedClass(
+	      g_currentDefinition,
+	      g_sourceFileDef,
+	      ctx->objectTypeOrName,
+	      &ctx->method);
+	}
+	//printf("  object is class? %p\n",ctx->objectType);
+	if (ctx->objectType) // found class
+	{
+	  ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
+	  //printf("    yes->method=%s\n",ctx->method?ctx->method->name().data():"<none>");
+	}
+	else if (ctx->method==0) // search for class variable with the same name
+	{
+	  //printf("    no\n");
+	  //printf("g_currentDefinition=%p\n",g_currentDefinition);
+	  if (g_currentDefinition && 
+	      g_currentDefinition->definitionType()==Definition::TypeClass)
+	  {
+	    ctx->objectVar = ((ClassDef *)g_currentDefinition)->getMemberByName(ctx->objectTypeOrName);
+	    //printf("      ctx->objectVar=%p\n",ctx->objectVar);
+	    if (ctx->objectVar)
+	    {
+	      ctx->objectType = stripClassName(ctx->objectVar->typeString());
+	      //printf("        ctx->objectType=%p\n",ctx->objectType);
+	      if (ctx->objectType)
+	      {
+		ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
+		//printf("          ctx->method=%p\n",ctx->method);
+	      }
+	    }
+	  }
+	}
+      }
+      else // local variable
+      {
+	//printf("  object is local variable\n");
+	if (cd!=VariableContext::dummyContext)
+	{
+	  ctx->method = cd->getMemberByName(ctx->methodName);
+	  //printf("   class=%p method=%p\n",cd,ctx->method);
+	}
+      }
+    }
+  }
+
+  //printf("[");
+  while ((c=*p++)) // for each character in ctx->format
+  {
+    if (c=='$')
+    {
+      char nc=*p++;
+      if (nc=='$') // escaped $
+      {
+	g_code->codify("$");
+      }
+      else // name fragment or reference to a nested call 
+      {
+	if (nc=='n') // name fragment
+	{
+          nc=*p++;
+	  QCString refIdStr;
+	  while (nc!=0 && isdigit(nc)) { refIdStr+=nc; nc=*p++; }
+	  p--;
+	  int refId=refIdStr.toInt();
+	  QCString *pName = g_nameDict.find(refId);
+	  if (pName)
+	  {
+	    if (ctx->method && ctx->method->isLinkable())
+	    {
+              writeMultiLineCodeLink(*g_code,ctx->method,pName->data());
+	      if (g_currentMemberDef && g_collectXRefs)
+	      {
+	        addDocCrossReference(g_currentMemberDef,ctx->method);
+	      }
+	    }
+	    else
+	    {
+   	      codifyLines(pName->data());
+	    }
+	  }
+	  else
+	  {
+	    //printf("Invalid name: id=%d\n",refId);
+	  }
+	}
+	else if (nc=='o') // reference to potential object name
+	{
+          nc=*p++;
+	  QCString refIdStr;
+	  while (nc!=0 && isdigit(nc)) { refIdStr+=nc; nc=*p++; }
+	  p--;
+	  int refId=refIdStr.toInt();
+	  QCString *pObject = g_objectDict.find(refId);
+	  if (pObject)
+	  {
+	    if (*pObject=="self")
+	    {
+	      if (g_currentDefinition && 
+		  g_currentDefinition->definitionType()==Definition::TypeClass)
+	      {
+	        ctx->objectType = (ClassDef *)g_currentDefinition;
+	        if (ctx->objectType->categoryOf()) 
+	        {
+	          ctx->objectType = ctx->objectType->categoryOf();
+	        }
+	        if (ctx->objectType)
+	        {
+	          ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
+	        }
+	      }
+ 	      startFontClass("keyword");
+              codifyLines(pObject->data());
+	      endFontClass();
+	    }
+	    else if (*pObject=="super")
+	    {
+	      if (g_currentDefinition &&
+		  g_currentDefinition->definitionType()==Definition::TypeClass)
+	      {
+		ClassDef *cd = (ClassDef *)g_currentDefinition;
+		if (cd->categoryOf()) 
+		{
+		  cd = cd->categoryOf();
+		}
+		BaseClassList *bcd = cd->baseClasses();
+		if (bcd) // get direct base class (there should be only one)
+		{
+		  BaseClassListIterator bli(*bcd);
+		  BaseClassDef *bclass;
+		  for (bli.toFirst();(bclass=bli.current());++bli)
+		  {
+		    if (bclass->classDef->compoundType()!=ClassDef::Protocol)
+		    {
+		      ctx->objectType = bclass->classDef;
+		      if (ctx->objectType)
+		      {
+			ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
+		      }
+		    }
+		  }
+		}
+	      }
+ 	      startFontClass("keyword");
+              codifyLines(pObject->data());
+	      endFontClass();
+	    }
+	    else if (ctx->objectVar && ctx->objectVar->isLinkable()) // object is class variable
+	    {
+	      writeMultiLineCodeLink(*g_code,ctx->objectVar,pObject->data());
+	      if (g_currentMemberDef && g_collectXRefs)
+	      {
+	        addDocCrossReference(g_currentMemberDef,ctx->objectVar);
+	      }
+	    }
+	    else if (ctx->objectType && 
+		     ctx->objectType!=VariableContext::dummyContext && 
+		     ctx->objectType->isLinkable()
+		    ) // object is class name
+	    {
+	      ClassDef *cd = ctx->objectType;
+	      writeMultiLineCodeLink(*g_code,cd,pObject->data());
+	    }
+	    else // object still needs to be resolved
+	    {
+	      ClassDef *cd = getResolvedClass(g_currentDefinition, 
+		  g_sourceFileDef, *pObject);
+	      if (cd && cd->isLinkable())
+	      {
+		if (ctx->objectType==0) ctx->objectType=cd;
+	   	writeMultiLineCodeLink(*g_code,cd,pObject->data());
+	      }
+	      else
+	      {
+		codifyLines(pObject->data());
+	      }
+	    }
+	  }
+	  else
+	  {
+	    //printf("Invalid object: id=%d\n",refId);
+	  }
+	}
+	else if (nc=='c') // reference to nested call
+	{
+          nc=*p++;
+	  QCString refIdStr;
+	  while (nc!=0 && isdigit(nc)) { refIdStr+=nc; nc=*p++; }
+	  p--;
+	  int refId=refIdStr.toInt();
+	  ObjCCallCtx *ictx = g_contextDict.find(refId);
+	  if (ictx) // recurse into nested call
+	  {
+	    writeObjCMethodCall(ictx);
+	    if (ictx->method) // link to nested call successfully
+	    {
+	      // get the ClassDef representing the method's return type
+	      if (QCString(ictx->method->typeString())=="id")
+	      {
+		// see if the method name is unique, if so we link to it
+		MemberName *mn=Doxygen::memberNameSDict->find(ctx->methodName);
+		//printf("mn->count=%d ictx->method=%s ctx->methodName=%s\n",
+		//    mn==0?-1:(int)mn->count(),
+		//    ictx->method->name().data(),
+		//    ctx->methodName.data());
+		if (mn && mn->count()==1) // member name unique
+		{
+		  ctx->method = mn->getFirst();
+		}
+	      } 
+	      else
+	      {
+		ctx->objectType = stripClassName(ictx->method->typeString());
+		if (ctx->objectType)
+		{
+		  ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
+		}
+	      }
+	      //printf("  ***** method=%s -> object=%p\n",ictx->method->name().data(),ctx->objectType);
+	    }
+	  }
+	  else
+	  {
+	    //printf("Invalid context: id=%d\n",refId);
+	  }
+	}
+	else if (nc=='w') // some word
+	{
+          nc=*p++;
+	  QCString refIdStr;
+	  while (nc!=0 && isdigit(nc)) { refIdStr+=nc; nc=*p++; }
+	  p--;
+	  int refId=refIdStr.toInt();
+	  QCString *pWord = g_wordDict.find(refId);
+	  if (pWord)
+	  {
+            codifyLines(pWord->data());
+	  }
+	}
+        else if (nc=='d') // comment block
+        {
+          nc=*p++;
+	  QCString refIdStr;
+	  while (nc!=0 && isdigit(nc)) { refIdStr+=nc; nc=*p++; }
+	  p--;
+	  int refId=refIdStr.toInt();
+	  QCString *pComment = g_commentDict.find(refId);
+          if (pComment)
+          {
+            startFontClass("comment");
+	    codifyLines(pComment->data());
+	    endFontClass();
+          }
+        }
+	else // illegal marker
+	{
+	  ASSERT(!"invalid escape sequence");
+	}
+      }
+    }
+    else // normal non-marker character
+    {
+      char s[2];
+      s[0]=c;s[1]=0;
+      codifyLines(s);
+    }
+  }
+  //printf("%s %s]\n",ctx->objectTypeOrName.data(),ctx->methodName.data());
+  //printf("}=(type='%s',name='%s')",
+  //    ctx->objectTypeOrName.data(),
+  //    ctx->methodName.data());
+}
+
+// Replaces an Objective-C method name fragment s by a marker of the form
+// $n12, the number (12) can later be used as a key for obtaining the name 
+// fragment, from g_nameDict
+static QCString escapeName(const char *s)
+{
+  QCString result;
+  result.sprintf("$n%d",g_currentNameId);
+  g_nameDict.insert(g_currentNameId,new QCString(s));
+  g_currentNameId++;
+  return result;
+}
+
+static QCString escapeObject(const char *s)
+{
+  QCString result;
+  result.sprintf("$o%d",g_currentObjId);
+  g_objectDict.insert(g_currentObjId,new QCString(s));
+  g_currentObjId++;
+  return result;
+}
+
+static QCString escapeWord(const char *s)
+{
+  QCString result;
+  result.sprintf("$w%d",g_currentWordId);
+  g_wordDict.insert(g_currentWordId,new QCString(s));
+  g_currentWordId++;
+  return result;
+}
+
+static QCString escapeComment(const char *s)
+{
+  QCString result;
+  result.sprintf("$d%d",g_currentCommentId);
+  g_commentDict.insert(g_currentCommentId,new QCString(s));
+  g_currentCommentId++;
+  return result;
+}
+
+static int yyread(char *buf,int max_size)
+{
+    int c=0;
+    while( c < max_size && g_inputString[g_inputPosition] )
+    {
+	*buf = g_inputString[g_inputPosition++] ;
+	c++; buf++;
+    }
+    return c;
 }
 
 void resetCCodeParserState()
