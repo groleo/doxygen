@@ -125,17 +125,9 @@ class VariableContext
 class CallContext
 {
   public:
-    struct Ctx
-    {
-      Ctx() : name(g_name), type(g_type), d(0) {}
-      QCString name;
-      QCString type;
-      Definition *d;
-    };
-
     CallContext() 
     {
-      m_defList.append(new Ctx);
+      m_defList.append(new Ctx("",""));
       m_defList.setAutoDelete(TRUE);
     }
     virtual ~CallContext() {}
@@ -148,12 +140,12 @@ class CallContext
         ctx->d=d;
       }
     }
-    void pushScope()
+    void pushScope(QCString _name, QCString _type)
     {
-      m_defList.append(new Ctx);
+      m_defList.append(new Ctx(_name,_type));
       DBG_CTX((stderr,"** Push call context %d\n",m_defList.count()));
     }
-    void popScope()
+    void popScope(QCString &_name, QCString &_type)
     {
       if (m_defList.count()>1)
       {
@@ -161,8 +153,8 @@ class CallContext
 	Ctx *ctx = m_defList.getLast();
 	if (ctx)
 	{
-	  g_name = ctx->name;
-	  g_type = ctx->type;
+	  _name = ctx->name;
+	  _type = ctx->type;
 	}
 	m_defList.removeLast();
       }
@@ -175,7 +167,7 @@ class CallContext
     {
       DBG_CTX((stderr,"** Clear call context\n"));
       m_defList.clear();
-      m_defList.append(new Ctx);
+      m_defList.append(new Ctx(NULL,NULL));
     }
     Definition *getScope() const
     {
@@ -184,6 +176,14 @@ class CallContext
     }
 
   private:
+    struct Ctx
+    {
+      Ctx(QCString _name, QCString _type) : name(_name), type(_type), d(0) {}
+      QCString name;
+      QCString type;
+      Definition *d;
+    };
+
     QList<Ctx> m_defList;
 };
 
@@ -224,7 +224,7 @@ static void addType();
 static void addParmType();
 static void addUsingDirective(const char *name);
 static void setParameterList(MemberDef *md);
-static ClassDef *stripClassName(const char *s,Definition *d=g_currentDefinition);
+static ClassDef *stripClassName(const char *s,Definition *d);
 static MemberDef *setCallContextForVar(const QCString &name);
 static void updateCallContextForSmartPointer();
 static bool getLinkInScope(const QCString &c,  // scope
@@ -1051,7 +1051,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
                                         }
 <Body>"*"{B}*")"                        { // end of cast?
   					  g_code->codify(yytext);
-					  g_theCallContext.popScope();
+					  g_theCallContext.popScope(g_name, g_type);
 					  g_bracketCount--;
                                           g_parmType = g_name;
 					  BEGIN(FuncCall);
@@ -1061,7 +1061,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
   				          g_name.resize(0);g_type.resize(0);
 					  if (*yytext==')')
 					  {
-					    g_theCallContext.popScope();
+					    g_theCallContext.popScope(g_name, g_type);
 					    g_bracketCount--;
 					    BEGIN(FuncCall);
 					  }
@@ -1378,7 +1378,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					    }
 					    else if (*yytext=='[')
 					    {
-					      g_theCallContext.pushScope();
+					      g_theCallContext.pushScope(g_name, g_type);
 					    }
 					    g_args.resize(0);
                                             g_parmType.resize(0);
@@ -1516,7 +1516,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 <ObjCCall,ObjCMName,ObjCSkipStr>\n { g_currentCtx->format+=*yytext; }
 
 <Body>"]"				{
-					  g_theCallContext.popScope();
+					  g_theCallContext.popScope(g_name, g_type);
   					  g_code->codify(yytext);
 					  // TODO: nested arrays like: a[b[0]->func()]->func()
 					  g_name = g_saveName.copy();
@@ -1608,7 +1608,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					  g_parmType.resize(0);g_parmName.resize(0);
   					  g_code->codify(yytext);
   					  g_bracketCount++; 
-					  g_theCallContext.pushScope();
+					  g_theCallContext.pushScope(g_name, g_type);
 					  if (YY_START==FuncCall && !g_insideBody)
 					  {
 					    g_theVarContext.pushScope();
@@ -1642,7 +1642,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
                                             g_parmName.resize(0);
 					    g_theVarContext.addVariable(g_parmType,g_parmName);
                                           }
-					  g_theCallContext.popScope();
+					  g_theCallContext.popScope(g_name, g_type);
 					  g_inForEachExpression = FALSE;
 					  //g_theCallContext.setClass(0); // commented out, otherwise a()->b() does not work for b().
   					  g_code->codify(yytext);
@@ -1699,7 +1699,7 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					    g_theVarContext.pushScope();
 					  }
 					  g_theVarContext.addVariable(g_parmType,g_parmName);
-					  //g_theCallContext.popScope();
+					  //g_theCallContext.popScope(g_name, g_type);
 					  g_parmType.resize(0);g_parmName.resize(0);
 					  int index = g_name.findRev("::");
 					  DBG_CTX((stderr,"g_name=%s\n",g_name.data()));
@@ -2138,11 +2138,11 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 					}
 <*>"("|"["					{
   					  g_code->codify(yytext);
-					  g_theCallContext.pushScope();
+					  g_theCallContext.pushScope(g_name,g_type);
   					}
 <*>")"|"]"					{
   					  g_code->codify(yytext);
-					  g_theCallContext.popScope();
+					  g_theCallContext.popScope(g_name, g_type);
   					}
 <*>\n					{
 					  g_yyColNr++;
@@ -3413,7 +3413,7 @@ static void writeObjCMethodCall(ObjCCallCtx *ctx)
 	    //printf("      ctx->objectVar=%p\n",ctx->objectVar);
 	    if (ctx->objectVar)
 	    {
-	      ctx->objectType = stripClassName(ctx->objectVar->typeString());
+	      ctx->objectType = stripClassName(ctx->objectVar->typeString(),g_currentDefinition);
 	      //printf("        ctx->objectType=%p\n",ctx->objectType);
 	      if (ctx->objectType)
 	      {
@@ -3602,7 +3602,7 @@ static void writeObjCMethodCall(ObjCCallCtx *ctx)
 	      } 
 	      else
 	      {
-		ctx->objectType = stripClassName(ictx->method->typeString());
+		ctx->objectType = stripClassName(ictx->method->typeString(),g_currentDefinition);
 		if (ctx->objectType)
 		{
 		  ctx->method = ctx->objectType->getMemberByName(ctx->methodName);
