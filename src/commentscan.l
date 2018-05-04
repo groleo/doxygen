@@ -16,6 +16,9 @@
 %option never-interactive
 %option prefix="commentscanYY"
 %option noyywrap
+%option reentrant
+%option extra-type="struct commentscanYY_state *"
+
 
 %{
 
@@ -50,86 +53,88 @@
 #include "markdown.h"
 #include "condparser.h"
 #include "formula.h"
+#include "commentscan.h"
 
 #define YY_NO_INPUT 1
 #define YY_NO_UNISTD_H 1
+#define YY_NEVER_INTERACTIVE 1
 
 // forward declarations
-static bool handleBrief(const QCString &);
-static bool handleFn(const QCString &);
-static bool handleDef(const QCString &);
-static bool handleOverload(const QCString &);
-static bool handleEnum(const QCString &);
-static bool handleDefGroup(const QCString &);
-static bool handleAddToGroup(const QCString &);
-static bool handleWeakGroup(const QCString &);
-static bool handleNamespace(const QCString &);
-static bool handlePackage(const QCString &);
-static bool handleClass(const QCString &);
-static bool handleHeaderFile(const QCString &);
-static bool handleProtocol(const QCString &);
-static bool handleCategory(const QCString &);
-static bool handleUnion(const QCString &);
-static bool handleStruct(const QCString &);
-static bool handleInterface(const QCString &);
-static bool handleIdlException(const QCString &);
-static bool handlePage(const QCString &);
-static bool handleMainpage(const QCString &);
-static bool handleFile(const QCString &);
-static bool handleDir(const QCString &);
-static bool handleExample(const QCString &);
-static bool handleDetails(const QCString &);
-static bool handleName(const QCString &);
-static bool handleTodo(const QCString &);
-static bool handleTest(const QCString &);
-static bool handleBug(const QCString &);
-static bool handleSubpage(const QCString &s);
-static bool handleDeprecated(const QCString &);
-static bool handleXRefItem(const QCString &);
-static bool handleRelated(const QCString &);
-static bool handleRelatedAlso(const QCString &);
-static bool handleMemberOf(const QCString &);
-static bool handleRefItem(const QCString &);
-static bool handleSection(const QCString &);
-static bool handleAnchor(const QCString &);
-static bool handleCite(const QCString &);
-static bool handleFormatBlock(const QCString &);
-static bool handleAddIndex(const QCString &);
-static bool handleIf(const QCString &);
-static bool handleIfNot(const QCString &);
-static bool handleElseIf(const QCString &);
-static bool handleElse(const QCString &);
-static bool handleEndIf(const QCString &);
-static bool handleIngroup(const QCString &);
-static bool handleNoSubGrouping(const QCString &);
-static bool handleShowInitializer(const QCString &);
-static bool handleHideInitializer(const QCString &);
-static bool handleCallgraph(const QCString &);
-static bool handleHideCallgraph(const QCString &);
-static bool handleCallergraph(const QCString &);
-static bool handleHideCallergraph(const QCString &);
-static bool handleInternal(const QCString &);
-static bool handleLineBr(const QCString &);
-static bool handleStatic(const QCString &);
-static bool handlePure(const QCString &);
-static bool handlePrivate(const QCString &);
-static bool handlePrivateSection(const QCString &);
-static bool handleProtected(const QCString &);
-static bool handleProtectedSection(const QCString &);
-static bool handlePublic(const QCString &s);
-static bool handlePublicSection(const QCString &s);
-static bool handleToc(const QCString &s);
-static bool handleInherit(const QCString &);
-static bool handleExtends(const QCString &);
-static bool handleCopyDoc(const QCString &);
-static bool handleCopyBrief(const QCString &);
-static bool handleCopyDetails(const QCString &);
-static bool handleParBlock(const QCString &);
-static bool handleEndParBlock(const QCString &);
-static bool handleParam(const QCString &);
-static bool handleRetval(const QCString &);
+static bool handleBrief(const QCString &,yyscan_t yyscanner);
+static bool handleFn(const QCString &,yyscan_t yyscanner);
+static bool handleDef(const QCString &,yyscan_t yyscanner);
+static bool handleOverload(const QCString &,yyscan_t yyscanner);
+static bool handleEnum(const QCString &,yyscan_t yyscanner);
+static bool handleDefGroup(const QCString &,yyscan_t yyscanner);
+static bool handleAddToGroup(const QCString &,yyscan_t yyscanner);
+static bool handleWeakGroup(const QCString &,yyscan_t yyscanner);
+static bool handleNamespace(const QCString &,yyscan_t yyscanner);
+static bool handlePackage(const QCString &,yyscan_t yyscanner);
+static bool handleClass(const QCString &,yyscan_t yyscanner);
+static bool handleHeaderFile(const QCString &,yyscan_t yyscanner);
+static bool handleProtocol(const QCString &,yyscan_t yyscanner);
+static bool handleCategory(const QCString &,yyscan_t yyscanner);
+static bool handleUnion(const QCString &,yyscan_t yyscanner);
+static bool handleStruct(const QCString &,yyscan_t yyscanner);
+static bool handleInterface(const QCString &,yyscan_t yyscanner);
+static bool handleIdlException(const QCString &,yyscan_t yyscanner);
+static bool handlePage(const QCString &,yyscan_t yyscanner);
+static bool handleMainpage(const QCString &,yyscan_t yyscanner);
+static bool handleFile(const QCString &,yyscan_t yyscanner);
+static bool handleDir(const QCString &,yyscan_t yyscanner);
+static bool handleExample(const QCString &,yyscan_t yyscanner);
+static bool handleDetails(const QCString &,yyscan_t yyscanner);
+static bool handleName(const QCString &,yyscan_t yyscanner);
+static bool handleTodo(const QCString &,yyscan_t yyscanner);
+static bool handleTest(const QCString &,yyscan_t yyscanner);
+static bool handleBug(const QCString &,yyscan_t yyscanner);
+static bool handleSubpage(const QCString &s,yyscan_t yyscanner);
+static bool handleDeprecated(const QCString &,yyscan_t yyscanner);
+static bool handleXRefItem(const QCString &,yyscan_t yyscanner);
+static bool handleRelated(const QCString &,yyscan_t yyscanner);
+static bool handleRelatedAlso(const QCString &,yyscan_t yyscanner);
+static bool handleMemberOf(const QCString &,yyscan_t yyscanner);
+static bool handleRefItem(const QCString &,yyscan_t yyscanner);
+static bool handleSection(const QCString &,yyscan_t yyscanner);
+static bool handleAnchor(const QCString &,yyscan_t yyscanner);
+static bool handleCite(const QCString &,yyscan_t yyscanner);
+static bool handleFormatBlock(const QCString &,yyscan_t yyscanner);
+static bool handleAddIndex(const QCString &,yyscan_t yyscanner);
+static bool handleIf(const QCString &,yyscan_t yyscanner);
+static bool handleIfNot(const QCString &,yyscan_t yyscanner);
+static bool handleElseIf(const QCString &,yyscan_t yyscanner);
+static bool handleElse(const QCString &,yyscan_t yyscanner);
+static bool handleEndIf(const QCString &,yyscan_t yyscanner);
+static bool handleIngroup(const QCString &,yyscan_t yyscanner);
+static bool handleNoSubGrouping(const QCString &,yyscan_t yyscanner);
+static bool handleShowInitializer(const QCString &,yyscan_t yyscanner);
+static bool handleHideInitializer(const QCString &,yyscan_t yyscanner);
+static bool handleCallgraph(const QCString &,yyscan_t yyscanner);
+static bool handleHideCallgraph(const QCString &,yyscan_t yyscanner);
+static bool handleCallergraph(const QCString &,yyscan_t yyscanner);
+static bool handleHideCallergraph(const QCString &,yyscan_t yyscanner);
+static bool handleInternal(const QCString &,yyscan_t yyscanner);
+static bool handleLineBr(const QCString &,yyscan_t yyscanner);
+static bool handleStatic(const QCString &,yyscan_t yyscanner);
+static bool handlePure(const QCString &,yyscan_t yyscanner);
+static bool handlePrivate(const QCString &,yyscan_t yyscanner);
+static bool handlePrivateSection(const QCString &,yyscan_t yyscanner);
+static bool handleProtected(const QCString &,yyscan_t yyscanner);
+static bool handleProtectedSection(const QCString &,yyscan_t yyscanner);
+static bool handlePublic(const QCString &s,yyscan_t yyscanner);
+static bool handlePublicSection(const QCString &s,yyscan_t yyscanner);
+static bool handleToc(const QCString &s,yyscan_t yyscanner);
+static bool handleInherit(const QCString &,yyscan_t yyscanner);
+static bool handleExtends(const QCString &,yyscan_t yyscanner);
+static bool handleCopyDoc(const QCString &,yyscan_t yyscanner);
+static bool handleCopyBrief(const QCString &,yyscan_t yyscanner);
+static bool handleCopyDetails(const QCString &,yyscan_t yyscanner);
+static bool handleParBlock(const QCString &,yyscan_t yyscanner);
+static bool handleEndParBlock(const QCString &,yyscan_t yyscanner);
+static bool handleParam(const QCString &,yyscan_t yyscanner);
+static bool handleRetval(const QCString &,yyscan_t yyscanner);
 
-typedef bool (*DocCmdFunc)(const QCString &name);
+typedef bool (*DocCmdFunc)(const QCString &name,yyscan_t yyscanner);
 
 struct DocCmdMap
 {
@@ -333,8 +338,6 @@ class DocCmdMapper
     static DocCmdMapper *s_instance;
 };
 
-#define YY_NEVER_INTERACTIVE 1
-
 enum XRefKind
 {
   XRef_Item,
@@ -373,107 +376,100 @@ class GuardedSection
     bool m_parentVisible;
 };
 
-void openGroup(Entry *e,const char *file,int line);
-void closeGroup(Entry *e,const char *file,int line,bool foundInline=FALSE);
-void initGroupInfo(Entry *e);
-static void groupAddDocs(Entry *e);
-
-static void initParser();
+static void groupAddDocs(Entry *e,yyscan_t yyscanner);
+static void initParser(yyscan_t yyscanner);
 static bool getDocSectionName(int s);
-static bool makeStructuralIndicator(Entry::Sections s);
-static void lineCount();
+static bool makeStructuralIndicator(Entry::Sections s,yyscan_t yyscanner);
+static void lineCount(yyscan_t yyscanner);
 static QCString stripQuotes(const char *s);
 static void addXRefItem(const char *listName,const char *itemTitle,
-                        const char *listTitle,bool append);
-static QCString addFormula();
-static void checkFormula();
+                        const char *listTitle,bool append,yyscan_t yyscanner);
+static QCString addFormula(yyscan_t yyscanner);
+static void checkFormula(yyscan_t yyscanner);
 static SectionInfo::SectionType sectionLevelToType(int level);
-static void addSection();
-static void addCite();
+static void addSection(yyscan_t yyscanner);
+static void addCite(yyscan_t yyscanner);
 static void stripTrailingWhiteSpace(QCString &s);
-static inline void setOutput(OutputContext ctx);
-static void addAnchor(const char *anchor);
-static inline void addOutput(const char *s);
-static inline void addOutput(char c);
-static void endBrief(bool addToOutput=TRUE);
-static void handleGuard(const QCString &expr);
-static int yyread(char *buf,int max_size);
+static inline void setOutput(OutputContext ctx,yyscan_t yyscanner);
+static void addAnchor(const char *anchor,yyscan_t yyscanner);
+static inline void addOutput(const char *s,yyscan_t yyscanner);
+static inline void addOutput(char c,yyscan_t yyscanner);
+static void endBrief(bool addToOutput,yyscan_t yyscanner);
+static void handleGuard(const QCString &expr,yyscan_t yyscanner);
+static int yyread(char *buf,int max_size,yyscan_t yyscanner);
 
 /* -----------------------------------------------------------------
  *
  *	statics
  */
+struct commentscanYY_state
+{
+  ParserInterface *langParser;          // the language parser that is calling us
+  QCString         inputString;         // input string
+  int              inputPosition;       // read pointer
+  QCString         yyFileName;          // file name that is read from
+  int              yyLineNr;            // line number in the input
+  bool             inBody;              // was the comment found inside the body of a function?
+  OutputContext    inContext;           // are we inside the brief, details or xref part
+  bool             briefEndsAtDot;      // does the brief description stop at a dot?
+  QCString         formulaText;         // Running text of a formula
+  QCString         formulaEnv;          // environment name
+  int              formulaNewLines;     // amount of new lines in the formula
+  QCString        *pOutputString;       // pointer to string to which the output is appended.
+  QCString         outputXRef;          // temp argument of todo/test/../xrefitem commands
+  QCString         blockName;           // preformatted block name (e.g. verbatim, latexonly,...)
+  XRefKind         xrefKind;            // kind of cross-reference command
+  XRefKind         newXRefKind;         // 
+  GuardType        guardType;           // kind of guard for conditional section
+  bool             enabledSectionFound;
+  QCString         functionProto;       // function prototype
+  QStack<GuardedSection> guards;        // tracks nested conditional sections (if,ifnot,..)
+  Entry           *current;             // working entry
+  //Entry           *current_root = 0 ;   // parent of working entry
 
-static ParserInterface *langParser;          // the language parser that is calling us
-static QCString         inputString;         // input string
-static int		inputPosition;       // read pointer
-static QCString		yyFileName;          // file name that is read from
-static int		yyLineNr;            // line number in the input
-static bool             inBody;              // was the comment found inside the body of a function?
-static OutputContext    inContext;           // are we inside the brief, details or xref part
-static bool             briefEndsAtDot;      // does the brief description stop at a dot?
-static QCString         formulaText;         // Running text of a formula
-static QCString         formulaEnv;          // environment name
-static int              formulaNewLines;     // amount of new lines in the formula
-static QCString        *pOutputString;       // pointer to string to which the output is appended.
-static QCString         outputXRef;          // temp argument of todo/test/../xrefitem commands
-static QCString         blockName;           // preformatted block name (e.g. verbatim, latexonly,...)
-static XRefKind         xrefKind;            // kind of cross-reference command
-static XRefKind         newXRefKind;         // 
-static GuardType        guardType;           // kind of guard for conditional section
-static bool             enabledSectionFound;
-static QCString         functionProto;       // function prototype
-static QStack<GuardedSection> guards;        // tracks nested conditional sections (if,ifnot,..)
-static Entry*		current      = 0 ;   // working entry
-//static Entry*		current_root = 0 ;   // parent of working entry
 
+  //Entry           *previous     = 0 ;   // TODO: remove need for this
+  bool             needNewEntry;
 
-//static Entry*		previous     = 0 ;   // TODO: remove need for this
-static bool             needNewEntry;
+  QCString         sectionLabel;
+  QCString         sectionTitle;
+  int              sectionLevel;
+  QCString         xrefItemKey;
+  QCString         newXRefItemKey;
+  QCString         xrefItemTitle;
+  QCString         xrefListTitle;
+  Protection       protection;
 
-static QCString         g_sectionLabel;
-static QCString		g_sectionTitle;
-static int              g_sectionLevel;
-static QCString         xrefItemKey;
-static QCString         newXRefItemKey;
-static QCString         xrefItemTitle;
-static QCString         xrefListTitle;
-static Protection	protection;
+  bool             xrefAppendFlag;
+  bool             inGroupParamFound;
+  int              braceCount;
+  bool             insidePre;
+  bool             parseMore;
+  int              condCount;
 
-static bool             xrefAppendFlag;
-static bool             inGroupParamFound;
-static int              braceCount;
-static bool             insidePre;
-static bool             parseMore;
-static int              g_condCount;
+  int              commentCount;
+  QCString         spaceBeforeCmd;
+  QCString         spaceBeforeIf;
+  QCString         copyDocArg;
 
-static int              g_commentCount;
-static QCString         g_spaceBeforeCmd;
-static QCString         g_spaceBeforeIf;
-static QCString         g_copyDocArg;
+  QCString         guardExpr;
+  int              roundCount;
 
-static QCString         g_guardExpr;
-static int              g_roundCount;
+  bool             insideParBlock;
 
-static bool             g_insideParBlock;
+  QStack<Grouping> autoGroupStack;
+  int              memberGroupId;
+  QCString         memberGroupHeader;
+  QCString         memberGroupDocs;
+  QCString         memberGroupRelates;
+  QCString         compoundName;
 
-//-----------------------------------------------------------------------------
-
-static QStack<Grouping> g_autoGroupStack;
-static int              g_memberGroupId = DOX_NOGROUP;
-static QCString         g_memberGroupHeader;
-static QCString         g_memberGroupDocs;
-static QCString         g_memberGroupRelates;
-static QCString         g_compoundName;
-
-//-----------------------------------------------------------------------------
-static int prevPosition=0;
-DocCmdMapper *DocCmdMapper::s_instance=0;
-bool inInternalDocs = FALSE;
-
+  int              prevPosition;
+  bool             inInternalDocs;
+};
 
 #undef	YY_INPUT
-#define	YY_INPUT(buf,result,max_size) result=yyread(buf,max_size);
+#define	YY_INPUT(buf,result,max_size) result=yyread(buf,max_size,yyscanner);
 
 
 %}
@@ -593,47 +589,47 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
    */
 
 <Comment>{CMD}{CMD}[a-z_A-Z]+{B}*	{ // escaped command
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
   					}
 <Comment>{CMD}{CMD}"~"[a-z_A-Z]*	{ // escaped command
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
   					}
 <Comment>{MAILADDR}			{ // mail address
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
   					}
 <Comment>"\""[^"\n]*"\""		{ // quoted text
-                                          addOutput(yytext);
+                                          addOutput(yytext,yyscanner);
   					}
 <Comment>("\\"[a-z_A-Z]+)+"\\"		{ // directory (or chain of commands!)
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
   					}
 <Comment>"<"{DETAILEDHTML}{ATTR}">"	{ // HTML command that ends a brief description
-					  setOutput(OutputDoc);
+					  setOutput(OutputDoc,yyscanner);
 					  // continue with the same input
                                           REJECT;
 					}
 <Comment>"<"{DETAILEDHTMLOPT}{ATTR}">"	{ // HTML command that ends a brief description
-					  if (current->lang==SrcLangExt_CSharp)
+					  if (yyextra->current->lang==SrcLangExt_CSharp)
                                           {
-                                            setOutput(OutputDoc);
+                                            setOutput(OutputDoc,yyscanner);
                                           }
 					  // continue with the same input
                                           REJECT;
 					}
 <Comment>"<summary>"			{ // start of a .NET XML style brief description
-					  setOutput(OutputBrief);
-                                          addOutput(yytext);
+					  setOutput(OutputBrief,yyscanner);
+                                          addOutput(yytext,yyscanner);
   					}
 <Comment>"<remarks>"            	{ // start of a .NET XML style detailed description
-					  setOutput(OutputDoc);
-                                          addOutput(yytext);
+					  setOutput(OutputDoc,yyscanner);
+                                          addOutput(yytext,yyscanner);
   					}
 <Comment>"</summary>"	                { // start of a .NET XML style detailed description
-                                          addOutput(yytext);
-					  setOutput(OutputDoc);
+                                          addOutput(yytext,yyscanner);
+					  setOutput(OutputDoc,yyscanner);
   					}
 <Comment>"</remarks>"			{ // end of a brief or detailed description
-                                          addOutput(yytext);
+                                          addOutput(yytext,yyscanner);
   					}
 <Comment>"<"{CAPTION}{ATTR}">"          {
                                           QCString tag=yytext;
@@ -647,34 +643,34 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
                                               if (e!=-1) // found matching end
                                               {
                                                 QCString id=tag.mid(s+4,e-s-4); // extract id
-                                                addAnchor(id);
+                                                addAnchor(id,yyscanner);
                                               }
                                             }
                                           }
-                                          addOutput(yytext);
+                                          addOutput(yytext,yyscanner);
                                         }
 <Comment>"<"{PRE}{ATTR}">"              {
-                                          insidePre=TRUE;
-                                          addOutput(yytext);
+                                          yyextra->insidePre=TRUE;
+                                          addOutput(yytext,yyscanner);
                                         }
 <Comment>"</"{PRE}">"                   {
-                                          insidePre=FALSE;
-                                          addOutput(yytext);
+                                          yyextra->insidePre=FALSE;
+                                          addOutput(yytext,yyscanner);
                                         }
 <Comment>{RCSTAG}			{ // RCS tag which end a brief description
-  					  setOutput(OutputDoc);
+  					  setOutput(OutputDoc,yyscanner);
 					  REJECT;
   					}
 <Comment>"<!--"				{ 
   					  BEGIN(HtmlComment);
 					}
 <Comment>{B}*{CMD}"endinternal"{B}*	{
-                                          addOutput("\\endinternal "); 
-                                          if (!inInternalDocs)
-  					    warn(yyFileName,yyLineNr,
+                                          addOutput("\\endinternal ",yyscanner); 
+                                          if (!yyextra->inInternalDocs)
+  					    warn(yyextra->yyFileName,yyextra->yyLineNr,
                                                "found \\endinternal without matching \\internal"
                                               );
-                                          inInternalDocs = FALSE;
+                                          yyextra->inInternalDocs = FALSE;
   					}
 <Comment>{B}*{CMD}[a-z_A-Z]+{B}*	{ // potentially interesting command
                                           // the {B}* in the front was added for bug620924
@@ -684,29 +680,29 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 					  {
                                             int i=0;
                                             while (yytext[i]==' ' || yytext[i]=='\t') i++;
-					    g_spaceBeforeCmd = QCString(yytext).left(i);
-					    if (cmdPtr->endsBrief && !(inContext==OutputXRef && cmdName=="parblock"))
+					    yyextra->spaceBeforeCmd = QCString(yytext).left(i);
+					    if (cmdPtr->endsBrief && !(yyextra->inContext==OutputXRef && cmdName=="parblock"))
 					    {
-					      briefEndsAtDot=FALSE;
+					      yyextra->briefEndsAtDot=FALSE;
 					      // this command forces the end of brief description
-					      setOutput(OutputDoc);
+					      setOutput(OutputDoc,yyscanner);
 					    }
                                             //if (i>0) addOutput(QCString(yytext).left(i)); // removed for bug 689341
-					    if (cmdPtr->func && cmdPtr->func(cmdName))
+					    if (cmdPtr->func && cmdPtr->func(cmdName,yyscanner))
 					    {
 					      // implicit split of the comment block into two
 					      // entries. Restart the next block at the start
 					      // of this command.
-					      parseMore=TRUE;
+					      yyextra->parseMore=TRUE;
 
 					      // yuk, this is probably not very portable across lex implementations, 
 					      // but we need to know the position in the input buffer where this 
 					      // rule matched.
 					      // for flex 2.5.33+ we should use YY_CURRENT_BUFFER_LVALUE
 #if YY_FLEX_MAJOR_VERSION>=2 && (YY_FLEX_MINOR_VERSION>5 || (YY_FLEX_MINOR_VERSION==5 && YY_FLEX_SUBMINOR_VERSION>=33))
-					      inputPosition=prevPosition + (int)(yy_bp - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);
+					      yyextra->inputPosition=yyextra->prevPosition + (int)(yy_bp - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf);
 #else
-					      inputPosition=prevPosition + (int)(yy_bp - yy_current_buffer->yy_ch_buf);
+					      yyextra->inputPosition=yyextra->prevPosition + (int)(yy_bp - yy_current_buffer->yy_ch_buf);
 #endif
 					      yyterminate();
 					    }
@@ -714,16 +710,16 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 					    {
 					      // command without handler, to be processed
 					      // later by parsedoc.cpp
-					      addOutput(yytext);
+					      addOutput(yytext,yyscanner);
 					    }
 					  }
 					  else // command not relevant
 					  {
-					    addOutput(yytext);
+					    addOutput(yytext,yyscanner);
 					  }
   					}
 <Comment>{B}*("\\\\"|"@@")"f"[$\[{]	{ // escaped formula command
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
   					}
 <Comment>{B}*{CMD}"~"[a-z_A-Z-]*		{ // language switch command
                                           QCString langId = QString(yytext).stripWhiteSpace().data()+2;
@@ -734,52 +730,52 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 				          }
   					}
 <Comment>{B}*{CMD}"f{"[^}\n]+"}"("{"?)  { // start of a formula with custom environment
-					  formulaText="\\begin";
-					  formulaEnv=QString(yytext).stripWhiteSpace().data()+2;
-					  if (formulaEnv.at(formulaEnv.length()-1)=='{')
+					  yyextra->formulaText="\\begin";
+					  yyextra->formulaEnv=QString(yytext).stripWhiteSpace().data()+2;
+					  if (yyextra->formulaEnv.at(yyextra->formulaEnv.length()-1)=='{')
 					  {
 					    // remove trailing open brace
-					    formulaEnv=formulaEnv.left(formulaEnv.length()-1);
+					    yyextra->formulaEnv=yyextra->formulaEnv.left(yyextra->formulaEnv.length()-1);
 					  }
-					  formulaText+=formulaEnv;
-					  formulaNewLines=0;
+					  yyextra->formulaText+=yyextra->formulaEnv;
+					  yyextra->formulaNewLines=0;
 					  BEGIN(ReadFormulaLong);
   					}
 <Comment>{B}*{CMD}"f$"			{ // start of a inline formula
-					  formulaText="$";
-					  formulaNewLines=0;
+					  yyextra->formulaText="$";
+					  yyextra->formulaNewLines=0;
 					  BEGIN(ReadFormulaShort);
   					}
 <Comment>{B}*{CMD}"f["			{ // start of a block formula
-					  formulaText="\\[";
-					  formulaNewLines=0;
+					  yyextra->formulaText="\\[";
+					  yyextra->formulaNewLines=0;
 					  BEGIN(ReadFormulaLong);
   					}
 <Comment>{B}*{CMD}"{"                   { // begin of a group
-                                          //langParser->handleGroupStartCommand(g_memberGroupHeader);
-                                          openGroup(current,yyFileName,yyLineNr);
+                                          //yyextra->langParser->handleGroupStartCommand(yyextra->memberGroupHeader);
+                                          openGroup(yyextra->current,yyextra->yyFileName,yyextra->yyLineNr);
                                         }
 <Comment>{B}*{CMD}"}"                   { // end of a group
-                                          //langParser->handleGroupEndCommand();
-                                          closeGroup(current,yyFileName,yyLineNr,TRUE);
-                                          g_memberGroupHeader.resize(0);
-					  parseMore=TRUE;
-                                          needNewEntry = TRUE;
+                                          //yyextra->langParser->handleGroupEndCommand();
+                                          closeGroup(yyextra->current,yyextra->yyFileName,yyextra->yyLineNr,TRUE);
+                                          yyextra->memberGroupHeader.resize(0);
+					  yyextra->parseMore=TRUE;
+                                          yyextra->needNewEntry = TRUE;
 #if YY_FLEX_MAJOR_VERSION>=2 && (YY_FLEX_MINOR_VERSION>5 || (YY_FLEX_MINOR_VERSION==5 && YY_FLEX_SUBMINOR_VERSION>=33))
-				          inputPosition=prevPosition + (int)(yy_bp - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf) + strlen(yytext);
+				          yyextra->inputPosition=yyextra->prevPosition + (int)(yy_bp - YY_CURRENT_BUFFER_LVALUE->yy_ch_buf) + strlen(yytext);
 #else
-				          inputPosition=prevPosition + (int)(yy_bp - yy_current_buffer->yy_ch_buf) + strlen(yytext);
+				          yyextra->inputPosition=yyextra->prevPosition + (int)(yy_bp - yy_current_buffer->yy_ch_buf) + strlen(yytext);
 #endif
 					  yyterminate();
                                         }
 <Comment>{B}*{CMD}[$@\\&~<>#%]		{ // escaped character
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
   					}
 <Comment>[a-z_A-Z]+			{ // normal word
-					  addOutput(yytext);
+					  addOutput(yytext,yyscanner);
   					}
 <Comment>^{B}*"."{B}*/\n                { // explicit end autolist: e.g "  ."
-  				          addOutput(yytext); 
+  				          addOutput(yytext,yyscanner);
 					}
 <Comment>^{B}*[1-9][0-9]*"."{B}+        |
 <Comment>^{B}*[*+]{B}+			{ // start of autolist
@@ -789,101 +785,101 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
                                           }
                                           else
                                           {
-                                            if (inContext!=OutputXRef) 
+                                            if (yyextra->inContext!=OutputXRef) 
                                             {
-                                              briefEndsAtDot=FALSE;
-                                              setOutput(OutputDoc);
+                                              yyextra->briefEndsAtDot=FALSE;
+                                              setOutput(OutputDoc,yyscanner);
                                             }
-                                            addOutput(yytext); 
+                                            addOutput(yytext,yyscanner);
                                           }
   					}
 <Comment>^{B}*"-"{B}+			{ // start of autolist
-					  if (inContext!=OutputXRef) 
+					  if (yyextra->inContext!=OutputXRef) 
 					  {
-					    briefEndsAtDot=FALSE;
-					    setOutput(OutputDoc);
+					    yyextra->briefEndsAtDot=FALSE;
+					    setOutput(OutputDoc,yyscanner);
 					  }
-  				          addOutput(yytext); 
+  				          addOutput(yytext,yyscanner);
   					}
 <Comment>^{B}*([\-:|]{B}*)*("--"|"---")({B}*[\-:|])*{B}*/\n { // horizontal line (dashed)
-  				          addOutput(yytext); 
+  				          addOutput(yytext,yyscanner);
                                         }
 <Comment>{CMD}"---"                     { // escaped mdash
-                                          addOutput(yytext);
+                                          addOutput(yytext,yyscanner);
                                         }
 <Comment>{CMD}"--"                      { // escaped mdash
-                                          addOutput(yytext);
+                                          addOutput(yytext,yyscanner);
                                         }
 <Comment>"---"                          { // mdash
-                                          addOutput(insidePre || Doxygen::markdownSupport ? yytext : "&mdash;");
+                                          addOutput(yyextra->insidePre || Doxygen::markdownSupport ? yytext : "&mdash;",yyscanner);
                                         }
 <Comment>"--"                           { // ndash
-                                          addOutput(insidePre || Doxygen::markdownSupport ? yytext : "&ndash;");
+                                          addOutput(yyextra->insidePre || Doxygen::markdownSupport ? yytext : "&ndash;",yyscanner);
                                         }
 <Comment>"-#"{B}+                       { // numbered item
-                                          addOutput(yytext);
+                                          addOutput(yytext,yyscanner);
                                         }
 <Comment>("."+)[a-z_A-Z0-9\)]		{ // . at start or in the middle of a word, or ellipsis
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
   					}
 <Comment>".\\"[ \t]			{ // . with escaped space.
-  					  addOutput(yytext[0]);
-  					  addOutput(yytext[2]);
+  					  addOutput(yytext[0],yyscanner);
+  					  addOutput(yytext[2],yyscanner);
   					}
 <Comment>".,"				{ // . with comma such as "e.g.," 
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
   					}
 <Comment>"...\\"[ \t]			{ // ellipsis with escaped space.
-  					  addOutput("... ");
+  					  addOutput("... ",yyscanner);
   					}
 <Comment>".."[\.]?/[^ \t\n] 		{ // internal ellipsis 
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
   					}
 <Comment>(\n|\\_linebr)({B}*(\n|\\_linebr))+	{ // at least one blank line (or blank line command)
-					  if (inContext==OutputXRef)
+					  if (yyextra->inContext==OutputXRef)
 					  {
 					    // see bug 613024, we need to put the newlines after ending the XRef section.
-					    if (!g_insideParBlock) setOutput(OutputDoc);
+					    if (!yyextra->insideParBlock) setOutput(OutputDoc,yyscanner);
                                             int i;
                                             for (i=0;i<yyleng;)
                                             {
-                                              if (yytext[i]=='\n') addOutput('\n'),i++;
-                                              else if (strcmp(yytext+i,"\\_linebr")==0) addOutput('\n'),i+=8;
+                                              if (yytext[i]=='\n') addOutput('\n',yyscanner),i++;
+                                              else if (strcmp(yytext+i,"\\_linebr")==0) addOutput('\n',yyscanner),i+=8;
                                               else i++;
                                             }
 					  }
-					  else if (inContext!=OutputBrief)
+					  else if (yyextra->inContext!=OutputBrief)
 					  {
                                             int i;
                                             for (i=0;i<yyleng;)
                                             {
-                                              if (yytext[i]=='\n') addOutput('\n'),i++;
-                                              else if (strcmp(yytext+i,"\\_linebr")==0) addOutput('\n'),i+=8;
+                                              if (yytext[i]=='\n') addOutput('\n',yyscanner),i++;
+                                              else if (strcmp(yytext+i,"\\_linebr")==0) addOutput('\n',yyscanner),i+=8;
                                               else i++;
                                             }
-					    setOutput(OutputDoc);
+					    setOutput(OutputDoc,yyscanner);
 					  }
-					  else // inContext==OutputBrief
+					  else // yyextra->inContext==OutputBrief
 					  { // only go to the detailed description if we have
 					    // found some brief description and not just whitespace
-					    endBrief(FALSE);
+					    endBrief(FALSE,yyscanner);
 					  }
-  					  lineCount();
+  					  lineCount(yyscanner);
   					}
 <Comment>"."				{ // potential end of a JavaDoc style comment
-  					  addOutput(*yytext);
-  					  if (briefEndsAtDot)
+  					  addOutput(*yytext,yyscanner);
+  					  if (yyextra->briefEndsAtDot)
 					  {
-					    setOutput(OutputDoc);
-					    briefEndsAtDot=FALSE;
+					    setOutput(OutputDoc,yyscanner);
+					    yyextra->briefEndsAtDot=FALSE;
 					  }
   					}
 <Comment>\n				{ // newline
-  					  addOutput(*yytext);
-  					  yyLineNr++;
+  					  addOutput(*yytext,yyscanner);
+  					  yyextra->yyLineNr++;
   					}
 <Comment>.				{ // catch-all for anything else
-  					  addOutput(*yytext);
+  					  addOutput(*yytext,yyscanner);
   					}
 
 
@@ -891,7 +887,7 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 
 <HtmlComment>"--"[!]?">"{B}*		{ BEGIN( Comment ); }
 <HtmlComment>{DOCNL}			{ 
-  					  if (*yytext=='\n') yyLineNr++;
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
   					}
 <HtmlComment>[^\\\n\-]+			{ // ignore unimportant characters
   					}
@@ -901,49 +897,49 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
  /* --------------   Rules for handling formulas ---------------- */
  
 <ReadFormulaShort>{CMD}"f$"		{ // end of inline formula
-  					  formulaText+="$";
-					  addOutput(" "+addFormula());
+  					  yyextra->formulaText+="$";
+					  addOutput(" "+addFormula(yyscanner),yyscanner);
 					  BEGIN(Comment);
   					}
 <ReadFormulaLong>{CMD}"f]"		{ // end of block formula
-					  formulaText+="\\]";
-					  addOutput(" "+addFormula());
+					  yyextra->formulaText+="\\]";
+					  addOutput(" "+addFormula(yyscanner),yyscanner);
 					  BEGIN(Comment);
   					}
 <ReadFormulaLong>{CMD}"f}"		{ // end of custom env formula
-					  formulaText+="\\end";
-					  formulaText+=formulaEnv;
-					  addOutput(" "+addFormula());
+					  yyextra->formulaText+="\\end";
+					  yyextra->formulaText+=yyextra->formulaEnv;
+					  addOutput(" "+addFormula(yyscanner),yyscanner);
 					  BEGIN(Comment);
   					}
 <ReadFormulaLong,ReadFormulaShort>[^\\@\n]+ { // any non-special character
-                                          formulaText+=yytext; 
+                                          yyextra->formulaText+=yytext; 
  					} 
 <ReadFormulaLong,ReadFormulaShort>\n	{ // new line
-                                          formulaNewLines++;
-                                          formulaText+=*yytext; 
-					  yyLineNr++; 
+                                          yyextra->formulaNewLines++;
+                                          yyextra->formulaText+=*yytext; 
+					  yyextra->yyLineNr++; 
 					}
 <ReadFormulaLong,ReadFormulaShort>.     { // any othe character
-                                          formulaText+=*yytext; 
+                                          yyextra->formulaText+=*yytext; 
 					}
 
   /* ------------ handle argument of enum command --------------- */
 
 <EnumDocArg1>{SCOPEID}			{ // handle argument
-  					  current->name = yytext;
+  					  yyextra->current->name = yytext;
 					  BEGIN( Comment );
   					}
 <EnumDocArg1>{LC}			{ // line continuation
-  					  yyLineNr++;
-					  addOutput('\n');
+  					  yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
                                         }
 <EnumDocArg1>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
                                                "missing argument after \\enum."
                                               );
-					  addOutput('\n');
-  					  if (*yytext=='\n') yyLineNr++;
+					  addOutput('\n',yyscanner);
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
 					  BEGIN( Comment );
   					}
 <EnumDocArg1>.				{ // ignore other stuff
@@ -952,20 +948,20 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ------------ handle argument of namespace command --------------- */
 
 <NameSpaceDocArg1>{SCOPENAME}		{ // handle argument
-  					  current->name = substitute(yytext,".","::");
+  					  yyextra->current->name = substitute(yytext,".","::");
 					  BEGIN( Comment );
   					}
 <NameSpaceDocArg1>{LC}			{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
                                         }
 <NameSpaceDocArg1>{DOCNL}		{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
                                                "missing argument after "
 					       "\\namespace."
                                               );
-					  addOutput('\n');
-  					  if (*yytext=='\n') yyLineNr++;
+					  addOutput('\n',yyscanner);
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
 					  BEGIN( Comment );
   					}
 <NameSpaceDocArg1>.			{ // ignore other stuff
@@ -974,20 +970,20 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ------------ handle argument of package command --------------- */
 
 <PackageDocArg1>{ID}("."{ID})*		{ // handle argument
-  					  current->name = yytext;
+  					  yyextra->current->name = yytext;
 					  BEGIN( Comment );
   					}
 <PackageDocArg1>{LC}			{ // line continuation 
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
                                         }
 <PackageDocArg1>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
                                                "missing argument after "
 					       "\\package."
                                               );
-					  addOutput('\n');
-  					  if (*yytext=='\n') yyLineNr++;
+					  addOutput('\n',yyscanner);
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
 					  BEGIN( Comment );
   					}
 <PackageDocArg1>.			{ // ignore other stuff
@@ -996,64 +992,64 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ------ handle argument of class/struct/union command --------------- */
 
 <ClassDocArg1>{SCOPENAME}{TMPLSPEC}     { 
-  					  current->name = substitute(removeRedundantWhiteSpace(yytext),".","::");
+  					  yyextra->current->name = substitute(removeRedundantWhiteSpace(yytext),".","::");
 					  BEGIN( ClassDocArg2 );
                                         }
 <ClassDocArg1>{SCOPENAME}		{ // first argument
-  					  current->name = substitute(yytext,".","::");
-					  if (current->section==Entry::PROTOCOLDOC_SEC)
+  					  yyextra->current->name = substitute(yytext,".","::");
+					  if (yyextra->current->section==Entry::PROTOCOLDOC_SEC)
 					  {
-					    current->name+="-p";
+					    yyextra->current->name+="-p";
 					  }
 					  // prepend outer scope name 
 					  BEGIN( ClassDocArg2 );
 					}
 <CategoryDocArg1>{SCOPENAME}{B}*"("[^\)]+")" {
-  					  current->name = substitute(yytext,".","::");
+  					  yyextra->current->name = substitute(yytext,".","::");
 					  BEGIN( ClassDocArg2 );
    					}
 <ClassDocArg1,CategoryDocArg1>{LC}      { // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
                                         }
 <ClassDocArg1,CategoryDocArg1>{DOCNL}	{
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
                                                "missing argument after "
 					       "\\%s.",YY_START==ClassDocArg1?"class":"category"
                                               );
-					  addOutput('\n');
-  					  if (*yytext=='\n') yyLineNr++;
+					  addOutput('\n',yyscanner);
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
 					  BEGIN( Comment );
   					}
 <ClassDocArg1,CategoryDocArg1>.		{ // ignore other stuff
   					}
 
 <ClassDocArg2>{FILE}|"<>"		{ // second argument; include file
-					  current->includeFile = yytext;
+					  yyextra->current->includeFile = yytext;
 					  BEGIN( ClassDocArg3 );
 					}
 <ClassDocArg2>{LC}			{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
                                         }
 <ClassDocArg2>{DOCNL}			{ 
-					  addOutput('\n');
-  					  if (*yytext=='\n') yyLineNr++;
+					  addOutput('\n',yyscanner);
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
 					  BEGIN( Comment );
 					}
 <ClassDocArg2>.				{ // ignore other stuff
   					}
 
 <ClassDocArg3>[<"]?{FILE}?[">]?		{ // third argument; include file name
- 					  current->includeName = yytext;
+ 					  yyextra->current->includeName = yytext;
 					  BEGIN( Comment );
 					}
 <ClassDocArg3>{LC}			{ // line continuation
-                                          yyLineNr++;
-					  addOutput('\n');
+                                          yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
                                         }
 <ClassDocArg3>{DOCNL}			{ 
-  					  if (*yytext=='\n') yyLineNr++;
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
   					  BEGIN( Comment );
 					}
 <ClassDocArg3>.				{ // ignore other stuff
@@ -1062,77 +1058,77 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* --------- handle arguments of {def,add,weak}group commands --------- */
 
 <GroupDocArg1>{LABELID}(".html"?)	{ // group name
-  					  current->name = yytext;
+  					  yyextra->current->name = yytext;
 					  //lastDefGroup.groupname = yytext;
-					  //lastDefGroup.pri = current->groupingPri();
+					  //lastDefGroup.pri = yyextra->current->groupingPri();
   					  // the .html stuff is for Qt compatibility
-					  if (current->name.right(5)==".html") 
+					  if (yyextra->current->name.right(5)==".html") 
 					  {
-					    current->name=current->name.left(current->name.length()-5);
+					    yyextra->current->name=yyextra->current->name.left(yyextra->current->name.length()-5);
 					  }
-					  current->type.resize(0);
+					  yyextra->current->type.resize(0);
 					  BEGIN(GroupDocArg2);
   					}
 <GroupDocArg1>"\\"{B}*"\n"		{ // line continuation
-  					  yyLineNr++; 
-					  addOutput('\n');
+  					  yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
                                         }
 <GroupDocArg1>{DOCNL}			{ // missing argument!
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
                                                "missing group name after %s",
-					       current->groupDocCmd()
+					       yyextra->current->groupDocCmd()
                                               );
-					  addOutput('\n');
-  					  if (*yytext=='\n') yyLineNr++;
+					  addOutput('\n',yyscanner);
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
 					  BEGIN( Comment );
   					}
 <GroupDocArg2>"\\"{B}*"\n"		{ // line continuation
-  					  yyLineNr++; 
-					  addOutput('\n');
+  					  yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
                                         }
 <GroupDocArg2>[^\n\\\*]+		{ // title (stored in type)
-					  current->type += yytext;
-					  current->type = current->type.stripWhiteSpace();
+					  yyextra->current->type += yytext;
+					  yyextra->current->type = yyextra->current->type.stripWhiteSpace();
   					}
 <GroupDocArg2>{DOCNL}			{
-                                          if ( current->groupDocType==Entry::GROUPDOC_NORMAL &&
-                                               current->type.isEmpty() 
+                                          if ( yyextra->current->groupDocType==Entry::GROUPDOC_NORMAL &&
+                                               yyextra->current->type.isEmpty() 
 					     ) // defgroup requires second argument
 					  {
-  					    warn(yyFileName,yyLineNr,
+  					    warn(yyextra->yyFileName,yyextra->yyLineNr,
                                                  "missing title after "
-					         "\\defgroup %s", current->name.data()
+					         "\\defgroup %s", yyextra->current->name.data()
                                                 );
 					  }
-  					  if (*yytext=='\n') yyLineNr++; 
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 
   /* --------- handle arguments of page/mainpage command ------------------- */
 
 <PageDocArg1>{FILE}			{ // first argument; page name
-					  current->name = stripQuotes(yytext);
+					  yyextra->current->name = stripQuotes(yytext);
 					  BEGIN( PageDocArg2 ); 
 					}
-<PageDocArg1>{LC}			{ yyLineNr++; 
-					  addOutput('\n');
+<PageDocArg1>{LC}			{ yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
                                         }
 <PageDocArg1>{DOCNL}			{
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
                                                "missing argument after "
 					       "\\page."
                                               );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <PageDocArg1>.				{ // ignore other stuff
   					}
 <PageDocArg2>.*"\n"			{ // second argument; page title
-  				          yyLineNr++;
-					  current->args = yytext;
-					  addOutput('\n');
+  				          yyextra->yyLineNr++;
+					  yyextra->current->args = yytext;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
 					}
 
@@ -1140,19 +1136,19 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 <ParamArg1>{ID}/{B}*","                 {
                                           if (yytext[0]=='_' && Config_getBool(MARKDOWN_SUPPORT))
                                           {
-                                            addOutput('\\');
+                                            addOutput('\\',yyscanner);
                                           }
-                                          addOutput(yytext);
+                                          addOutput(yytext,yyscanner);
                                         }
 <ParamArg1>","                          {
-                                          addOutput(" , ");
+                                          addOutput(" , ",yyscanner);
                                         }
 <ParamArg1>{ID}                         {
                                           if (yytext[0]=='_' && Config_getBool(MARKDOWN_SUPPORT))
                                           {
-                                            addOutput('\\');
+                                            addOutput('\\',yyscanner);
                                           }
-                                          addOutput(yytext);
+                                          addOutput(yytext,yyscanner);
                                           BEGIN( Comment );
                                         }
 <ParamArg1>.                            {
@@ -1163,16 +1159,16 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* --------- handle arguments of the file/dir/example command ------------ */
 
 <FileDocArg1>{DOCNL}			{ // no file name specfied
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
 					}
 <FileDocArg1>{FILE}			{ // first argument; name
-  					  current->name = stripQuotes(yytext);
+  					  yyextra->current->name = stripQuotes(yytext);
 					  BEGIN( Comment );
   				        }
-<FileDocArg1>{LC}			{ yyLineNr++; 
-					  addOutput('\n');
+<FileDocArg1>{LC}			{ yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
                                         }
 <FileDocArg1>.				{ // ignore other stuff
   					}
@@ -1180,62 +1176,62 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* --------- handle arguments of the xrefitem command ------------ */
 
 <XRefItemParam1>{LABELID}		{ // first argument
-  					  newXRefItemKey=yytext;
-                                          setOutput(OutputXRef);
+  					  yyextra->newXRefItemKey=yytext;
+                                          setOutput(OutputXRef,yyscanner);
 					  BEGIN(XRefItemParam2);
 					}
 <XRefItemParam1>{LC}			{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
                                         }
 <XRefItemParam1>{DOCNL}			{ // missing arguments
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					       "Missing first argument of \\xrefitem"
 					      );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
-					  inContext = OutputDoc;
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
+					  yyextra->inContext = OutputDoc;
 					  BEGIN( Comment );
   					}
 <XRefItemParam1>.			{ // ignore other stuff 
   					}
 
 <XRefItemParam2>"\""[^\n\"]*"\""	{ // second argument
-  					  xrefItemTitle = stripQuotes(yytext);
+  					  yyextra->xrefItemTitle = stripQuotes(yytext);
 					  BEGIN(XRefItemParam3);
   					}
 <XRefItemParam2>{LC}			{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
   					}
 <XRefItemParam2>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "Missing second argument of \\xrefitem"
 					      );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
-					  inContext = OutputDoc;
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
+					  yyextra->inContext = OutputDoc;
 					  BEGIN( Comment );
   					}
 <XRefItemParam2>.			{ // ignore other stuff
   					}
 
 <XRefItemParam3>"\""[^\n\"]*"\""	{ // third argument
-  					  xrefListTitle = stripQuotes(yytext);
-                                          xrefKind = XRef_Item;
+  					  yyextra->xrefListTitle = stripQuotes(yytext);
+                                          yyextra->xrefKind = XRef_Item;
 					  BEGIN( Comment );
   					}
 <XRefItemParam2,XRefItemParam3>{LC}	{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
   					}
 <XRefItemParam3>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "Missing third argument of \\xrefitem"
 					      );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
-					  inContext = OutputDoc;
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
+					  yyextra->inContext = OutputDoc;
 					  BEGIN( Comment );
   					}
 <XRefItemParam3>.			{ // ignore other stuff
@@ -1245,23 +1241,23 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ----- handle arguments of the relates(also)/memberof command ------- */
 
 <RelatesParam1>({ID}("::"|"."))*{ID}	{ // argument
-  					  current->relates = yytext;
-                                          //if (current->mGrpId!=DOX_NOGROUP) 
+  					  yyextra->current->relates = yytext;
+                                          //if (yyextra->current->mGrpId!=DOX_NOGROUP) 
                                           //{
                                           //  memberGroupRelates = yytext;
                                           //}
 					  BEGIN( Comment );
 					}
 <RelatesParam1>{LC}			{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
   					}
 <RelatesParam1>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "Missing argument of \\relates or \\memberof command"
 					      );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <RelatesParam1>.			{ // ignore other stuff
@@ -1271,94 +1267,94 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ----- handle arguments of the relates(also)/addindex commands ----- */
 
 <LineParam>{DOCNL}			{ // end of argument
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <LineParam>{LC}				{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
   					}
 <LineParam>.				{ // ignore other stuff
-  					  addOutput(*yytext);
+  					  addOutput(*yytext,yyscanner);
   					}
 
   /* ----- handle arguments of the section/subsection/.. commands ------- */
 
 <SectionLabel>{LABELID}			{ // first argyment
-  					  g_sectionLabel=yytext;
-                                          addOutput(yytext);
-					  g_sectionTitle.resize(0);
+  					  yyextra->sectionLabel=yytext;
+                                          addOutput(yytext,yyscanner);
+					  yyextra->sectionTitle.resize(0);
 					  BEGIN(SectionTitle);
   					}
 <SectionLabel>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "\\section command has no label"
 					      );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <SectionLabel>.				{ // invalid character for section label
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "Invalid or missing section label"
 					      );
 					  BEGIN(Comment);
   					}
 <SectionTitle>[^\n@\\*]*/"\n"           { // end of section title
-  					  addSection();
-                                          addOutput(yytext);
+  					  addSection(yyextra);
+                                          addOutput(yytext,yyscanner);
 					  BEGIN( Comment );
   					}
 <SectionTitle>[^\n@\\]*/"\\_linebr"     { // end of section title
-  					  addSection();
-                                          addOutput(yytext);
+  					  addSection(yyextra);
+                                          addOutput(yytext,yyscanner);
 					  BEGIN( Comment );
   					}
 <SectionTitle>{LC}			{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
   					}
 <SectionTitle>[^\n@\\]*			{ // any character without special meaning
-  					  g_sectionTitle+=yytext;
-					  addOutput(yytext);
+  					  yyextra->sectionTitle+=yytext;
+					  addOutput(yytext,yyscanner);
   					}
 <SectionTitle>("\\\\"|"@@"){ID}		{ // unescape escaped command
-  					  g_sectionTitle+=&yytext[1];
-					  addOutput(yytext);
+  					  yyextra->sectionTitle+=&yytext[1];
+					  addOutput(yytext,yyscanner);
   					}
 <SectionTitle>{CMD}[$@\\&~<>#%]		{ // unescape escaped character
-  					  g_sectionTitle+=yytext[1];
-  					  addOutput(yytext);
+  					  yyextra->sectionTitle+=yytext[1];
+  					  addOutput(yytext,yyscanner);
   					}
 <SectionTitle>.				{ // anything else
-  					  g_sectionTitle+=yytext;
-					  addOutput(*yytext);
+  					  yyextra->sectionTitle+=yytext;
+					  addOutput(*yytext,yyscanner);
   					}
 
   /* ----- handle arguments of the subpage command ------- */
 
 <SubpageLabel>{LABELID}			{ // first argument
-                                          addOutput(yytext);
+                                          addOutput(yytext,yyscanner);
 					  // we add subpage labels as a kind of "inheritance" relation to prevent
 					  // needing to add another list to the Entry class.
-					  current->extends->append(new BaseInfo(yytext,Public,Normal));
+					  yyextra->current->extends->append(new BaseInfo(yytext,Public,Normal));
 					  BEGIN(SubpageTitle);
   					}
 <SubpageLabel>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "\\subpage command has no label"
 					      );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <SubpageTitle>{DOCNL}			{ // no title, end command
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
 					  BEGIN( Comment );
   					}
 <SubpageTitle>[ \t]*"\""[^\"\n]*"\""	{ // add title, end of command
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
 					  BEGIN( Comment );
   					}
 <SubpageTitle>.				{ // no title, end of command
@@ -1369,20 +1365,20 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ----- handle arguments of the anchor command ------- */
 
 <AnchorLabel>{LABELID}			{ // found argument
-                                          addAnchor(yytext);
-					  addOutput(yytext);
+                                          addAnchor(yytext,yyscanner);
+					  addOutput(yytext,yyscanner);
 					  BEGIN( Comment );
   					}
 <AnchorLabel>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "\\anchor command has no label"
 					      );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <AnchorLabel>.				{ // invalid character for anchor label
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "Invalid or missing anchor label"
 					      );
 					  BEGIN(Comment);
@@ -1392,48 +1388,48 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ----- handle arguments of the preformatted block commands ------- */
 
 <FormatBlock>{CMD}("endverbatim"|"endlatexonly"|"endhtmlonly"|"endxmlonly"|"enddocbookonly"|"endrtfonly"|"endmanonly"|"enddot"|"endcode"|"endmsc"|"endvhdlflow")/{NW} { // possible ends
-  					  addOutput(yytext);
-					  if (&yytext[4]==blockName) // found end of the block
+  					  addOutput(yytext,yyscanner);
+					  if (&yytext[4]==yyextra->blockName) // found end of the block
 					  {
   					    BEGIN(Comment);
 					  }
   					}
 <FormatBlock>{CMD}"enduml"              {
-  					  addOutput(yytext);
-					  if (blockName=="startuml") // found end of the block
+  					  addOutput(yytext,yyscanner);
+					  if (yyextra->blockName=="startuml") // found end of the block
 					  {
   					    BEGIN(Comment);
 					  }
                                         }
 <FormatBlock>[^ \@\*\/\\\n]*		{ // some word
-  					  addOutput(yytext);
+  					  addOutput(yytext,yyscanner);
   					}
 <FormatBlock>{DOCNL}			{ // new line
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
   					}
 <FormatBlock>"/*"			{ // start of a C-comment
-  					  g_commentCount++;
-  					  addOutput(yytext);
+  					  yyextra->commentCount++;
+  					  addOutput(yytext,yyscanner);
   					}
 <FormatBlock>"*/"			{ // end of a C-comment
-  					  addOutput(yytext);
-  					  g_commentCount--;
-					  if (g_commentCount<0 && blockName!="verbatim")
+  					  addOutput(yytext,yyscanner);
+  					  yyextra->commentCount--;
+					  if (yyextra->commentCount<0 && yyextra->blockName!="verbatim")
 					  {
-					    warn(yyFileName,yyLineNr,
-					         "found */ without matching /* while inside a \\%s block! Perhaps a missing \\end%s?\n",blockName.data(),blockName.data());
+					    warn(yyextra->yyFileName,yyextra->yyLineNr,
+					         "found */ without matching /* while inside a \\%s block! Perhaps a missing \\end%s?\n",yyextra->blockName.data(),yyextra->blockName.data());
 					  }
   					}
 <FormatBlock>.				{
-  					  addOutput(*yytext);
+  					  addOutput(*yytext,yyscanner);
   					}
 <FormatBlock><<EOF>>			{
-                                          QCString endTag = "@end"+blockName;
-                                          if (blockName=="startuml") endTag="enduml";
-                                          warn(yyFileName,yyLineNr,
+                                          QCString endTag = "@end"+yyextra->blockName;
+                                          if (yyextra->blockName=="startuml") endTag="enduml";
+                                          warn(yyextra->yyFileName,yyextra->yyLineNr,
 	                                    "reached end of comment while inside a @%s block; check for missing @%s tag!",
-	                                    blockName.data(),endTag.data()
+	                                    yyextra->blockName.data(),endTag.data()
 	                                  );				
 					  yyterminate();
     					}
@@ -1441,57 +1437,57 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ----- handle arguments of if/ifnot commands ------- */
 
 <GuardParam>{B}*"("                         {
-                                          g_guardExpr=yytext;
-                                          g_roundCount=1;
+                                          yyextra->guardExpr=yytext;
+                                          yyextra->roundCount=1;
                                           BEGIN(GuardExpr);
                                         }
 <GuardExpr>[^()]*                       {
-                                          g_guardExpr+=yytext;
+                                          yyextra->guardExpr+=yytext;
                                         }
 <GuardExpr>"("                          {
-                                          g_guardExpr+=yytext;
-                                          g_roundCount++;
+                                          yyextra->guardExpr+=yytext;
+                                          yyextra->roundCount++;
                                         }
 <GuardExpr>")"                          {
-                                          g_guardExpr+=yytext;
-                                          g_roundCount--;
-                                          if (g_roundCount==0)
+                                          yyextra->guardExpr+=yytext;
+                                          yyextra->roundCount--;
+                                          if (yyextra->roundCount==0)
                                           {
-                                            handleGuard(g_guardExpr);
+                                            handleGuard(yyextra->guardExpr,yyscanner);
                                           }
                                         }
 <GuardExpr>\n                           {
-					  warn(yyFileName,yyLineNr,
-						"invalid expression '%s' for guard",g_guardExpr.data());
+					  warn(yyextra->yyFileName,yyextra->yyLineNr,
+						"invalid expression '%s' for guard",yyextra->guardExpr.data());
                                           unput(*yytext);
                                           BEGIN(GuardParam);
                                         }
 <GuardParam>{B}*[a-z_A-Z0-9.\-]+            { // parameter of if/ifnot guard
-                                          handleGuard(yytext);
+                                          handleGuard(yytext,yyscanner);
   					}
 <GuardParam>{DOCNL}			{ // end of argument
-  					  if (*yytext=='\n') yyLineNr++;
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
 					  //next line is commented out due to bug620924
-					  //addOutput('\n');
+					  //addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <GuardParam>{LC}			{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
   					}
 <GuardParam>.				{ // ignore other stuff
-  					  addOutput(*yytext);
+  					  addOutput(*yytext,yyscanner);
   					}
 <GuardParamEnd>{B}*{DOCNL}		{
-  					  g_spaceBeforeIf.resize(0);
+  					  yyextra->spaceBeforeIf.resize(0);
   					  BEGIN(Comment);
   					}
 <GuardParamEnd>{B}*			{
-  					  if (!g_spaceBeforeIf.isEmpty()) // needed for 665313 in combation with bug620924
+  					  if (!yyextra->spaceBeforeIf.isEmpty()) // needed for 665313 in combation with bug620924
 					  {
-					    addOutput(g_spaceBeforeIf);
+					    addOutput(yyextra->spaceBeforeIf,yyscanner);
 					  }
-  					  g_spaceBeforeIf.resize(0);
+  					  yyextra->spaceBeforeIf.resize(0);
   					  BEGIN(Comment);
   					}
 <GuardParamEnd>.			{
@@ -1502,67 +1498,67 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ----- handle skipping of conditional sections ------- */
 
 <SkipGuardedSection>{CMD}"ifnot"/{NW}	{
-                                          guardType = Guard_IfNot;
+                                          yyextra->guardType = Guard_IfNot;
   					  BEGIN( GuardParam );
   					}
 <SkipGuardedSection>{CMD}"if"/{NW}	{
-                                          guardType = Guard_If;
+                                          yyextra->guardType = Guard_If;
   					  BEGIN( GuardParam );
   					}
 <SkipGuardedSection>{CMD}"endif"/{NW}	{
-  					  if (guards.isEmpty())
+  					  if (yyextra->guards.isEmpty())
 					  {
-					    warn(yyFileName,yyLineNr,
+					    warn(yyextra->yyFileName,yyextra->yyLineNr,
 						"found @endif without matching start command");
 					  }
 					  else
 					  {
-					    GuardedSection *s = guards.pop();
+					    GuardedSection *s = yyextra->guards.pop();
                                             bool parentVisible = s->parentVisible();
                                             delete s;
                                             if (parentVisible)
                                             {
-					      enabledSectionFound=TRUE;
+					      yyextra->enabledSectionFound=TRUE;
 					      BEGIN( GuardParamEnd );
                                             }
 					  }
   					}
 <SkipGuardedSection>{CMD}"else"/{NW}	{
-  					  if (guards.isEmpty())
+  					  if (yyextra->guards.isEmpty())
 					  {
-					    warn(yyFileName,yyLineNr,
+					    warn(yyextra->yyFileName,yyextra->yyLineNr,
 						"found @else without matching start command");
 					  }
 					  else
 					  {
-					    if (!enabledSectionFound && guards.top()->parentVisible())
+					    if (!yyextra->enabledSectionFound && yyextra->guards.top()->parentVisible())
 					    {
-					      delete guards.pop();
-					      guards.push(new GuardedSection(TRUE,TRUE));
-					      enabledSectionFound=TRUE;
+					      delete yyextra->guards.pop();
+					      yyextra->guards.push(new GuardedSection(TRUE,TRUE));
+					      yyextra->enabledSectionFound=TRUE;
 					      BEGIN( GuardParamEnd );
 					    }
 					  }
   					}
 <SkipGuardedSection>{CMD}"elseif"/{NW}  {
-  					  if (guards.isEmpty())
+  					  if (yyextra->guards.isEmpty())
 					  {
-					    warn(yyFileName,yyLineNr,
+					    warn(yyextra->yyFileName,yyextra->yyLineNr,
 						"found @elseif without matching start command");
 					  }
 					  else
 					  {
-					    if (!enabledSectionFound && guards.top()->parentVisible())
+					    if (!yyextra->enabledSectionFound && yyextra->guards.top()->parentVisible())
 					    {
-                                              guardType=Guard_If;
-					      delete guards.pop();
+                                              yyextra->guardType=Guard_If;
+					      delete yyextra->guards.pop();
 					      BEGIN( GuardParam );
 					    }
 					  }
   					}
 <SkipGuardedSection>{DOCNL}		{ // skip line
-  					  if (*yytext=='\n') yyLineNr++;
-					  //addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  //addOutput('\n',yyscanner);
   					}
 <SkipGuardedSection>[^ \\@\n]+		{ // skip non-special characters
   					}
@@ -1573,53 +1569,53 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ----- handle skipping of internal section ------- */
 
 <SkipInternal>{DOCNL}			{ // skip line
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
   					}
 <SkipInternal>[@\\]"if"/[ \t]		{
-                                          g_condCount++;
+                                          yyextra->condCount++;
   					}
 <SkipInternal>[@\\]"ifnot"/[ \t]	{
-                                          g_condCount++;
+                                          yyextra->condCount++;
   					}
 <SkipInternal>[@\\]/"endif"		{
-                                          g_condCount--;
-					  if (g_condCount<0) // handle conditional section around of \internal, see bug607743  
+                                          yyextra->condCount--;
+					  if (yyextra->condCount<0) // handle conditional section around of \internal, see bug607743  
 					  {
 					    unput('\\');
 					    BEGIN(Comment);
 					  }
   					}
 <SkipInternal>[@\\]/"section"[ \t]	{
-  					  if (g_sectionLevel>0)
+  					  if (yyextra->sectionLevel>0)
 					  {
 					    unput('\\');
 					    BEGIN(Comment);
 					  }
   					}
 <SkipInternal>[@\\]/"subsection"[ \t]	{
-  					  if (g_sectionLevel>1)
+  					  if (yyextra->sectionLevel>1)
 					  {
 					    unput('\\');
 					    BEGIN(Comment);
 					  }
   					}
 <SkipInternal>[@\\]/"subsubsection"[ \t]	{
-  					  if (g_sectionLevel>2)
+  					  if (yyextra->sectionLevel>2)
 					  {
 					    unput('\\');
 					    BEGIN(Comment);
 					  }
   					}
 <SkipInternal>[@\\]/"paragraph"[ \t]	{
-  					  if (g_sectionLevel>3)
+  					  if (yyextra->sectionLevel>3)
 					  {
 					    unput('\\');
 					    BEGIN(Comment);
 					  }
   					}
 <SkipInternal>[@\\]"endinternal"[ \t]*  {
-                                          addOutput("\\endinternal "); 
+                                          addOutput("\\endinternal ",yyscanner); 
 					  BEGIN(Comment);
 					}
 <SkipInternal>[^ \\@\n]+		{ // skip non-special characters
@@ -1631,75 +1627,75 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ----- handle argument of name command ------- */
 
 <NameParam>{DOCNL}			{ // end of argument
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <NameParam>{LC}				{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
-					  g_memberGroupHeader+=' ';
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
+					  yyextra->memberGroupHeader+=' ';
   					}
 <NameParam>.				{ // ignore other stuff
-					  g_memberGroupHeader+=*yytext;
-					  current->name+=*yytext;
+					  yyextra->memberGroupHeader+=*yytext;
+					  yyextra->current->name+=*yytext;
   					}
 
   /* ----- handle argument of ingroup command ------- */
 
 <InGroupParam>{LABELID}			{ // group id
-  					  current->groups->append(
+  					  yyextra->current->groups->append(
 					    new Grouping(yytext, Grouping::GROUPING_INGROUP)
 					  );
-					  inGroupParamFound=TRUE;
+					  yyextra->inGroupParamFound=TRUE;
   					}
 <InGroupParam>{DOCNL}			{ // missing argument
-  					  if (!inGroupParamFound)
+  					  if (!yyextra->inGroupParamFound)
 					  {
-  					    warn(yyFileName,yyLineNr,
+  					    warn(yyextra->yyFileName,yyextra->yyLineNr,
 					        "Missing group name for \\ingroup command"
 					        );
 					  }
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <InGroupParam>{LC}			{ // line continuation
-                                          yyLineNr++; 
-					  addOutput('\n');
+                                          yyextra->yyLineNr++; 
+					  addOutput('\n',yyscanner);
   					}
 <InGroupParam>.				{ // ignore other stuff
-  					  addOutput(*yytext);
+  					  addOutput(*yytext,yyscanner);
   					}
 
   /* ----- handle argument of fn command ------- */
 
 <FnParam>{DOCNL}			{ // end of argument
-  					  if (braceCount==0)
+  					  if (yyextra->braceCount==0)
 					  {
-					    if (*yytext=='\n') yyLineNr++;
-					    addOutput('\n');
-					    langParser->parsePrototype(functionProto);
+					    if (*yytext=='\n') yyextra->yyLineNr++;
+					    addOutput('\n',yyscanner);
+					    yyextra->langParser->parsePrototype(yyextra->functionProto);
 					    BEGIN( Comment );
 					  }
   					}
 <FnParam>{LC}				{ // line continuation
-                                          yyLineNr++; 
-					  functionProto+=' ';
+                                          yyextra->yyLineNr++; 
+					  yyextra->functionProto+=' ';
   					}
 <FnParam>[^@\\\n()]+			{ // non-special characters
-                                          functionProto+=yytext;
+                                          yyextra->functionProto+=yytext;
   					}
 <FnParam>"("				{
-                                          functionProto+=yytext;
-					  braceCount++;
+                                          yyextra->functionProto+=yytext;
+					  yyextra->braceCount++;
 					}
 <FnParam>")"				{
-                                          functionProto+=yytext;
-					  braceCount--;
+                                          yyextra->functionProto+=yytext;
+					  yyextra->braceCount--;
 					}
 <FnParam>.				{ // add other stuff
-                                          functionProto+=*yytext;
+                                          yyextra->functionProto+=*yytext;
   					}
 
 
@@ -1707,45 +1703,45 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 
 
 <OverloadParam>{DOCNL}			{ // end of argument
-  					  if (*yytext=='\n') yyLineNr++;
-					  if (functionProto.stripWhiteSpace().isEmpty())
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  if (yyextra->functionProto.stripWhiteSpace().isEmpty())
 					  { // plain overload command
-					    addOutput(getOverloadDocs());
-					    addOutput('\n');
+					    addOutput(getOverloadDocs(),yyscanner);
+					    addOutput('\n',yyscanner);
 					  }
 					  else // overload declaration
 					  {
-                                            makeStructuralIndicator(Entry::OVERLOADDOC_SEC);
-					    langParser->parsePrototype(functionProto);
+                                            makeStructuralIndicator(Entry::OVERLOADDOC_SEC,yyscanner);
+					    yyextra->langParser->parsePrototype(yyextra->functionProto);
 					  }
 					  BEGIN( Comment );
   					}
 <OverloadParam>{LC}			{ // line continuation
-                                          yyLineNr++; 
-					  functionProto+=' ';
+                                          yyextra->yyLineNr++; 
+					  yyextra->functionProto+=' ';
   					}
 <OverloadParam>.			{ // add other stuff
-                                          functionProto+=*yytext;
+                                          yyextra->functionProto+=*yytext;
   					}
 
   /* ----- handle argument of inherit command ------- */
 
 <InheritParam>({ID}("::"|"."))*{ID}	{ // found argument
-					  current->extends->append(
+					  yyextra->current->extends->append(
 					    new BaseInfo(removeRedundantWhiteSpace(yytext),Public,Normal)
 					  );
 					  BEGIN( Comment );
   					}
 <InheritParam>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "\\inherit command has no argument"
 					      );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <InheritParam>.				{ // invalid character for anchor label
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "Invalid or missing name for \\inherit command"
 					      );
 					  BEGIN(Comment);
@@ -1754,17 +1750,17 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ----- handle argument of extends and implements commands ------- */
 
 <ExtendsParam>({ID}("::"|"."))*{ID}	{ // found argument
-					  current->extends->append(
+					  yyextra->current->extends->append(
 					    new BaseInfo(removeRedundantWhiteSpace(yytext),Public,Normal)
 					  );
 					  BEGIN( Comment );
   					}
 <ExtendsParam>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "\\extends or \\implements command has no argument"
 					      );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <ExtendsParam>.				{ // ignore other stuff
@@ -1783,7 +1779,7 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 <SkipLang>[^*@\\\n]*		   { /* any character not a *, @, backslash or new line */
                                    }
 <SkipLang>{DOCNL}		   { /* new line in verbatim block */
-  		                     if (*yytext=='\n') yyLineNr++;
+  		                     if (*yytext=='\n') yyextra->yyLineNr++;
                                    }
 <SkipLang>.			   { /* any other character */
                                    }
@@ -1791,20 +1787,20 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
   /* ----- handle arguments of the cite command ------- */
 
 <CiteLabel>{CITEID}			{ // found argyment
-  					  addCite();
-                                          addOutput(yytext);
+  					  addCite(yyextra);
+                                          addOutput(yytext,yyscanner);
 					  BEGIN(Comment);
   					}
 <CiteLabel>{DOCNL}			{ // missing argument
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "\\cite command has no label"
 					      );
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
 					  BEGIN( Comment );
   					}
 <CiteLabel>.				{ // invalid character for cite label
-  					  warn(yyFileName,yyLineNr,
+  					  warn(yyextra->yyFileName,yyextra->yyLineNr,
 					      "Invalid or missing cite label"
 					      );
 					  BEGIN(Comment);
@@ -1814,21 +1810,21 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 
 <CopyDoc><<EOF>>			|
 <CopyDoc>{DOCNL}			{
-  					  if (*yytext=='\n') yyLineNr++;
-					  addOutput('\n');
-					  setOutput(OutputDoc);
-                                          addOutput("\\copydetails ");
-					  addOutput(g_copyDocArg);
-					  addOutput("\n");
+  					  if (*yytext=='\n') yyextra->yyLineNr++;
+					  addOutput('\n',yyscanner);
+					  setOutput(OutputDoc,yyscanner);
+                                          addOutput("\\copydetails ",yyscanner);
+					  addOutput(yyextra->copyDocArg,yyscanner);
+					  addOutput("\n",yyscanner);
 					  BEGIN(Comment);
   					}
 <CopyDoc>[^\n\\]+			{
-  					  g_copyDocArg+=yytext;
-					  addOutput(yytext);
+  					  yyextra->copyDocArg+=yytext;
+					  addOutput(yytext,yyscanner);
   					}
 <CopyDoc>.				{
-  					  g_copyDocArg+=yytext;
-					  addOutput(yytext);
+  					  yyextra->copyDocArg+=yytext;
+					  addOutput(yytext,yyscanner);
   					}
 
 
@@ -1836,12 +1832,14 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 
 
 //-----------------------------------------------------------------------------
-static void initParser()
+static void initParser(yyscan_t yyscanner)
 {
-  g_sectionLabel.resize(0);
-  g_sectionTitle.resize(0);
-  g_memberGroupHeader.resize(0);
-  g_insideParBlock = FALSE;
+  struct yyguts_t *yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->sectionLabel.resize(0);
+  yyextra->sectionTitle.resize(0);
+  yyextra->memberGroupHeader.resize(0);
+  yyextra->insideParBlock = FALSE;
 }
 
 
@@ -1877,27 +1875,31 @@ static bool getDocSectionName(int s)
 
 //-----------------------------------------------------------------------------
 
-static bool makeStructuralIndicator(Entry::Sections s)
+static bool makeStructuralIndicator(Entry::Sections s,yyscan_t yyscanner)
 {
-  //printf("current->section=%x\n",current->section);
-  if (getDocSectionName(current->section))
+  struct yyguts_t *yyg = (struct yyguts_t*)yyscanner;
+
+  //printf("yyextra->current->section=%x\n",yyextra->current->section);
+  if (getDocSectionName(yyextra->current->section))
   {
     return TRUE;
   }
   else
   {
-    needNewEntry = TRUE;
-    current->section = s;
-    current->fileName = yyFileName;
-    current->startLine = yyLineNr;
+    yyextra->needNewEntry = TRUE;
+    yyextra->current->section = s;
+    yyextra->current->fileName = yyextra->yyFileName;
+    yyextra->current->startLine = yyextra->yyLineNr;
     return FALSE;
   }
 }
 
-static void lineCount()
+static void lineCount(yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   for( const char* c = yytext ; *c ; ++c )
-    yyLineNr += (*c == '\n') ;
+    yyextra->yyLineNr += (*c == '\n') ;
 }
 
 
@@ -1916,9 +1918,11 @@ static QCString stripQuotes(const char *s)
 //-----------------------------------------------------------------
 
 static void addXRefItem(const char *listName,const char *itemTitle,
-                        const char *listTitle,bool append)
+                        const char *listTitle,bool append,yyscan_t yyscanner)
 {
-  Entry *docEntry = current; // inBody && previous ? previous : current;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  Entry *docEntry = yyextra->current; // yyextra->inBody && previous ? previous : current;
   if (listName==0) return;
   //printf("addXRefItem(%s,%s,%s,%d)\n",listName,itemTitle,listTitle,append);
 
@@ -1950,11 +1954,11 @@ static void addXRefItem(const char *listName,const char *itemTitle,
     item->text += " <p>";
     if (Doxygen::markdownSupport)
     {
-      item->text += processMarkdown(yyFileName,yyLineNr,current,outputXRef);
+      item->text += processMarkdown(yyextra->yyFileName,yyextra->yyLineNr,yyextra->current,yyextra->outputXRef);
     }
     else
     {
-      item->text += outputXRef;
+      item->text += yyextra->outputXRef;
     }
     //printf("%s: text +=%s\n",listName,item->text.data());
   }
@@ -1972,17 +1976,17 @@ static void addXRefItem(const char *listName,const char *itemTitle,
     ASSERT(item!=0);
     if (Doxygen::markdownSupport)
     {
-      item->text = processMarkdown(yyFileName,yyLineNr,current,outputXRef);
+      item->text = processMarkdown(yyextra->yyFileName,yyextra->yyLineNr,yyextra->current,yyextra->outputXRef);
     }
     else
     {
-      item->text = outputXRef;
+      item->text = yyextra->outputXRef;
     }
     item->listAnchor = anchorLabel;
     docEntry->addSpecialListItem(listName,itemId);
     QCString cmdString;
     cmdString.sprintf("\\xrefitem %s %d.",listName,itemId);
-    if (inBody)
+    if (yyextra->inBody)
     {
       docEntry->inbodyDocs += cmdString;
     }
@@ -1995,33 +1999,35 @@ static void addXRefItem(const char *listName,const char *itemTitle,
     {
       if (si->lineNr != -1)
       {
-        warn(listName,yyLineNr,"multiple use of section label '%s', (first occurrence: %s, line %d)",anchorLabel,si->fileName.data(),si->lineNr);
+        warn(listName,yyextra->yyLineNr,"multiple use of section label '%s', (first occurrence: %s, line %d)",anchorLabel,si->fileName.data(),si->lineNr);
       }
       else
       {
-        warn(listName,yyLineNr,"multiple use of section label '%s', (first occurrence: %s)",anchorLabel,si->fileName.data());
+        warn(listName,yyextra->yyLineNr,"multiple use of section label '%s', (first occurrence: %s)",anchorLabel,si->fileName.data());
       }
     }
     else
     {
-      si=new SectionInfo(listName,yyLineNr,anchorLabel,
-                         g_sectionTitle,SectionInfo::Anchor,
-                         g_sectionLevel);
+      si=new SectionInfo(listName,yyextra->yyLineNr,anchorLabel,
+                         yyextra->sectionTitle,SectionInfo::Anchor,
+                         yyextra->sectionLevel);
       Doxygen::sectionDict->append(anchorLabel,si);
       docEntry->anchors->append(si);
     }
   }
-  outputXRef.resize(0);
+  yyextra->outputXRef.resize(0);
 }
 
 //-----------------------------------------------------------------------------
 
 // Adds a formula text to the list/dictionary of formulas if it was
 // not already added. Returns the label of the formula.
-static QCString addFormula()
+static QCString addFormula(yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   QCString formLabel;
-  QCString fText=formulaText.simplifyWhiteSpace();
+  QCString fText=yyextra->formulaText.simplifyWhiteSpace();
   Formula *f=0;
   if ((f=Doxygen::formulaDict->find(fText))==0)
   {
@@ -2036,7 +2042,7 @@ static QCString addFormula()
     formLabel.sprintf("\\form#%d",f->getId());
   }
   int i;
-  for (i=0;i<formulaNewLines;i++) formLabel+="@_fakenl"; // add fake newlines to
+  for (i=0;i<yyextra->formulaNewLines;i++) formLabel+="@_fakenl"; // add fake newlines to
                                                          // keep the warnings 
                                                          // correctly aligned.
   return formLabel;
@@ -2050,40 +2056,44 @@ static SectionInfo::SectionType sectionLevelToType(int level)
   return SectionInfo::Anchor;
 }
 
-static void addSection()
+static void addSection(yyscan_t yyscanner)
 {
-  SectionInfo *si = Doxygen::sectionDict->find(g_sectionLabel);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  SectionInfo *si = Doxygen::sectionDict->find(yyextra->sectionLabel);
   if (si)
   {
     if (si->lineNr != -1)
     {
-      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding section, (first occurrence: %s, line %d)",g_sectionLabel.data(),si->fileName.data(),si->lineNr);
+      warn(yyextra->yyFileName,yyextra->yyLineNr,"multiple use of section label '%s' while adding section, (first occurrence: %s, line %d)",yyextra->sectionLabel.data(),si->fileName.data(),si->lineNr);
     }
     else
     {
-      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding section, (first occurrence: %s)",g_sectionLabel.data(),si->fileName.data());
+      warn(yyextra->yyFileName,yyextra->yyLineNr,"multiple use of section label '%s' while adding section, (first occurrence: %s)",yyextra->sectionLabel.data(),si->fileName.data());
     }
   }
   else
   {
     // create a new section element
-    g_sectionTitle+=yytext;
-    g_sectionTitle=g_sectionTitle.stripWhiteSpace();
-    si = new SectionInfo(yyFileName,yyLineNr,g_sectionLabel,
-                          g_sectionTitle,sectionLevelToType(g_sectionLevel),g_sectionLevel);
+    yyextra->sectionTitle+=yytext;
+    yyextra->sectionTitle=yyextra->sectionTitle.stripWhiteSpace();
+    si = new SectionInfo(yyextra->yyFileName,yyextra->yyLineNr,yyextra->sectionLabel,
+                          yyextra->sectionTitle,sectionLevelToType(yyextra->sectionLevel),yyextra->sectionLevel);
 
     // add section to this entry
-    current->anchors->append(si);
+    yyextra->current->anchors->append(si);
 
     // add section to the global dictionary
-    Doxygen::sectionDict->append(g_sectionLabel,si);
+    Doxygen::sectionDict->append(yyextra->sectionLabel,si);
   }
 }
 
 //-----------------------------------------------------------------------------
 
-static void addCite()
+static void addCite(yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   Doxygen::citeDict->insert(yytext);
 }
 
@@ -2103,66 +2113,73 @@ static void stripTrailingWhiteSpace(QCString &s)
 }
 
 // selects the output to write to
-static inline void setOutput(OutputContext ctx)
+static inline void setOutput(OutputContext ctx,yyscan_t yyscanner)
 {
-  bool xrefAppendToPrev = xrefAppendFlag;
-  // determine append flag for the next item (i.e. the end of this item)
-  xrefAppendFlag = !inBody &&
-                   inContext==OutputXRef && ctx==OutputXRef && // two consecutive xref items
-                   newXRefKind==xrefKind &&                    // of the same kind
-                   (xrefKind!=XRef_Item || 
-		    newXRefItemKey==xrefItemKey);              // with the same key if \xrefitem
-  //printf("%d && %d && %d && (%d || %d)\n",
-  //                 inContext==OutputXRef,
-  //                 ctx==OutputXRef,
-  //                 newXRefKind==xrefKind,
-  //                 xrefKind!=XRef_Item,
-  //	  	     newXRefItemKey==xrefItemKey);
-      
-  //printf("refKind=%d newXRefKind=%d xrefAppendToPrev=%d xrefAppendFlag=%d\n",
-  //   	  xrefKind,newXRefKind,xrefAppendToPrev,xrefAppendFlag);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
 
-  //printf("setOutput(inContext=%d ctx=%d)\n",inContext,ctx);
-  if (inContext==OutputXRef) // end of XRef section => add the item 
+  bool xrefAppendToPrev = yyextra->xrefAppendFlag;
+  // determine append flag for the next item (i.e. the end of this item)
+  yyextra->xrefAppendFlag = !yyextra->inBody &&
+                   yyextra->inContext==OutputXRef && ctx==OutputXRef && // two consecutive xref items
+                   yyextra->newXRefKind==yyextra->xrefKind &&                    // of the same kind
+                   (yyextra->xrefKind!=XRef_Item || 
+		    yyextra->newXRefItemKey==yyextra->xrefItemKey);              // with the same key if \xrefitem
+  //printf("%d && %d && %d && (%d || %d)\n",
+  //                 yyextra->inContext==OutputXRef,
+  //                 ctx==OutputXRef,
+  //                 yyextra->newXRefKind==yyextra->xrefKind,
+  //                 yyextra->xrefKind!=XRef_Item,
+  //	  	     yyextra->newXRefItemKey==yyextra->xrefItemKey);
+      
+  //printf("refKind=%d yyextra->newXRefKind=%d xrefAppendToPrev=%d yyextra->xrefAppendFlag=%d\n",
+  //   	  yyextra->xrefKind,yyextra->newXRefKind,xrefAppendToPrev,yyextra->xrefAppendFlag);
+
+  //printf("setOutput(yyextra->inContext=%d ctx=%d)\n",yyextra->inContext,ctx);
+  if (yyextra->inContext==OutputXRef) // end of XRef section => add the item 
   {
     // See if we can append this new xref item to the previous one.
     // We know this at the start of the next item of the same
     // type and need to remember this until the end of that item.
-    switch(xrefKind)
+    switch(yyextra->xrefKind)
     {
       case XRef_Todo:
 	addXRefItem("todo",
 	            theTranslator->trTodo(),
 	            theTranslator->trTodoList(),
-		    xrefAppendToPrev
+		    xrefAppendToPrev,
+		    yyscanner
 		   );
 	break;
       case XRef_Test:
 	addXRefItem("test",
 	            theTranslator->trTest(),
 		    theTranslator->trTestList(),
-		    xrefAppendToPrev
+		    xrefAppendToPrev,
+		    yyscanner
 		   );
 	break;
       case XRef_Bug:
 	addXRefItem("bug",
 	            theTranslator->trBug(),
 		    theTranslator->trBugList(),
-		    xrefAppendToPrev
+		    xrefAppendToPrev,
+		    yyscanner
 		   );
 	break;
       case XRef_Deprecated:
 	addXRefItem("deprecated",
 	            theTranslator->trDeprecated(),
 		    theTranslator->trDeprecatedList(),
-		    xrefAppendToPrev
+		    xrefAppendToPrev,
+		    yyscanner
 		   );
 	break;
       case XRef_Item:  // user defined list
-	addXRefItem(xrefItemKey,
-	            xrefItemTitle,
-		    xrefListTitle,
-		    xrefAppendToPrev
+	addXRefItem(yyextra->xrefItemKey,
+	            yyextra->xrefItemTitle,
+		    yyextra->xrefListTitle,
+		    xrefAppendToPrev,
+		    yyscanner
 		   );
 	break;
       case XRef_None:
@@ -2170,111 +2187,121 @@ static inline void setOutput(OutputContext ctx)
 	break;
     }
   }
-  xrefItemKey = newXRefItemKey;
+  yyextra->xrefItemKey = yyextra->newXRefItemKey;
 
-  int oldContext = inContext;
-  inContext = ctx;
-  if (inContext!=OutputXRef && inBody) inContext=OutputInbody;
-  switch(inContext)
+  int oldContext = yyextra->inContext;
+  yyextra->inContext = ctx;
+  if (yyextra->inContext!=OutputXRef && yyextra->inBody) yyextra->inContext=OutputInbody;
+  switch(yyextra->inContext)
   {
     case OutputDoc:
-      if (oldContext!=inContext)
+      if (oldContext!=yyextra->inContext)
       {
-        stripTrailingWhiteSpace(current->doc);
-        if (current->docFile.isEmpty())
+        stripTrailingWhiteSpace(yyextra->current->doc);
+        if (yyextra->current->docFile.isEmpty())
         {
-          current->docFile = yyFileName;
-          current->docLine = yyLineNr;
+          yyextra->current->docFile = yyextra->yyFileName;
+          yyextra->current->docLine = yyextra->yyLineNr;
         }
       }
-      pOutputString = &current->doc;
+      yyextra->pOutputString = &yyextra->current->doc;
       break;
     case OutputBrief:
-      if (oldContext!=inContext)
+      if (oldContext!=yyextra->inContext)
       {
-	if (current->briefFile.isEmpty())
+	if (yyextra->current->briefFile.isEmpty())
 	{
-	  current->briefFile = yyFileName;
-	  current->briefLine = yyLineNr;
+	  yyextra->current->briefFile = yyextra->yyFileName;
+	  yyextra->current->briefLine = yyextra->yyLineNr;
 	}
       }
-      if (current->brief.stripWhiteSpace().isEmpty()) // we only want one brief
+      if (yyextra->current->brief.stripWhiteSpace().isEmpty()) // we only want one brief
 	                                              // description even if multiple
 	                                              // are given...
       {
-        pOutputString = &current->brief;
+        yyextra->pOutputString = &yyextra->current->brief;
       }
       else
       {
-        pOutputString = &current->doc;
-	inContext = OutputDoc; // need to switch to detailed docs, see bug 631380
+        yyextra->pOutputString = &yyextra->current->doc;
+	yyextra->inContext = OutputDoc; // need to switch to detailed docs, see bug 631380
       }
       break;
     case OutputXRef:
-      pOutputString = &outputXRef;
+      yyextra->pOutputString = &yyextra->outputXRef;
       // first item found, so can't append to previous
-      //xrefAppendFlag = FALSE;
+      //yyextra->xrefAppendFlag = FALSE;
       break;
     case OutputInbody:
-      pOutputString = &current->inbodyDocs;
+      yyextra->pOutputString = &yyextra->current->inbodyDocs;
       break;
   }
 }
 
 
-static void addAnchor(const char *anchor)
+static void addAnchor(const char *anchor,yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   SectionInfo *si = Doxygen::sectionDict->find(anchor);
   if (si)
   {
     if (si->lineNr != -1)
     {
-      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding anchor, (first occurrence: %s, line %d)",anchor,si->fileName.data(),si->lineNr);
+      warn(yyextra->yyFileName,yyextra->yyLineNr,"multiple use of section label '%s' while adding anchor, (first occurrence: %s, line %d)",anchor,si->fileName.data(),si->lineNr);
     }
     else
     {
-      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding anchor, (first occurrence: %s)",anchor,si->fileName.data());
+      warn(yyextra->yyFileName,yyextra->yyLineNr,"multiple use of section label '%s' while adding anchor, (first occurrence: %s)",anchor,si->fileName.data());
     }
   }
   else
   {
-    si = new SectionInfo(yyFileName,yyLineNr,anchor,0,SectionInfo::Anchor,0);
+    si = new SectionInfo(yyextra->yyFileName,yyextra->yyLineNr,anchor,0,SectionInfo::Anchor,0);
     Doxygen::sectionDict->append(anchor,si);
-    current->anchors->append(si);
+    yyextra->current->anchors->append(si);
   }
 }
 
 // add a string to the output
-static inline void addOutput(const char *s)
+static inline void addOutput(const char *s,yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   //printf("addOutput(%s)\n",s);
-  *pOutputString+=s;
+  *yyextra->pOutputString+=s;
 }
 
 // add a character to the output
-static inline void addOutput(char c)
+static inline void addOutput(char c,yyscan_t yyscanner)
 {
-  *pOutputString+=c;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  *yyextra->pOutputString+=c;
 }
 
-static void endBrief(bool addToOutput)
+static void endBrief(bool addToOutput,yyscan_t yyscanner)
 {
-  if (!current->brief.stripWhiteSpace().isEmpty())
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (!yyextra->current->brief.stripWhiteSpace().isEmpty())
   { // only go to the detailed description if we have
     // found some brief description and not just whitespace
-    briefEndsAtDot=FALSE;
-    setOutput(OutputDoc);
-    if (addToOutput) addOutput(yytext);
+    yyextra->briefEndsAtDot=FALSE;
+    setOutput(OutputDoc,yyscanner);
+    if (addToOutput) addOutput(yytext,yyscanner);
   }
 }
 
-static int yyread(char *buf,int max_size)
+static int yyread(char *buf,int max_size,yyscan_t yyscanner)
 {
-    prevPosition=inputPosition;
+    struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+    yyextra->prevPosition=yyextra->inputPosition;
     int c=0;
-    while( c < max_size && inputString[inputPosition] )
+    while( c < max_size && yyextra->inputString[yyextra->inputPosition] )
     {
-	*buf = inputString[inputPosition++] ;
+	*buf = yyextra->inputString[yyextra->inputPosition++] ;
 	//printf("%d (%c)\n",*buf,*buf);
 	c++; buf++;
     }
@@ -2283,426 +2310,522 @@ static int yyread(char *buf,int max_size)
 
 //----------------------------------------------------------------------------
 
-static bool handleBrief(const QCString &)
+static bool handleBrief(const QCString &,yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   //printf("handleBrief\n");
-  setOutput(OutputBrief);
+  setOutput(OutputBrief,yyscanner);
   return FALSE;
 }
 
-static bool handleFn(const QCString &)
+static bool handleFn(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::MEMBERDOC_SEC);
-  functionProto.resize(0);
-  braceCount=0;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::MEMBERDOC_SEC,yyscanner);
+  yyextra->functionProto.resize(0);
+  yyextra->braceCount=0;
   BEGIN(FnParam);
   return stop;
 }
 
-static bool handleDef(const QCString &)
+static bool handleDef(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::DEFINEDOC_SEC);
-  functionProto.resize(0);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::DEFINEDOC_SEC,yyscanner);
+  yyextra->functionProto.resize(0);
   BEGIN(FnParam);
   return stop;
 }
 
-static bool handleOverload(const QCString &)
+static bool handleOverload(const QCString &,yyscan_t yyscanner)
 {
-  functionProto.resize(0);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->functionProto.resize(0);
   BEGIN(OverloadParam);
   return FALSE;
 }
 
-static bool handleEnum(const QCString &)
+static bool handleEnum(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::ENUMDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::ENUMDOC_SEC,yyscanner);
   BEGIN(EnumDocArg1);
   return stop;
 }
 
-static bool handleDefGroup(const QCString &)
+static bool handleDefGroup(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::GROUPDOC_SEC);
-  current->groupDocType = Entry::GROUPDOC_NORMAL;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::GROUPDOC_SEC,yyscanner);
+  yyextra->current->groupDocType = Entry::GROUPDOC_NORMAL;
   BEGIN( GroupDocArg1 );
   return stop;
 }
 
-static bool handleAddToGroup(const QCString &)
+static bool handleAddToGroup(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::GROUPDOC_SEC);
-  current->groupDocType = Entry::GROUPDOC_ADD;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::GROUPDOC_SEC,yyscanner);
+  yyextra->current->groupDocType = Entry::GROUPDOC_ADD;
   BEGIN( GroupDocArg1 );
   return stop;
 }
 
-static bool handleWeakGroup(const QCString &)
+static bool handleWeakGroup(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::GROUPDOC_SEC);
-  current->groupDocType = Entry::GROUPDOC_WEAK;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::GROUPDOC_SEC,yyscanner);
+  yyextra->current->groupDocType = Entry::GROUPDOC_WEAK;
   BEGIN( GroupDocArg1 );
   return stop;
 }
 
-static bool handleNamespace(const QCString &)
+static bool handleNamespace(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::NAMESPACEDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::NAMESPACEDOC_SEC,yyscanner);
   BEGIN( NameSpaceDocArg1 );
   return stop;
 }
 
-static bool handlePackage(const QCString &)
+static bool handlePackage(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::PACKAGEDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::PACKAGEDOC_SEC,yyscanner);
   BEGIN( PackageDocArg1 );
   return stop;
 }
 
-static bool handleClass(const QCString &)
+static bool handleClass(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::CLASSDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::CLASSDOC_SEC,yyscanner);
   BEGIN( ClassDocArg1 ); 
   return stop;
 }
 
-static bool handleHeaderFile(const QCString &)
+static bool handleHeaderFile(const QCString &,yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   BEGIN( ClassDocArg2 );
   return FALSE;
 }
 
-static bool handleProtocol(const QCString &)
+static bool handleProtocol(const QCString &,yyscan_t yyscanner)
 { // Obj-C protocol
-  bool stop=makeStructuralIndicator(Entry::PROTOCOLDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::PROTOCOLDOC_SEC,yyscanner);
   BEGIN( ClassDocArg1 ); 
   return stop;
 }
 
-static bool handleCategory(const QCString &)
+static bool handleCategory(const QCString &,yyscan_t yyscanner)
 { // Obj-C category
-  bool stop=makeStructuralIndicator(Entry::CATEGORYDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::CATEGORYDOC_SEC,yyscanner);
   BEGIN( CategoryDocArg1 ); 
   return stop;
 }
 
-static bool handleUnion(const QCString &)
+static bool handleUnion(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::UNIONDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::UNIONDOC_SEC,yyscanner);
   BEGIN( ClassDocArg1 ); 
   return stop;
 }
 
-static bool handleStruct(const QCString &)
+static bool handleStruct(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::STRUCTDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::STRUCTDOC_SEC,yyscanner);
   BEGIN( ClassDocArg1 ); 
   return stop;
 }
 
-static bool handleInterface(const QCString &)
+static bool handleInterface(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::INTERFACEDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::INTERFACEDOC_SEC,yyscanner);
   BEGIN( ClassDocArg1 ); 
   return stop;
 }
 
-static bool handleIdlException(const QCString &)
+static bool handleIdlException(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::EXCEPTIONDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::EXCEPTIONDOC_SEC,yyscanner);
   BEGIN( ClassDocArg1 ); 
   return stop;
 }
 
-static bool handlePage(const QCString &)
+static bool handlePage(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::PAGEDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::PAGEDOC_SEC,yyscanner);
   BEGIN( PageDocArg1 );
   return stop;
 }
 
-static bool handleMainpage(const QCString &)
+static bool handleMainpage(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::MAINPAGEDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::MAINPAGEDOC_SEC,yyscanner);
   if (!stop) 
   {
-    current->name = "mainpage";
+    yyextra->current->name = "mainpage";
   }
   BEGIN( PageDocArg2 );
   return stop;
 }
 
-static bool handleFile(const QCString &)
+static bool handleFile(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::FILEDOC_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::FILEDOC_SEC,yyscanner);
   if (!stop) 
   {
-    current->name = yyFileName;
+    yyextra->current->name = yyextra->yyFileName;
   }
   BEGIN( FileDocArg1 );
   return stop;
 }
 
-static bool handleParam(const QCString &)
+static bool handleParam(const QCString &,yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   // we need process param and retval arguments to escape leading underscores in case of
   // markdown processing, see bug775493
-  addOutput("@param ");
+  addOutput("@param ",yyscanner);
   BEGIN( ParamArg1 );
   return FALSE;
 }
 
-static bool handleRetval(const QCString &)
+static bool handleRetval(const QCString &,yyscan_t yyscanner)
 {
-  addOutput("@retval ");
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  addOutput("@retval ",yyscanner);
   BEGIN( ParamArg1 );
   return FALSE;
 }
 
-static bool handleDir(const QCString &)
+static bool handleDir(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::DIRDOC_SEC);
-  if (!stop) current->name = yyFileName;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::DIRDOC_SEC,yyscanner);
+  if (!stop) yyextra->current->name = yyextra->yyFileName;
   BEGIN( FileDocArg1 );
   return stop;
 }
 
-static bool handleExample(const QCString &)
+static bool handleExample(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::EXAMPLE_SEC);
-  if (!stop) current->name = yyFileName;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::EXAMPLE_SEC,yyscanner);
+  if (!stop) yyextra->current->name = yyextra->yyFileName;
   BEGIN( FileDocArg1 );
   return stop;
 }
 
-static bool handleDetails(const QCString &)
+static bool handleDetails(const QCString &,yyscan_t yyscanner)
 {
-  if (inContext!=OutputBrief)
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (yyextra->inContext!=OutputBrief)
   {
-    addOutput("\n\n"); // treat @details outside brief description
+    addOutput("\n\n",yyscanner); // treat @details outside brief description
                        // as a new paragraph
   }
-  setOutput(OutputDoc);
+  setOutput(OutputDoc,yyscanner);
   return FALSE;
 }
 
-static bool handleName(const QCString &)
+static bool handleName(const QCString &,yyscan_t yyscanner)
 {
-  bool stop=makeStructuralIndicator(Entry::MEMBERGRP_SEC);
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  bool stop=makeStructuralIndicator(Entry::MEMBERGRP_SEC,yyscanner);
   if (!stop)
   {
-    g_memberGroupHeader.resize(0);
+    yyextra->memberGroupHeader.resize(0);
     BEGIN( NameParam );
-    if (g_memberGroupId!=DOX_NOGROUP) // end of previous member group
+    if (yyextra->memberGroupId!=DOX_NOGROUP) // end of previous member group
     {
-      closeGroup(current,yyFileName,yyLineNr,TRUE);
+      closeGroup(yyextra->current,yyextra->yyFileName,yyextra->yyLineNr,TRUE);
     }
   }
   return stop;
 }
 
-static bool handleTodo(const QCString &)
+static bool handleTodo(const QCString &,yyscan_t yyscanner)
 {
-  newXRefKind = XRef_Todo;
-  setOutput(OutputXRef);
-  xrefKind = XRef_Todo;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->newXRefKind = XRef_Todo;
+  setOutput(OutputXRef,yyscanner);
+  yyextra->xrefKind = XRef_Todo;
   return FALSE;
 }
 
-static bool handleTest(const QCString &)
+static bool handleTest(const QCString &,yyscan_t yyscanner)
 {
-  newXRefKind = XRef_Test;
-  setOutput(OutputXRef);
-  xrefKind = XRef_Test;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->newXRefKind = XRef_Test;
+  setOutput(OutputXRef,yyscanner);
+  yyextra->xrefKind = XRef_Test;
   return FALSE;
 }
 
-static bool handleBug(const QCString &)
+static bool handleBug(const QCString &,yyscan_t yyscanner)
 {
-  newXRefKind = XRef_Bug;
-  setOutput(OutputXRef);
-  xrefKind = XRef_Bug;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->newXRefKind = XRef_Bug;
+  setOutput(OutputXRef,yyscanner);
+  yyextra->xrefKind = XRef_Bug;
   return FALSE;
 }
 
-static bool handleDeprecated(const QCString &)
+static bool handleDeprecated(const QCString &,yyscan_t yyscanner)
 {
-  newXRefKind = XRef_Deprecated;
-  setOutput(OutputXRef);
-  xrefKind = XRef_Deprecated;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->newXRefKind = XRef_Deprecated;
+  setOutput(OutputXRef,yyscanner);
+  yyextra->xrefKind = XRef_Deprecated;
   return FALSE;
 }
 
-static bool handleXRefItem(const QCString &)
+static bool handleXRefItem(const QCString &,yyscan_t yyscanner)
 {
-  newXRefKind = XRef_Item;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->newXRefKind = XRef_Item;
   BEGIN(XRefItemParam1);
   return FALSE;
 }
 
-static bool handleParBlock(const QCString &)
+static bool handleParBlock(const QCString &,yyscan_t yyscanner)
 {
-  if (g_insideParBlock)
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (yyextra->insideParBlock)
   {
-    warn(yyFileName,yyLineNr,
+    warn(yyextra->yyFileName,yyextra->yyLineNr,
 	"found \\parblock command while already in a parblock!");
   }
-  if (!g_spaceBeforeCmd.isEmpty()) 
+  if (!yyextra->spaceBeforeCmd.isEmpty()) 
   {
-    addOutput(g_spaceBeforeCmd);
-    g_spaceBeforeCmd.resize(0);
+    addOutput(yyextra->spaceBeforeCmd,yyscanner);
+    yyextra->spaceBeforeCmd.resize(0);
   }
-  addOutput("@parblock ");
-  g_insideParBlock = TRUE;
+  addOutput("@parblock ",yyscanner);
+  yyextra->insideParBlock = TRUE;
   return FALSE;
 }
 
-static bool handleEndParBlock(const QCString &)
+static bool handleEndParBlock(const QCString &,yyscan_t yyscanner)
 {
-  if (!g_insideParBlock)
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (!yyextra->insideParBlock)
   {
-    warn(yyFileName,yyLineNr,
+    warn(yyextra->yyFileName,yyextra->yyLineNr,
 	"found \\endparblock command without matching \\parblock!");
   }
-  addOutput("@endparblock");
-  setOutput(OutputDoc); // to end a parblock inside a xrefitem like context
-  g_insideParBlock = FALSE;
+  addOutput("@endparblock",yyscanner);
+  setOutput(OutputDoc,yyscanner); // to end a parblock inside a xrefitem like context
+  yyextra->insideParBlock = FALSE;
   return FALSE;
 }
 
-static bool handleRelated(const QCString &)
+static bool handleRelated(const QCString &,yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   BEGIN(RelatesParam1);
   return FALSE;
 }
 
-static bool handleRelatedAlso(const QCString &)
+static bool handleRelatedAlso(const QCString &,yyscan_t yyscanner)
 {
-  current->relatesType = Duplicate;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->relatesType = Duplicate;
   BEGIN(RelatesParam1);
   return FALSE;
 }
 
-static bool handleMemberOf(const QCString &)
+static bool handleMemberOf(const QCString &,yyscan_t yyscanner)
 {
-  current->relatesType = MemberOf;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->relatesType = MemberOf;
   BEGIN(RelatesParam1);
   return FALSE;
 }
 
-static bool handleRefItem(const QCString &)
+static bool handleRefItem(const QCString &,yyscan_t yyscanner)
 {
-  addOutput("@refitem ");
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  addOutput("@refitem ",yyscanner);
   BEGIN(LineParam);
   return FALSE;
 }
 
-static bool handleSection(const QCString &s)
+static bool handleSection(const QCString &s,yyscan_t yyscanner)
 {
-  setOutput(OutputDoc);
-  addOutput("@"+s+" ");
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  setOutput(OutputDoc,yyscanner);
+  addOutput("@"+s+" ",yyscanner);
   BEGIN(SectionLabel);
-  if      (s=="section")       g_sectionLevel=1;
-  else if (s=="subsection")    g_sectionLevel=2;
-  else if (s=="subsubsection") g_sectionLevel=3;
-  else if (s=="paragraph")     g_sectionLevel=4;
+  if      (s=="section")       yyextra->sectionLevel=1;
+  else if (s=="subsection")    yyextra->sectionLevel=2;
+  else if (s=="subsubsection") yyextra->sectionLevel=3;
+  else if (s=="paragraph")     yyextra->sectionLevel=4;
   return FALSE;
 }
 
-static bool handleSubpage(const QCString &s)
+static bool handleSubpage(const QCString &s,yyscan_t yyscanner)
 {
-  if (current->section!=Entry::EMPTY_SEC && 
-      current->section!=Entry::PAGEDOC_SEC &&
-      current->section!=Entry::MAINPAGEDOC_SEC
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (yyextra->current->section!=Entry::EMPTY_SEC && 
+      yyextra->current->section!=Entry::PAGEDOC_SEC &&
+      yyextra->current->section!=Entry::MAINPAGEDOC_SEC
      )
   {
-    warn(yyFileName,yyLineNr,
+    warn(yyextra->yyFileName,yyextra->yyLineNr,
 	"found \\subpage command in a comment block that is not marked as a page!");
   }
-  if (!g_spaceBeforeCmd.isEmpty()) 
+  if (!yyextra->spaceBeforeCmd.isEmpty()) 
   {
-    addOutput(g_spaceBeforeCmd);
-    g_spaceBeforeCmd.resize(0);
+    addOutput(yyextra->spaceBeforeCmd,yyscanner);
+    yyextra->spaceBeforeCmd.resize(0);
   }
-  addOutput("@"+s+" ");
+  addOutput("@"+s+" ",yyscanner);
   BEGIN(SubpageLabel);
   return FALSE;
 }
 
-static bool handleAnchor(const QCString &s)
+static bool handleAnchor(const QCString &s, yyscan_t yyscanner)
 {
-  addOutput("@"+s+" ");
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  addOutput("@"+s+" ",yyscanner);
   BEGIN(AnchorLabel);
   return FALSE;
 }
 
-static bool handleCite(const QCString &s)
+static bool handleCite(const QCString &s, yyscan_t yyscanner)
 {
-  if (!g_spaceBeforeCmd.isEmpty()) 
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (!yyextra->spaceBeforeCmd.isEmpty()) 
   {
-    addOutput(g_spaceBeforeCmd);
-    g_spaceBeforeCmd.resize(0);
+    addOutput(yyextra->spaceBeforeCmd,yyscanner);
+    yyextra->spaceBeforeCmd.resize(0);
   }
-  addOutput("@"+s+" ");
+  addOutput("@"+s+" ",yyscanner);
   BEGIN(CiteLabel);
   return FALSE;
 }
 
-static bool handleFormatBlock(const QCString &s)
+static bool handleFormatBlock(const QCString &s, yyscan_t yyscanner)
 {
-  addOutput("@"+s+" ");
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  addOutput("@"+s+" ",yyscanner);
   //printf("handleFormatBlock(%s)\n",s.data());
-  blockName=s;
-  g_commentCount=0;
+  yyextra->blockName=s;
+  yyextra->commentCount=0;
   BEGIN(FormatBlock);
   return FALSE;
 }
 
-static bool handleAddIndex(const QCString &)
+static bool handleAddIndex(const QCString &, yyscan_t yyscanner)
 {
-  addOutput("@addindex ");
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  addOutput("@addindex ",yyscanner);
   BEGIN(LineParam);
   return FALSE;
 }
 
-static bool handleIf(const QCString &)
+static bool handleIf(const QCString &, yyscan_t yyscanner)
 {
-  enabledSectionFound=FALSE;
-  guardType = Guard_If;
-  g_spaceBeforeIf = g_spaceBeforeCmd;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->enabledSectionFound=FALSE;
+  yyextra->guardType = Guard_If;
+  yyextra->spaceBeforeIf = yyextra->spaceBeforeCmd;
   BEGIN(GuardParam);
   return FALSE;
 }
 
-static bool handleIfNot(const QCString &)
+static bool handleIfNot(const QCString &, yyscan_t yyscanner)
 {
-  enabledSectionFound=FALSE;
-  guardType = Guard_IfNot;
-  g_spaceBeforeIf = g_spaceBeforeCmd;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->enabledSectionFound=FALSE;
+  yyextra->guardType = Guard_IfNot;
+  yyextra->spaceBeforeIf = yyextra->spaceBeforeCmd;
   BEGIN(GuardParam);
   return FALSE;
 }
 
-static bool handleElseIf(const QCString &)
+static bool handleElseIf(const QCString &, yyscan_t yyscanner)
 {
-  if (guards.isEmpty())
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (yyextra->guards.isEmpty())
   {
-    warn(yyFileName,yyLineNr,
+    warn(yyextra->yyFileName,yyextra->yyLineNr,
 	"found \\else without matching start command");
   }
   else
   {
-    guardType = enabledSectionFound ? Guard_Skip : Guard_If;
+    yyextra->guardType = yyextra->enabledSectionFound ? Guard_Skip : Guard_If;
     BEGIN(GuardParam);
   }
   return FALSE;
 }
 
-static bool handleElse(const QCString &)
+static bool handleElse(const QCString &, yyscan_t yyscanner)
 {
-  if (guards.isEmpty())
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (yyextra->guards.isEmpty())
   {
-    warn(yyFileName,yyLineNr,
+    warn(yyextra->yyFileName,yyextra->yyLineNr,
 	"found \\else without matching start command");
   }
   else
@@ -2712,230 +2835,372 @@ static bool handleElse(const QCString &)
   return FALSE;
 }
 
-static bool handleEndIf(const QCString &)
+static bool handleEndIf(const QCString &, yyscan_t yyscanner)
 {
-  if (guards.isEmpty())
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (yyextra->guards.isEmpty())
   {
-    warn(yyFileName,yyLineNr,
+    warn(yyextra->yyFileName,yyextra->yyLineNr,
 	"found \\endif without matching start command");
   }
   else
   {
-    delete guards.pop();
+    delete yyextra->guards.pop();
   }
-  enabledSectionFound=FALSE;
-  if (!g_spaceBeforeCmd.isEmpty()) 
+  yyextra->enabledSectionFound=FALSE;
+  if (!yyextra->spaceBeforeCmd.isEmpty()) 
   {
-    addOutput(g_spaceBeforeCmd);
-    g_spaceBeforeCmd.resize(0);
+    addOutput(yyextra->spaceBeforeCmd,yyscanner);
+    yyextra->spaceBeforeCmd.resize(0);
   }
   BEGIN( GuardParamEnd );
   return FALSE;
 }
 
-static bool handleIngroup(const QCString &)
+static bool handleIngroup(const QCString &,yyscan_t yyscanner)
 {
-  inGroupParamFound=FALSE;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->inGroupParamFound=FALSE;
   BEGIN( InGroupParam );
   return FALSE;
 }
 
-static bool handleNoSubGrouping(const QCString &)
+static bool handleNoSubGrouping(const QCString &,yyscan_t yyscanner)
 {
-  current->subGrouping = FALSE; 
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->subGrouping = FALSE; 
   return FALSE;
 }
 
-static bool handleShowInitializer(const QCString &)
+static bool handleShowInitializer(const QCString &,yyscan_t yyscanner)
 {
-  current->initLines = 100000; // ON
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->initLines = 100000; // ON
   return FALSE;
 }
 
-static bool handleHideInitializer(const QCString &)
+static bool handleHideInitializer(const QCString &,yyscan_t yyscanner)
 {
-  current->initLines = 0; // OFF
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->initLines = 0; // OFF
   return FALSE;
 }
 
-static bool handleCallgraph(const QCString &)
+static bool handleCallgraph(const QCString &,yyscan_t yyscanner)
 {
-  current->callGraph = TRUE; // ON
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->callGraph = TRUE; // ON
   return FALSE;
 }
 
-static bool handleHideCallgraph(const QCString &)
+static bool handleHideCallgraph(const QCString &,yyscan_t yyscanner)
 {
-  current->callGraph = FALSE; // OFF
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->callGraph = FALSE; // OFF
   return FALSE;
 }
 
-static bool handleCallergraph(const QCString &)
+static bool handleCallergraph(const QCString &,yyscan_t yyscanner)
 {
-  current->callerGraph = TRUE; // ON
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->callerGraph = TRUE; // ON
   return FALSE;
 }
 
-static bool handleHideCallergraph(const QCString &)
+static bool handleHideCallergraph(const QCString &,yyscan_t yyscanner)
 {
-  current->callerGraph = FALSE; // OFF
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->callerGraph = FALSE; // OFF
   return FALSE;
 }
 
-static bool handleInternal(const QCString &)
+static bool handleInternal(const QCString &,yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   if (!Config_getBool(INTERNAL_DOCS))
   {
     // make sure some whitespace before a \internal command
     // is not treated as "documentation"
-    if (current->doc.stripWhiteSpace().isEmpty())
+    if (yyextra->current->doc.stripWhiteSpace().isEmpty())
     { 
-      current->doc.resize(0);
+      yyextra->current->doc.resize(0);
     }
-    g_condCount=0;
+    yyextra->condCount=0;
     BEGIN( SkipInternal );
   }
   else
   {
     // re-enabled for bug640828
-    addOutput("\\internal "); 
-    inInternalDocs = TRUE;
+    addOutput("\\internal ",yyscanner); 
+    yyextra->inInternalDocs = TRUE;
   }
   return FALSE;
 }
 
-static bool handleLineBr(const QCString &)
+static bool handleLineBr(const QCString &,yyscan_t yyscanner)
 {
-  addOutput('\n');
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  addOutput('\n',yyscanner);
   return FALSE;
 }
 
-static bool handleStatic(const QCString &)
+static bool handleStatic(const QCString &,yyscan_t yyscanner)
 {
-  endBrief();
-  current->stat = TRUE; 
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  endBrief(TRUE,yyscanner);
+  yyextra->current->stat = TRUE; 
   return FALSE;
 }
 
-static bool handlePure(const QCString &)
+static bool handlePure(const QCString &,yyscan_t yyscanner)
 {
-  endBrief();
-  current->virt = Pure; 
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  endBrief(TRUE,yyscanner);
+  yyextra->current->virt = Pure; 
   return FALSE;
 }
 
-static bool handlePrivate(const QCString &)
+static bool handlePrivate(const QCString &,yyscan_t yyscanner)
 {
-  current->protection = Private;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->protection = Private;
   return FALSE;
 }
 
-static bool handlePrivateSection(const QCString &)
+static bool handlePrivateSection(const QCString &,yyscan_t yyscanner)
 {
-  current->protection = protection = Private;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->protection = yyextra->protection = Private;
   return FALSE;
 }
 
-static bool handleProtected(const QCString &)
+static bool handleProtected(const QCString &,yyscan_t yyscanner)
 {
-  current->protection = Protected;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->protection = Protected;
   return FALSE;
 }
 
-static bool handleProtectedSection(const QCString &)
+static bool handleProtectedSection(const QCString &,yyscan_t yyscanner)
 {
-  current->protection = protection = Protected ;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->protection = yyextra->protection = Protected ;
   return FALSE;
 }
 
-static bool handlePublic(const QCString &)
+static bool handlePublic(const QCString &,yyscan_t yyscanner)
 {
-  current->protection = Public;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->protection = Public;
   return FALSE;
 }
 
-static bool handlePublicSection(const QCString &)
+static bool handlePublicSection(const QCString &,yyscan_t yyscanner)
 {
-  current->protection = protection = Public;
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  yyextra->current->protection = yyextra->protection = Public;
   return FALSE;
 }
 
-static bool handleToc(const QCString &)
+static bool handleToc(const QCString &,yyscan_t yyscanner)
 {
-  if (current->section==Entry::PAGEDOC_SEC || 
-      current->section==Entry::MAINPAGEDOC_SEC)
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (yyextra->current->section==Entry::PAGEDOC_SEC || 
+      yyextra->current->section==Entry::MAINPAGEDOC_SEC)
   {
-    current->stat=TRUE;  // we 'abuse' stat to pass whether or the TOC is enabled
+    yyextra->current->stat=TRUE;  // we 'abuse' stat to pass whether or the TOC is enabled
   }
   return FALSE;
 }
 
-static bool handleInherit(const QCString &)
+static bool handleInherit(const QCString &, yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   BEGIN(InheritParam);
   return FALSE;
 }
 
-static bool handleExtends(const QCString &)
+static bool handleExtends(const QCString &, yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   BEGIN(ExtendsParam);
   return FALSE;
 }
 
-static bool handleCopyBrief(const QCString &)
+static bool handleCopyBrief(const QCString &,yyscan_t yyscanner)
 {
-  if (current->brief.isEmpty() && current->doc.isEmpty())
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (yyextra->current->brief.isEmpty() && yyextra->current->doc.isEmpty())
   { // if we don't have a brief or detailed description yet,
     // then the @copybrief should end up in the brief description.
     // otherwise it will be copied inline (see bug691315 & bug700788)
-    setOutput(OutputBrief);
+    setOutput(OutputBrief,yyscanner);
   }
-  if (!g_spaceBeforeCmd.isEmpty()) 
+  if (!yyextra->spaceBeforeCmd.isEmpty()) 
   {
-    addOutput(g_spaceBeforeCmd);
-    g_spaceBeforeCmd.resize(0);
+    addOutput(yyextra->spaceBeforeCmd,yyscanner);
+    yyextra->spaceBeforeCmd.resize(0);
   }
-  addOutput("\\copybrief ");
+  addOutput("\\copybrief ",yyscanner);
   return FALSE;
 }
 
-static bool handleCopyDetails(const QCString &)
+static bool handleCopyDetails(const QCString &,yyscan_t yyscanner)
 {
-  setOutput(OutputDoc);
-  if (!g_spaceBeforeCmd.isEmpty()) 
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  setOutput(OutputDoc,yyscanner);
+  if (!yyextra->spaceBeforeCmd.isEmpty()) 
   {
-    addOutput(g_spaceBeforeCmd);
-    g_spaceBeforeCmd.resize(0);
+    addOutput(yyextra->spaceBeforeCmd,yyscanner);
+    yyextra->spaceBeforeCmd.resize(0);
   }
-  addOutput("\\copydetails ");
+  addOutput("\\copydetails ",yyscanner);
   return FALSE;
 }
 
-static bool handleCopyDoc(const QCString &)
+static bool handleCopyDoc(const QCString &, yyscan_t yyscanner)
 {
-  setOutput(OutputBrief);
-  if (!g_spaceBeforeCmd.isEmpty()) 
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  setOutput(OutputBrief,yyscanner);
+  if (!yyextra->spaceBeforeCmd.isEmpty()) 
   {
-    addOutput(g_spaceBeforeCmd);
-    g_spaceBeforeCmd.resize(0);
+    addOutput(yyextra->spaceBeforeCmd,yyscanner);
+    yyextra->spaceBeforeCmd.resize(0);
   }
-  addOutput("\\copybrief ");
-  g_copyDocArg.resize(0);
+  addOutput("\\copybrief ",yyscanner);
+  yyextra->copyDocArg.resize(0);
   BEGIN(CopyDoc);
   return FALSE;
 }
 
 //----------------------------------------------------------------------------
 
-static void checkFormula()
+static void checkFormula(yyscan_t yyscanner)
 {
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
   if (YY_START==ReadFormulaShort || YY_START==ReadFormulaLong)
   {
-    warn(yyFileName,yyLineNr,"End of comment block while inside formula.");
+    warn(yyextra->yyFileName,yyextra->yyLineNr,"End of comment block while inside formula.");
   }
 }
 
-//----------------------------------------------------------------------------
+
+//---------------------------------------------------------------------------
+
+static int findExistingGroup(int &groupId,const MemberGroupInfo *info,yyscan_t yyscanner)
+{
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  //printf("findExistingGroup %s:%s\n",info->header.data(),info->compoundName.data());
+  QIntDictIterator<MemberGroupInfo> di(Doxygen::memGrpInfoDict);
+  MemberGroupInfo *mi;
+  for (di.toFirst();(mi=di.current());++di)
+  {
+    if (yyextra->compoundName==mi->compoundName &&  // same file or scope
+	!mi->header.isEmpty() &&             // not a nameless group
+	qstricmp(mi->header,info->header)==0  // same header name
+       )
+    {
+      //printf("Found it!\n");
+      return (int)di.currentKey(); // put the item in this group
+    }
+  }
+  groupId++; // start new group
+  return groupId;
+}
+
+static void groupAddDocs(Entry *e, yyscan_t yyscanner)
+{
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  if (e->section==Entry::MEMBERGRP_SEC)
+  {
+    yyextra->memberGroupDocs=e->brief.stripWhiteSpace();
+    e->doc = stripLeadingAndTrailingEmptyLines(e->doc,e->docLine);
+    if (!yyextra->memberGroupDocs.isEmpty() && !e->doc.isEmpty())
+    {
+      yyextra->memberGroupDocs+="\n\n";
+    }
+    yyextra->memberGroupDocs+=e->doc;
+    MemberGroupInfo *info=Doxygen::memGrpInfoDict.find(yyextra->memberGroupId);
+    if (info) 
+    {
+      info->doc = yyextra->memberGroupDocs;
+      info->docFile = e->docFile;
+      info->docLine = e->docLine;
+      info->setRefItems(e->sli);
+    }
+    e->doc.resize(0);
+    e->brief.resize(0);
+  }
+}
+
+static void handleGuard(const QCString &expr, yyscan_t yyscanner)
+{
+  struct yyguts_t * yyg = (struct yyguts_t*)yyscanner;
+
+  CondParser prs;
+  bool sectionEnabled=prs.parse(yyextra->yyFileName,yyextra->yyLineNr,expr.stripWhiteSpace());
+  bool parentEnabled = TRUE;
+  if (!yyextra->guards.isEmpty()) parentEnabled = yyextra->guards.top()->isEnabled();
+  if (parentEnabled)
+  {
+    if (
+        (sectionEnabled && yyextra->guardType==Guard_If) ||  
+        (!sectionEnabled && yyextra->guardType==Guard_IfNot)
+       ) // section is visible
+    {
+      yyextra->guards.push(new GuardedSection(TRUE,TRUE));
+      yyextra->enabledSectionFound=TRUE;
+      BEGIN( GuardParamEnd );
+    }
+    else // section is invisible
+    {
+      if (yyextra->guardType!=Guard_Skip)
+      {
+        yyextra->guards.push(new GuardedSection(FALSE,TRUE));
+      }
+      BEGIN( SkipGuardedSection );
+    }
+  }
+  else // invisible because of parent
+  {
+    yyextra->guards.push(new GuardedSection(FALSE,FALSE));
+    BEGIN( SkipGuardedSection );
+  }
+}
+
+
+// public interface -----------------------------------------------------------
+DocCmdMapper    *DocCmdMapper::s_instance=0;
+static yyscan_t g_yyscanner;
+static struct commentscanYY_state g_commentscan_extra;
 
 bool parseCommentBlock(/* in */     ParserInterface *parser,
                        /* in */     Entry *curEntry,
@@ -2950,248 +3215,247 @@ bool parseCommentBlock(/* in */     ParserInterface *parser,
 		       /* out */    bool &newEntryNeeded
 		      )
 {
+  commentscanYYlex_init_extra(&g_commentscan_extra, &g_yyscanner);
+  struct yyguts_t *yyg = (struct yyguts_t*)g_yyscanner;
+
   //printf("parseCommentBlock() isBrief=%d isAutoBriefOn=%d lineNr=%d\n",
   //    isBrief,isAutoBriefOn,lineNr);
 
-  initParser();
-  guards.setAutoDelete(TRUE);
-  guards.clear();
-  langParser     = parser;
-  current        = curEntry;
+  initParser(g_yyscanner);
+  yyextra->guards.setAutoDelete(TRUE);
+  yyextra->guards.clear();
+  yyextra->langParser     = parser;
+  yyextra->current        = curEntry;
+  yyextra->memberGroupId = DOX_NOGROUP;
+  yyextra->prevPosition = 0;
+  yyextra->inInternalDocs = FALSE;
   if (comment.isEmpty()) return FALSE; // avoid empty strings
-  inputString    = comment;
-  inputString.append(" ");
-  inputPosition  = position;
-  yyLineNr       = lineNr;
-  yyFileName     = fileName;
-  protection     = prot;
-  needNewEntry   = FALSE;
-  xrefKind       = XRef_None;
-  xrefAppendFlag = FALSE;
-  insidePre      = FALSE;
-  parseMore      = FALSE;
-  inBody         = isInbody;
-  outputXRef.resize(0);
-  setOutput( isBrief || isAutoBriefOn ? OutputBrief : OutputDoc );
-  briefEndsAtDot = isAutoBriefOn;
-  g_condCount    = 0;
-  g_sectionLevel = 0;
-  g_spaceBeforeCmd.resize(0);
-  g_spaceBeforeIf.resize(0);
+  yyextra->inputString    = comment;
+  yyextra->inputString.append(" ");
+  yyextra->inputPosition  = position;
+  yyextra->yyLineNr       = lineNr;
+  yyextra->yyFileName     = fileName;
+  yyextra->protection     = prot;
+  yyextra->needNewEntry   = FALSE;
+  yyextra->xrefKind       = XRef_None;
+  yyextra->xrefAppendFlag = FALSE;
+  yyextra->insidePre      = FALSE;
+  yyextra->parseMore      = FALSE;
+  yyextra->inBody         = isInbody;
+  yyextra->outputXRef.resize(0);
+  setOutput( isBrief || isAutoBriefOn ? OutputBrief : OutputDoc, g_yyscanner);
+  yyextra->briefEndsAtDot = isAutoBriefOn;
+  yyextra->condCount    = 0;
+  yyextra->sectionLevel = 0;
+  yyextra->spaceBeforeCmd.resize(0);
+  yyextra->spaceBeforeIf.resize(0);
 
   printlex(yy_flex_debug, TRUE, __FILE__, fileName ? fileName.data(): NULL);
-  if (!current->inbodyDocs.isEmpty() && isInbody) // separate in body fragments
+  if (!yyextra->current->inbodyDocs.isEmpty() && isInbody) // separate in body fragments
   {
-    current->inbodyDocs+="\n\n";
+    yyextra->current->inbodyDocs+="\n\n";
   }
 
   Debug::print(Debug::CommentScan,0,"-----------\nCommentScanner: %s:%d\n"
                "input=[\n%s]\n",qPrint(fileName),lineNr,qPrint(comment)
               );
-  
-  commentscanYYrestart( commentscanYYin );
+
+  commentscanYYrestart( yyin, g_yyscanner);
   BEGIN( Comment );
-  commentscanYYlex();
-  setOutput( OutputDoc );
+  commentscanYYlex(g_yyscanner);
+  setOutput( OutputDoc,g_yyscanner);
 
   if (YY_START==OverloadParam) // comment ended with \overload
   {
-    addOutput(getOverloadDocs());
+    addOutput(getOverloadDocs(),g_yyscanner);
   }
 
-  if (!guards.isEmpty())
+  if (!yyextra->guards.isEmpty())
   {
-    warn(yyFileName,yyLineNr,"Documentation block ended in the middle of a conditional section!");
+    warn(yyextra->yyFileName,yyextra->yyLineNr,"Documentation block ended in the middle of a conditional section!");
   }
 
-  if (g_insideParBlock)
+  if (yyextra->insideParBlock)
   {
-    warn(yyFileName,yyLineNr,
+    warn(yyextra->yyFileName,yyextra->yyLineNr,
 	"Documentation block ended while inside a \\parblock. Missing \\endparblock");
   }
 
-  current->doc=stripLeadingAndTrailingEmptyLines(current->doc,current->docLine);
+  yyextra->current->doc=stripLeadingAndTrailingEmptyLines(yyextra->current->doc,yyextra->current->docLine);
 
-  if (current->section==Entry::FILEDOC_SEC && current->doc.isEmpty())
+  if (yyextra->current->section==Entry::FILEDOC_SEC && yyextra->current->doc.isEmpty())
   {
     // to allow a comment block with just a @file command.
-    current->doc="\n\n";
+    yyextra->current->doc="\n\n";
   }
 
-  if (current->section==Entry::MEMBERGRP_SEC &&
-      g_memberGroupId==DOX_NOGROUP) // @name section but no group started yet
+  if (yyextra->current->section==Entry::MEMBERGRP_SEC &&
+      yyextra->memberGroupId==DOX_NOGROUP) // @name section but no group started yet
   {
-    openGroup(current,yyFileName,yyLineNr);
+    openGroup(yyextra->current,yyextra->yyFileName,yyextra->yyLineNr);
   }
 
   if (Doxygen::markdownSupport)
   {
-    current->brief      = processMarkdown(fileName,lineNr,current,current->brief);
-    current->doc        = processMarkdown(fileName,lineNr,current,current->doc);
-    current->inbodyDocs = processMarkdown(fileName,lineNr,current,current->inbodyDocs);
+    yyextra->current->brief      = processMarkdown(fileName,lineNr,yyextra->current,yyextra->current->brief);
+    yyextra->current->doc        = processMarkdown(fileName,lineNr,yyextra->current,yyextra->current->doc);
+    yyextra->current->inbodyDocs = processMarkdown(fileName,lineNr,yyextra->current,yyextra->current->inbodyDocs);
   }
 
   Debug::print(Debug::CommentScan,0,
                "brief=[line=%d\n%s]\ndocs=[line=%d\n%s]\ninbody=[line=%d\n%s]\n===========\n",
-	       current->briefLine,qPrint(current->brief),
-               current->docLine,qPrint(current->doc),
-               current->inbodyLine,qPrint(current->inbodyDocs)
+	       yyextra->current->briefLine,qPrint(yyextra->current->brief),
+               yyextra->current->docLine,qPrint(yyextra->current->doc),
+               yyextra->current->inbodyLine,qPrint(yyextra->current->inbodyDocs)
               );
-  
-  checkFormula();
-  prot = protection;
-  
-  groupAddDocs(curEntry);
 
-  newEntryNeeded = needNewEntry;
+  checkFormula(yyextra);
+  prot = yyextra->protection;
+
+  groupAddDocs(curEntry,g_yyscanner);
+
+  newEntryNeeded = yyextra->needNewEntry;
 
   // if we did not proceed during this call, it does not make
   // sense to continue, since we get stuck. See bug 567346 for situations
   // were this happens
-  if (parseMore && position==inputPosition) parseMore=FALSE;
+  if (yyextra->parseMore && position==yyextra->inputPosition) yyextra->parseMore=FALSE;
 
-  if (parseMore) position=inputPosition; else position=0;
+  if (yyextra->parseMore) position=yyextra->inputPosition; else position=0;
 
-  lineNr = yyLineNr;
-  //printf("position=%d parseMore=%d newEntryNeeded=%d\n",
-  //  position,parseMore,newEntryNeeded);
+  lineNr = yyextra->yyLineNr;
+  //printf("position=%d yyextra->parseMore=%d newEntryNeeded=%d\n",
+  //  position,yyextra->parseMore,newEntryNeeded);
 
   printlex(yy_flex_debug, FALSE, __FILE__, fileName ? fileName.data(): NULL);
-  return parseMore;
+  return yyextra->parseMore;
 }
 
-//---------------------------------------------------------------------------
 
 void groupEnterFile(const char *fileName,int)
 {
-  g_autoGroupStack.setAutoDelete(TRUE);
-  g_autoGroupStack.clear();
-  g_memberGroupId = DOX_NOGROUP;
-  g_memberGroupDocs.resize(0);
-  g_memberGroupRelates.resize(0);
-  g_compoundName=fileName;
+  commentscanYYlex_init_extra(&g_commentscan_extra, &g_yyscanner);
+  struct yyguts_t *yyg = (struct yyguts_t*)g_yyscanner;
+
+  yyextra->autoGroupStack.setAutoDelete(TRUE);
+  yyextra->autoGroupStack.clear();
+  yyextra->memberGroupId = DOX_NOGROUP;
+  yyextra->memberGroupDocs.resize(0);
+  yyextra->memberGroupRelates.resize(0);
+  yyextra->compoundName=fileName;
 }
 
 void groupLeaveFile(const char *fileName,int line)
 {
-  //if (g_memberGroupId!=DOX_NOGROUP)
+  struct yyguts_t * yyg = (struct yyguts_t*)g_yyscanner;
+
+  //if (yyextra->memberGroupId!=DOX_NOGROUP)
   //{
   //  warn(fileName,line,"end of file while inside a member group\n");
   //}
-  g_memberGroupId=DOX_NOGROUP;
-  g_memberGroupRelates.resize(0);
-  g_memberGroupDocs.resize(0);
-  if (!g_autoGroupStack.isEmpty())
+  yyextra->memberGroupId=DOX_NOGROUP;
+  yyextra->memberGroupRelates.resize(0);
+  yyextra->memberGroupDocs.resize(0);
+  if (!yyextra->autoGroupStack.isEmpty())
   {
     warn(fileName,line,"end of file while inside a group\n");
   }
 }
 
+
+void groupLeaveCompound(const char *,int,const char * /*name*/)
+{
+  struct yyguts_t * yyg = (struct yyguts_t*)g_yyscanner;
+
+  //printf("groupLeaveCompound(%s)\n",name);
+  //if (yyextra->memberGroupId!=DOX_NOGROUP)
+  //{
+  //  warn(fileName,line,"end of compound %s while inside a member group\n",name);
+  //}
+  yyextra->memberGroupId=DOX_NOGROUP;
+  yyextra->memberGroupRelates.resize(0);
+  yyextra->memberGroupDocs.resize(0);
+  yyextra->compoundName.resize(0);
+}
+
 void groupEnterCompound(const char *fileName,int line,const char *name)
 {
-  if (g_memberGroupId!=DOX_NOGROUP)
+  struct yyguts_t * yyg = (struct yyguts_t*)g_yyscanner;
+
+  if (yyextra->memberGroupId!=DOX_NOGROUP)
   {
     warn(fileName,line,"try to put compound %s inside a member group\n",name);
   }
-  g_memberGroupId=DOX_NOGROUP;
-  g_memberGroupRelates.resize(0);
-  g_memberGroupDocs.resize(0);
-  g_compoundName = name;
-  int i = g_compoundName.find('(');
+  yyextra->memberGroupId=DOX_NOGROUP;
+  yyextra->memberGroupRelates.resize(0);
+  yyextra->memberGroupDocs.resize(0);
+  yyextra->compoundName = name;
+  int i = yyextra->compoundName.find('(');
   if (i!=-1) 
   {
-    g_compoundName=g_compoundName.left(i); // strip category (Obj-C)
+    yyextra->compoundName=yyextra->compoundName.left(i); // strip category (Obj-C)
   }
-  if (g_compoundName.isEmpty())
+  if (yyextra->compoundName.isEmpty())
   {
-    g_compoundName=fileName;
+    yyextra->compoundName=fileName;
   }
   //printf("groupEnterCompound(%s)\n",name);
 }
 
-void groupLeaveCompound(const char *,int,const char * /*name*/)
-{
-  //printf("groupLeaveCompound(%s)\n",name);
-  //if (g_memberGroupId!=DOX_NOGROUP)
-  //{
-  //  warn(fileName,line,"end of compound %s while inside a member group\n",name);
-  //}
-  g_memberGroupId=DOX_NOGROUP;
-  g_memberGroupRelates.resize(0);
-  g_memberGroupDocs.resize(0);
-  g_compoundName.resize(0);
-}
-
-static int findExistingGroup(int &groupId,const MemberGroupInfo *info)
-{
-  //printf("findExistingGroup %s:%s\n",info->header.data(),info->compoundName.data());
-  QIntDictIterator<MemberGroupInfo> di(Doxygen::memGrpInfoDict);
-  MemberGroupInfo *mi;
-  for (di.toFirst();(mi=di.current());++di)
-  {
-    if (g_compoundName==mi->compoundName &&  // same file or scope
-	!mi->header.isEmpty() &&             // not a nameless group
-	qstricmp(mi->header,info->header)==0  // same header name
-       )
-    {
-      //printf("Found it!\n");
-      return (int)di.currentKey(); // put the item in this group
-    }
-  }
-  groupId++; // start new group
-  return groupId;
-}
-
 void openGroup(Entry *e,const char *,int)
 {
-  //printf("==> openGroup(name=%s,sec=%x) g_autoGroupStack=%d\n",
-  //  	e->name.data(),e->section,g_autoGroupStack.count());
+  struct yyguts_t *yyg = (struct yyguts_t*)g_yyscanner;
+
+  //printf("==> openGroup(name=%s,sec=%x) yyextra->autoGroupStack=%d\n",
+  //  	e->name.data(),e->section,yyextra->autoGroupStack.count());
   if (e->section==Entry::GROUPDOC_SEC) // auto group
   {
-    g_autoGroupStack.push(new Grouping(e->name,e->groupingPri()));
+    yyextra->autoGroupStack.push(new Grouping(e->name,e->groupingPri()));
   }
   else // start of a member group
   {
-    //printf("    membergroup id=%d %s\n",g_memberGroupId,g_memberGroupHeader.data());
-    if (g_memberGroupId==DOX_NOGROUP) // no group started yet
+    //printf("    membergroup id=%d %s\n",yyextra->memberGroupId,yyextra->memberGroupHeader.data());
+    if (yyextra->memberGroupId==DOX_NOGROUP) // no group started yet
     {
       static int curGroupId=0;
 
       MemberGroupInfo *info = new MemberGroupInfo;
-      info->header = g_memberGroupHeader.stripWhiteSpace();
-      info->compoundName = g_compoundName;
-      g_memberGroupId = findExistingGroup(curGroupId,info);
-      //printf("    use membergroup %d\n",g_memberGroupId);
-      Doxygen::memGrpInfoDict.insert(g_memberGroupId,info);
+      info->header = yyextra->memberGroupHeader.stripWhiteSpace();
+      info->compoundName = yyextra->compoundName;
+      yyextra->memberGroupId = findExistingGroup(curGroupId,info,g_yyscanner);
+      //printf("    use membergroup %d\n",yyextra->memberGroupId);
+      Doxygen::memGrpInfoDict.insert(yyextra->memberGroupId,info);
 
-      g_memberGroupRelates = e->relates;
-      e->mGrpId = g_memberGroupId;
+      yyextra->memberGroupRelates = e->relates;
+      e->mGrpId = yyextra->memberGroupId;
     }
   }
 }
 
 void closeGroup(Entry *e,const char *fileName,int line,bool foundInline)
 {
-  //printf("==> closeGroup(name=%s,sec=%x,file=%s,line=%d) g_autoGroupStack=%d\n",
-  //    e->name.data(),e->section,fileName,line,g_autoGroupStack.count());
-  if (g_memberGroupId!=DOX_NOGROUP) // end of member group
+  struct yyguts_t *yyg = (struct yyguts_t*)g_yyscanner;
+
+  //printf("==> closeGroup(name=%s,sec=%x,file=%s,line=%d) yyextra->autoGroupStack=%d\n",
+  //    e->name.data(),e->section,fileName,line,yyextra->autoGroupStack.count());
+  if (yyextra->memberGroupId!=DOX_NOGROUP) // end of member group
   {
-    MemberGroupInfo *info=Doxygen::memGrpInfoDict.find(g_memberGroupId);
+    MemberGroupInfo *info=Doxygen::memGrpInfoDict.find(yyextra->memberGroupId);
     if (info) // known group
     {
-      info->doc = g_memberGroupDocs;
+      info->doc = yyextra->memberGroupDocs;
       info->docFile = fileName;
       info->docLine = line;
     }
-    g_memberGroupId=DOX_NOGROUP;
-    g_memberGroupRelates.resize(0);
-    g_memberGroupDocs.resize(0);
+    yyextra->memberGroupId=DOX_NOGROUP;
+    yyextra->memberGroupRelates.resize(0);
+    yyextra->memberGroupDocs.resize(0);
     if (!foundInline) e->mGrpId=DOX_NOGROUP;
-    //printf("new group id=%d\n",g_memberGroupId);
+    //printf("new group id=%d\n",yyextra->memberGroupId);
   }
-  else if (!g_autoGroupStack.isEmpty()) // end of auto group
+  else if (!yyextra->autoGroupStack.isEmpty()) // end of auto group
   {
-    Grouping *grp = g_autoGroupStack.pop();
+    Grouping *grp = yyextra->autoGroupStack.pop();
     // see bug577005: we should not remove the last group for e
     if (!foundInline) e->groups->removeLast();
     //printf("Removing %s e=%p\n",grp->groupname.data(),e);
@@ -3202,76 +3466,20 @@ void closeGroup(Entry *e,const char *fileName,int line,bool foundInline)
 
 void initGroupInfo(Entry *e)
 {
-  //printf("==> initGroup(id=%d,related=%s,e=%p)\n",g_memberGroupId,
-  //       g_memberGroupRelates.data(),e);
-  e->mGrpId     = g_memberGroupId;
-  e->relates    = g_memberGroupRelates;
-  if (!g_autoGroupStack.isEmpty())
+  struct yyguts_t * yyg = (struct yyguts_t*)g_yyscanner;
+
+  //printf("==> initGroup(id=%d,related=%s,e=%p)\n",yyextra->memberGroupId,
+  //       yyextra->memberGroupRelates.data(),e);
+  e->mGrpId     = yyextra->memberGroupId;
+  e->relates    = yyextra->memberGroupRelates;
+  if (!yyextra->autoGroupStack.isEmpty())
   {
     //printf("Appending group %s to %s: count=%d entry=%p\n",
-    //	g_autoGroupStack.top()->groupname.data(),
+    //	yyextra->autoGroupStack.top()->groupname.data(),
     //	e->name.data(),e->groups->count(),e);
-    e->groups->append(new Grouping(*g_autoGroupStack.top()));
+    e->groups->append(new Grouping(*yyextra->autoGroupStack.top()));
   }
 }
-
-static void groupAddDocs(Entry *e)
-{
-  if (e->section==Entry::MEMBERGRP_SEC)
-  {
-    g_memberGroupDocs=e->brief.stripWhiteSpace();
-    e->doc = stripLeadingAndTrailingEmptyLines(e->doc,e->docLine);
-    if (!g_memberGroupDocs.isEmpty() && !e->doc.isEmpty())
-    {
-      g_memberGroupDocs+="\n\n";
-    }
-    g_memberGroupDocs+=e->doc;
-    MemberGroupInfo *info=Doxygen::memGrpInfoDict.find(g_memberGroupId);
-    if (info) 
-    {
-      info->doc = g_memberGroupDocs;
-      info->docFile = e->docFile;
-      info->docLine = e->docLine;
-      info->setRefItems(e->sli);
-    }
-    e->doc.resize(0);
-    e->brief.resize(0);
-  }
-}
-
-static void handleGuard(const QCString &expr)
-{
-  CondParser prs;
-  bool sectionEnabled=prs.parse(yyFileName,yyLineNr,expr.stripWhiteSpace());
-  bool parentEnabled = TRUE;
-  if (!guards.isEmpty()) parentEnabled = guards.top()->isEnabled();
-  if (parentEnabled)
-  {
-    if (
-        (sectionEnabled && guardType==Guard_If) ||  
-        (!sectionEnabled && guardType==Guard_IfNot)
-       ) // section is visible
-    {
-      guards.push(new GuardedSection(TRUE,TRUE));
-      enabledSectionFound=TRUE;
-      BEGIN( GuardParamEnd );
-    }
-    else // section is invisible
-    {
-      if (guardType!=Guard_Skip)
-      {
-        guards.push(new GuardedSection(FALSE,TRUE));
-      }
-      BEGIN( SkipGuardedSection );
-    }
-  }
-  else // invisible because of parent
-  {
-    guards.push(new GuardedSection(FALSE,FALSE));
-    BEGIN( SkipGuardedSection );
-  }
-}
-
 
 
 #if !defined(YY_FLEX_SUBMINOR_VERSION) 
