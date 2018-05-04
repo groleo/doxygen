@@ -333,10 +333,6 @@ class DocCmdMapper
     static DocCmdMapper *s_instance;
 };
 
-DocCmdMapper *DocCmdMapper::s_instance=0;
-  
-bool inInternalDocs = FALSE;
-  
 #define YY_NEVER_INTERACTIVE 1
 
 enum XRefKind
@@ -471,11 +467,14 @@ static QCString         g_memberGroupRelates;
 static QCString         g_compoundName;
 
 //-----------------------------------------------------------------------------
+static int prevPosition=0;
+DocCmdMapper *DocCmdMapper::s_instance=0;
+bool inInternalDocs = FALSE;
+
 
 #undef	YY_INPUT
 #define	YY_INPUT(buf,result,max_size) result=yyread(buf,max_size);
 
-static int prevPosition=0;
 
 %}
 
