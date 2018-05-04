@@ -382,6 +382,27 @@ void closeGroup(Entry *e,const char *file,int line,bool foundInline=FALSE);
 void initGroupInfo(Entry *e);
 static void groupAddDocs(Entry *e);
 
+static void initParser();
+static bool getDocSectionName(int s);
+static bool makeStructuralIndicator(Entry::Sections s);
+static void lineCount();
+static QCString stripQuotes(const char *s);
+static void addXRefItem(const char *listName,const char *itemTitle,
+                        const char *listTitle,bool append);
+static QCString addFormula();
+static void checkFormula();
+static SectionInfo::SectionType sectionLevelToType(int level);
+static void addSection();
+static void addCite();
+static void stripTrailingWhiteSpace(QCString &s);
+static inline void setOutput(OutputContext ctx);
+static void addAnchor(const char *anchor);
+static inline void addOutput(const char *s);
+static inline void addOutput(char c);
+static void endBrief(bool addToOutput=TRUE);
+static void handleGuard(const QCString &expr);
+static int yyread(char *buf,int max_size);
+
 /* -----------------------------------------------------------------
  *
  *	statics
@@ -451,461 +472,10 @@ static QCString         g_compoundName;
 
 //-----------------------------------------------------------------------------
 
-static void initParser()
-{
-  g_sectionLabel.resize(0);
-  g_sectionTitle.resize(0);
-  g_memberGroupHeader.resize(0);
-  g_insideParBlock = FALSE;
-}
-
-//-----------------------------------------------------------------------------
-
-static bool getDocSectionName(int s)
-{
-  switch(s)
-  {
-    case Entry::CLASSDOC_SEC:
-    case Entry::STRUCTDOC_SEC:
-    case Entry::UNIONDOC_SEC:
-    case Entry::EXCEPTIONDOC_SEC:
-    case Entry::NAMESPACEDOC_SEC:
-    case Entry::PROTOCOLDOC_SEC:
-    case Entry::CATEGORYDOC_SEC:
-    case Entry::ENUMDOC_SEC:
-    case Entry::PAGEDOC_SEC:
-    case Entry::VARIABLEDOC_SEC:
-    case Entry::MEMBERDOC_SEC:
-    case Entry::OVERLOADDOC_SEC:
-    case Entry::FILEDOC_SEC:
-    case Entry::DEFINEDOC_SEC:
-    case Entry::GROUPDOC_SEC:
-    case Entry::MAINPAGEDOC_SEC:
-    case Entry::PACKAGEDOC_SEC:
-    case Entry::DIRDOC_SEC:
-    case Entry::EXAMPLE_SEC:
-    case Entry::MEMBERGRP_SEC:
-      return TRUE;
-    default: 
-      return FALSE;
-  }
-}
-
-//-----------------------------------------------------------------------------
-
-static bool makeStructuralIndicator(Entry::Sections s)
-{
-  //printf("current->section=%x\n",current->section);
-  if (getDocSectionName(current->section))
-  {
-    return TRUE;
-  }
-  else
-  {
-    needNewEntry = TRUE;
-    current->section = s;
-    current->fileName = yyFileName;
-    current->startLine = yyLineNr;
-    return FALSE;
-  }
-}
-
-static void lineCount()
-{
-  for( const char* c = yytext ; *c ; ++c )
-    yyLineNr += (*c == '\n') ;
-}
-
-
-static QCString stripQuotes(const char *s)
-{
-  QCString name;
-  if (s==0 || *s==0) return name;
-  name=s;
-  if (name.at(0)=='"' && name.at(name.length()-1)=='"')
-  {
-    name=name.mid(1,name.length()-2);
-  }
-  return name;
-}
-
-//-----------------------------------------------------------------
-
-static void addXRefItem(const char *listName,const char *itemTitle,
-                        const char *listTitle,bool append)
-{
-  Entry *docEntry = current; // inBody && previous ? previous : current;
-  if (listName==0) return;
-  //printf("addXRefItem(%s,%s,%s,%d)\n",listName,itemTitle,listTitle,append);
-
-  ListItemInfo *lii=0;
-  RefList *refList = Doxygen::xrefLists->find(listName);
-  if (refList==0) // new list
-  {
-    refList = new RefList(listName,listTitle,itemTitle);
-    Doxygen::xrefLists->insert(listName,refList);
-    //printf("new list!\n");
-  }
-  if (docEntry->sli)
-  {
-    QListIterator<ListItemInfo> slii(*docEntry->sli);
-    for (slii.toFirst();(lii=slii.current());++slii)
-    {
-      if (qstrcmp(lii->type,listName)==0) 
-      {
-        //printf("found %s lii->type=%s\n",listName,lii->type);
-        break;
-      }
-    }
-  }
-  if (lii && append) // already found item of same type just before this one
-  {
-    //printf("listName=%s item id = %d existing\n",listName,lii->itemId);
-    RefItem *item = refList->getRefItem(lii->itemId);
-    ASSERT(item!=0);
-    item->text += " <p>";
-    if (Doxygen::markdownSupport)
-    {
-      item->text += processMarkdown(yyFileName,yyLineNr,current,outputXRef);
-    }
-    else
-    {
-      item->text += outputXRef;
-    }
-    //printf("%s: text +=%s\n",listName,item->text.data());
-  }
-  else // new item
-  {
-    int itemId  = refList->addRefItem();
-    //printf("listName=%s item id = %d new current=%p\n",listName,itemId,current);
-
-    // if we have already an item from the same list type (e.g. a second @todo)
-    // in the same Entry (i.e. lii!=0) then we reuse its link anchor.
-    char anchorLabel[1024];
-    //sprintf(anchorLabel,"_%s%06d",listName,lii ? lii->itemId : itemId);
-    sprintf(anchorLabel,"_%s%06d",listName,itemId);
-    RefItem *item = refList->getRefItem(itemId);
-    ASSERT(item!=0);
-    if (Doxygen::markdownSupport)
-    {
-      item->text = processMarkdown(yyFileName,yyLineNr,current,outputXRef);
-    }
-    else
-    {
-      item->text = outputXRef;
-    }
-    item->listAnchor = anchorLabel;
-    docEntry->addSpecialListItem(listName,itemId);
-    QCString cmdString;
-    cmdString.sprintf("\\xrefitem %s %d.",listName,itemId);
-    if (inBody)
-    {
-      docEntry->inbodyDocs += cmdString;
-    }
-    else
-    {
-      docEntry->doc += cmdString;
-    }
-    SectionInfo *si = Doxygen::sectionDict->find(anchorLabel);
-    if (si)
-    {
-      if (si->lineNr != -1)
-      {
-        warn(listName,yyLineNr,"multiple use of section label '%s', (first occurrence: %s, line %d)",anchorLabel,si->fileName.data(),si->lineNr);
-      }
-      else
-      {
-        warn(listName,yyLineNr,"multiple use of section label '%s', (first occurrence: %s)",anchorLabel,si->fileName.data());
-      }
-    }
-    else
-    {
-      si=new SectionInfo(listName,yyLineNr,anchorLabel,
-                         g_sectionTitle,SectionInfo::Anchor,
-                         g_sectionLevel);
-      Doxygen::sectionDict->append(anchorLabel,si);
-      docEntry->anchors->append(si);
-    }
-  }
-  outputXRef.resize(0);
-}
-
-//-----------------------------------------------------------------------------
-
-// Adds a formula text to the list/dictionary of formulas if it was
-// not already added. Returns the label of the formula.
-static QCString addFormula()
-{
-  QCString formLabel;
-  QCString fText=formulaText.simplifyWhiteSpace();
-  Formula *f=0;
-  if ((f=Doxygen::formulaDict->find(fText))==0)
-  {
-    f = new Formula(fText);
-    Doxygen::formulaList->append(f);
-    Doxygen::formulaDict->insert(fText,f);
-    formLabel.sprintf("\\form#%d",f->getId());
-    Doxygen::formulaNameDict->insert(formLabel,f);
-  }
-  else
-  {
-    formLabel.sprintf("\\form#%d",f->getId());
-  }
-  int i;
-  for (i=0;i<formulaNewLines;i++) formLabel+="@_fakenl"; // add fake newlines to
-                                                         // keep the warnings 
-                                                         // correctly aligned.
-  return formLabel;
-}
-
-//-----------------------------------------------------------------------------
-
-static void checkFormula();
-//-----------------------------------------------------------------------------
-
-static SectionInfo::SectionType sectionLevelToType(int level)
-{
-  if (level>=0 && level<5) return (SectionInfo::SectionType)level;
-  return SectionInfo::Anchor;
-}
-
-static void addSection()
-{
-  SectionInfo *si = Doxygen::sectionDict->find(g_sectionLabel);
-  if (si)
-  {
-    if (si->lineNr != -1)
-    {
-      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding section, (first occurrence: %s, line %d)",g_sectionLabel.data(),si->fileName.data(),si->lineNr);
-    }
-    else
-    {
-      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding section, (first occurrence: %s)",g_sectionLabel.data(),si->fileName.data());
-    }
-  }
-  else
-  {
-    // create a new section element
-    g_sectionTitle+=yytext;
-    g_sectionTitle=g_sectionTitle.stripWhiteSpace();
-    si = new SectionInfo(yyFileName,yyLineNr,g_sectionLabel,
-                          g_sectionTitle,sectionLevelToType(g_sectionLevel),g_sectionLevel);
-
-    // add section to this entry
-    current->anchors->append(si);
-
-    // add section to the global dictionary
-    Doxygen::sectionDict->append(g_sectionLabel,si);
-  }
-}
-
-//-----------------------------------------------------------------------------
-
-static void addCite()
-{
-  Doxygen::citeDict->insert(yytext);
-}
-
-//-----------------------------------------------------------------------------
-
-// strip trailing whitespace (excluding newlines) from string s
-static void stripTrailingWhiteSpace(QCString &s)
-{
-  uint len = s.length();
-  int i = (int)len-1;
-  char c;
-  while (i>=0 && ((c = s.at(i))==' ' || c=='\t' || c=='\r')) i--;
-  if (i!=(int)len-1) 
-  {
-    s.resize(i+2); // string up to and including char at pos i and \0 terminator
-  }
-}
-
-// selects the output to write to
-static inline void setOutput(OutputContext ctx)
-{
-  bool xrefAppendToPrev = xrefAppendFlag;
-  // determine append flag for the next item (i.e. the end of this item)
-  xrefAppendFlag = !inBody &&
-                   inContext==OutputXRef && ctx==OutputXRef && // two consecutive xref items
-                   newXRefKind==xrefKind &&                    // of the same kind
-                   (xrefKind!=XRef_Item || 
-		    newXRefItemKey==xrefItemKey);              // with the same key if \xrefitem
-  //printf("%d && %d && %d && (%d || %d)\n",
-  //                 inContext==OutputXRef,
-  //                 ctx==OutputXRef,
-  //                 newXRefKind==xrefKind,
-  //                 xrefKind!=XRef_Item,
-  //	  	     newXRefItemKey==xrefItemKey);
-      
-  //printf("refKind=%d newXRefKind=%d xrefAppendToPrev=%d xrefAppendFlag=%d\n",
-  //   	  xrefKind,newXRefKind,xrefAppendToPrev,xrefAppendFlag);
-
-  //printf("setOutput(inContext=%d ctx=%d)\n",inContext,ctx);
-  if (inContext==OutputXRef) // end of XRef section => add the item 
-  {
-    // See if we can append this new xref item to the previous one.
-    // We know this at the start of the next item of the same
-    // type and need to remember this until the end of that item.
-    switch(xrefKind)
-    {
-      case XRef_Todo:
-	addXRefItem("todo",
-	            theTranslator->trTodo(),
-	            theTranslator->trTodoList(),
-		    xrefAppendToPrev
-		   );
-	break;
-      case XRef_Test:
-	addXRefItem("test",
-	            theTranslator->trTest(),
-		    theTranslator->trTestList(),
-		    xrefAppendToPrev
-		   );
-	break;
-      case XRef_Bug:
-	addXRefItem("bug",
-	            theTranslator->trBug(),
-		    theTranslator->trBugList(),
-		    xrefAppendToPrev
-		   );
-	break;
-      case XRef_Deprecated:
-	addXRefItem("deprecated",
-	            theTranslator->trDeprecated(),
-		    theTranslator->trDeprecatedList(),
-		    xrefAppendToPrev
-		   );
-	break;
-      case XRef_Item:  // user defined list
-	addXRefItem(xrefItemKey,
-	            xrefItemTitle,
-		    xrefListTitle,
-		    xrefAppendToPrev
-		   );
-	break;
-      case XRef_None:
-	ASSERT(0);
-	break;
-    }
-  }
-  xrefItemKey = newXRefItemKey;
-
-  int oldContext = inContext;
-  inContext = ctx;
-  if (inContext!=OutputXRef && inBody) inContext=OutputInbody;
-  switch(inContext)
-  {
-    case OutputDoc:
-      if (oldContext!=inContext)
-      {
-        stripTrailingWhiteSpace(current->doc);
-        if (current->docFile.isEmpty())
-        {
-          current->docFile = yyFileName;
-          current->docLine = yyLineNr;
-        }
-      }
-      pOutputString = &current->doc;
-      break;
-    case OutputBrief:
-      if (oldContext!=inContext)
-      {
-	if (current->briefFile.isEmpty())
-	{
-	  current->briefFile = yyFileName;
-	  current->briefLine = yyLineNr;
-	}
-      }
-      if (current->brief.stripWhiteSpace().isEmpty()) // we only want one brief
-	                                              // description even if multiple
-	                                              // are given...
-      {
-        pOutputString = &current->brief;
-      }
-      else
-      {
-        pOutputString = &current->doc;
-	inContext = OutputDoc; // need to switch to detailed docs, see bug 631380
-      }
-      break;
-    case OutputXRef:
-      pOutputString = &outputXRef;
-      // first item found, so can't append to previous
-      //xrefAppendFlag = FALSE;
-      break;
-    case OutputInbody:
-      pOutputString = &current->inbodyDocs;
-      break;
-  }
-}
-
-
-static void addAnchor(const char *anchor)
-{
-  SectionInfo *si = Doxygen::sectionDict->find(anchor);
-  if (si)
-  {
-    if (si->lineNr != -1)
-    {
-      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding anchor, (first occurrence: %s, line %d)",anchor,si->fileName.data(),si->lineNr);
-    }
-    else
-    {
-      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding anchor, (first occurrence: %s)",anchor,si->fileName.data());
-    }
-  }
-  else
-  {
-    si = new SectionInfo(yyFileName,yyLineNr,anchor,0,SectionInfo::Anchor,0);
-    Doxygen::sectionDict->append(anchor,si);
-    current->anchors->append(si);
-  }
-}
-
-// add a string to the output
-static inline void addOutput(const char *s)
-{
-  //printf("addOutput(%s)\n",s);
-  *pOutputString+=s;
-}
-
-// add a character to the output
-static inline void addOutput(char c)
-{
-  *pOutputString+=c;
-}
-
-static void endBrief(bool addToOutput=TRUE)
-{
-  if (!current->brief.stripWhiteSpace().isEmpty())
-  { // only go to the detailed description if we have
-    // found some brief description and not just whitespace
-    briefEndsAtDot=FALSE;
-    setOutput(OutputDoc);
-    if (addToOutput) addOutput(yytext);
-  }
-}
-
-static void handleGuard(const QCString &expr);
-/* ----------------------------------------------------------------- */
 #undef	YY_INPUT
 #define	YY_INPUT(buf,result,max_size) result=yyread(buf,max_size);
 
 static int prevPosition=0;
-
-static int yyread(char *buf,int max_size)
-{
-    prevPosition=inputPosition;
-    int c=0;
-    while( c < max_size && inputString[inputPosition] )
-    {
-	*buf = inputString[inputPosition++] ;
-	//printf("%d (%c)\n",*buf,*buf);
-	c++; buf++;
-    }
-    return c;
-}
 
 %}
 
@@ -2264,6 +1834,453 @@ RCSTAG    "$"{ID}":"[^\n$]+"$"
 
 
 %%
+
+
+//-----------------------------------------------------------------------------
+static void initParser()
+{
+  g_sectionLabel.resize(0);
+  g_sectionTitle.resize(0);
+  g_memberGroupHeader.resize(0);
+  g_insideParBlock = FALSE;
+}
+
+
+static bool getDocSectionName(int s)
+{
+  switch(s)
+  {
+    case Entry::CLASSDOC_SEC:
+    case Entry::STRUCTDOC_SEC:
+    case Entry::UNIONDOC_SEC:
+    case Entry::EXCEPTIONDOC_SEC:
+    case Entry::NAMESPACEDOC_SEC:
+    case Entry::PROTOCOLDOC_SEC:
+    case Entry::CATEGORYDOC_SEC:
+    case Entry::ENUMDOC_SEC:
+    case Entry::PAGEDOC_SEC:
+    case Entry::VARIABLEDOC_SEC:
+    case Entry::MEMBERDOC_SEC:
+    case Entry::OVERLOADDOC_SEC:
+    case Entry::FILEDOC_SEC:
+    case Entry::DEFINEDOC_SEC:
+    case Entry::GROUPDOC_SEC:
+    case Entry::MAINPAGEDOC_SEC:
+    case Entry::PACKAGEDOC_SEC:
+    case Entry::DIRDOC_SEC:
+    case Entry::EXAMPLE_SEC:
+    case Entry::MEMBERGRP_SEC:
+      return TRUE;
+    default: 
+      return FALSE;
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+static bool makeStructuralIndicator(Entry::Sections s)
+{
+  //printf("current->section=%x\n",current->section);
+  if (getDocSectionName(current->section))
+  {
+    return TRUE;
+  }
+  else
+  {
+    needNewEntry = TRUE;
+    current->section = s;
+    current->fileName = yyFileName;
+    current->startLine = yyLineNr;
+    return FALSE;
+  }
+}
+
+static void lineCount()
+{
+  for( const char* c = yytext ; *c ; ++c )
+    yyLineNr += (*c == '\n') ;
+}
+
+
+static QCString stripQuotes(const char *s)
+{
+  QCString name;
+  if (s==0 || *s==0) return name;
+  name=s;
+  if (name.at(0)=='"' && name.at(name.length()-1)=='"')
+  {
+    name=name.mid(1,name.length()-2);
+  }
+  return name;
+}
+
+//-----------------------------------------------------------------
+
+static void addXRefItem(const char *listName,const char *itemTitle,
+                        const char *listTitle,bool append)
+{
+  Entry *docEntry = current; // inBody && previous ? previous : current;
+  if (listName==0) return;
+  //printf("addXRefItem(%s,%s,%s,%d)\n",listName,itemTitle,listTitle,append);
+
+  ListItemInfo *lii=0;
+  RefList *refList = Doxygen::xrefLists->find(listName);
+  if (refList==0) // new list
+  {
+    refList = new RefList(listName,listTitle,itemTitle);
+    Doxygen::xrefLists->insert(listName,refList);
+    //printf("new list!\n");
+  }
+  if (docEntry->sli)
+  {
+    QListIterator<ListItemInfo> slii(*docEntry->sli);
+    for (slii.toFirst();(lii=slii.current());++slii)
+    {
+      if (qstrcmp(lii->type,listName)==0) 
+      {
+        //printf("found %s lii->type=%s\n",listName,lii->type);
+        break;
+      }
+    }
+  }
+  if (lii && append) // already found item of same type just before this one
+  {
+    //printf("listName=%s item id = %d existing\n",listName,lii->itemId);
+    RefItem *item = refList->getRefItem(lii->itemId);
+    ASSERT(item!=0);
+    item->text += " <p>";
+    if (Doxygen::markdownSupport)
+    {
+      item->text += processMarkdown(yyFileName,yyLineNr,current,outputXRef);
+    }
+    else
+    {
+      item->text += outputXRef;
+    }
+    //printf("%s: text +=%s\n",listName,item->text.data());
+  }
+  else // new item
+  {
+    int itemId  = refList->addRefItem();
+    //printf("listName=%s item id = %d new current=%p\n",listName,itemId,current);
+
+    // if we have already an item from the same list type (e.g. a second @todo)
+    // in the same Entry (i.e. lii!=0) then we reuse its link anchor.
+    char anchorLabel[1024];
+    //sprintf(anchorLabel,"_%s%06d",listName,lii ? lii->itemId : itemId);
+    sprintf(anchorLabel,"_%s%06d",listName,itemId);
+    RefItem *item = refList->getRefItem(itemId);
+    ASSERT(item!=0);
+    if (Doxygen::markdownSupport)
+    {
+      item->text = processMarkdown(yyFileName,yyLineNr,current,outputXRef);
+    }
+    else
+    {
+      item->text = outputXRef;
+    }
+    item->listAnchor = anchorLabel;
+    docEntry->addSpecialListItem(listName,itemId);
+    QCString cmdString;
+    cmdString.sprintf("\\xrefitem %s %d.",listName,itemId);
+    if (inBody)
+    {
+      docEntry->inbodyDocs += cmdString;
+    }
+    else
+    {
+      docEntry->doc += cmdString;
+    }
+    SectionInfo *si = Doxygen::sectionDict->find(anchorLabel);
+    if (si)
+    {
+      if (si->lineNr != -1)
+      {
+        warn(listName,yyLineNr,"multiple use of section label '%s', (first occurrence: %s, line %d)",anchorLabel,si->fileName.data(),si->lineNr);
+      }
+      else
+      {
+        warn(listName,yyLineNr,"multiple use of section label '%s', (first occurrence: %s)",anchorLabel,si->fileName.data());
+      }
+    }
+    else
+    {
+      si=new SectionInfo(listName,yyLineNr,anchorLabel,
+                         g_sectionTitle,SectionInfo::Anchor,
+                         g_sectionLevel);
+      Doxygen::sectionDict->append(anchorLabel,si);
+      docEntry->anchors->append(si);
+    }
+  }
+  outputXRef.resize(0);
+}
+
+//-----------------------------------------------------------------------------
+
+// Adds a formula text to the list/dictionary of formulas if it was
+// not already added. Returns the label of the formula.
+static QCString addFormula()
+{
+  QCString formLabel;
+  QCString fText=formulaText.simplifyWhiteSpace();
+  Formula *f=0;
+  if ((f=Doxygen::formulaDict->find(fText))==0)
+  {
+    f = new Formula(fText);
+    Doxygen::formulaList->append(f);
+    Doxygen::formulaDict->insert(fText,f);
+    formLabel.sprintf("\\form#%d",f->getId());
+    Doxygen::formulaNameDict->insert(formLabel,f);
+  }
+  else
+  {
+    formLabel.sprintf("\\form#%d",f->getId());
+  }
+  int i;
+  for (i=0;i<formulaNewLines;i++) formLabel+="@_fakenl"; // add fake newlines to
+                                                         // keep the warnings 
+                                                         // correctly aligned.
+  return formLabel;
+}
+
+
+
+static SectionInfo::SectionType sectionLevelToType(int level)
+{
+  if (level>=0 && level<5) return (SectionInfo::SectionType)level;
+  return SectionInfo::Anchor;
+}
+
+static void addSection()
+{
+  SectionInfo *si = Doxygen::sectionDict->find(g_sectionLabel);
+  if (si)
+  {
+    if (si->lineNr != -1)
+    {
+      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding section, (first occurrence: %s, line %d)",g_sectionLabel.data(),si->fileName.data(),si->lineNr);
+    }
+    else
+    {
+      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding section, (first occurrence: %s)",g_sectionLabel.data(),si->fileName.data());
+    }
+  }
+  else
+  {
+    // create a new section element
+    g_sectionTitle+=yytext;
+    g_sectionTitle=g_sectionTitle.stripWhiteSpace();
+    si = new SectionInfo(yyFileName,yyLineNr,g_sectionLabel,
+                          g_sectionTitle,sectionLevelToType(g_sectionLevel),g_sectionLevel);
+
+    // add section to this entry
+    current->anchors->append(si);
+
+    // add section to the global dictionary
+    Doxygen::sectionDict->append(g_sectionLabel,si);
+  }
+}
+
+//-----------------------------------------------------------------------------
+
+static void addCite()
+{
+  Doxygen::citeDict->insert(yytext);
+}
+
+//-----------------------------------------------------------------------------
+
+// strip trailing whitespace (excluding newlines) from string s
+static void stripTrailingWhiteSpace(QCString &s)
+{
+  uint len = s.length();
+  int i = (int)len-1;
+  char c;
+  while (i>=0 && ((c = s.at(i))==' ' || c=='\t' || c=='\r')) i--;
+  if (i!=(int)len-1) 
+  {
+    s.resize(i+2); // string up to and including char at pos i and \0 terminator
+  }
+}
+
+// selects the output to write to
+static inline void setOutput(OutputContext ctx)
+{
+  bool xrefAppendToPrev = xrefAppendFlag;
+  // determine append flag for the next item (i.e. the end of this item)
+  xrefAppendFlag = !inBody &&
+                   inContext==OutputXRef && ctx==OutputXRef && // two consecutive xref items
+                   newXRefKind==xrefKind &&                    // of the same kind
+                   (xrefKind!=XRef_Item || 
+		    newXRefItemKey==xrefItemKey);              // with the same key if \xrefitem
+  //printf("%d && %d && %d && (%d || %d)\n",
+  //                 inContext==OutputXRef,
+  //                 ctx==OutputXRef,
+  //                 newXRefKind==xrefKind,
+  //                 xrefKind!=XRef_Item,
+  //	  	     newXRefItemKey==xrefItemKey);
+      
+  //printf("refKind=%d newXRefKind=%d xrefAppendToPrev=%d xrefAppendFlag=%d\n",
+  //   	  xrefKind,newXRefKind,xrefAppendToPrev,xrefAppendFlag);
+
+  //printf("setOutput(inContext=%d ctx=%d)\n",inContext,ctx);
+  if (inContext==OutputXRef) // end of XRef section => add the item 
+  {
+    // See if we can append this new xref item to the previous one.
+    // We know this at the start of the next item of the same
+    // type and need to remember this until the end of that item.
+    switch(xrefKind)
+    {
+      case XRef_Todo:
+	addXRefItem("todo",
+	            theTranslator->trTodo(),
+	            theTranslator->trTodoList(),
+		    xrefAppendToPrev
+		   );
+	break;
+      case XRef_Test:
+	addXRefItem("test",
+	            theTranslator->trTest(),
+		    theTranslator->trTestList(),
+		    xrefAppendToPrev
+		   );
+	break;
+      case XRef_Bug:
+	addXRefItem("bug",
+	            theTranslator->trBug(),
+		    theTranslator->trBugList(),
+		    xrefAppendToPrev
+		   );
+	break;
+      case XRef_Deprecated:
+	addXRefItem("deprecated",
+	            theTranslator->trDeprecated(),
+		    theTranslator->trDeprecatedList(),
+		    xrefAppendToPrev
+		   );
+	break;
+      case XRef_Item:  // user defined list
+	addXRefItem(xrefItemKey,
+	            xrefItemTitle,
+		    xrefListTitle,
+		    xrefAppendToPrev
+		   );
+	break;
+      case XRef_None:
+	ASSERT(0);
+	break;
+    }
+  }
+  xrefItemKey = newXRefItemKey;
+
+  int oldContext = inContext;
+  inContext = ctx;
+  if (inContext!=OutputXRef && inBody) inContext=OutputInbody;
+  switch(inContext)
+  {
+    case OutputDoc:
+      if (oldContext!=inContext)
+      {
+        stripTrailingWhiteSpace(current->doc);
+        if (current->docFile.isEmpty())
+        {
+          current->docFile = yyFileName;
+          current->docLine = yyLineNr;
+        }
+      }
+      pOutputString = &current->doc;
+      break;
+    case OutputBrief:
+      if (oldContext!=inContext)
+      {
+	if (current->briefFile.isEmpty())
+	{
+	  current->briefFile = yyFileName;
+	  current->briefLine = yyLineNr;
+	}
+      }
+      if (current->brief.stripWhiteSpace().isEmpty()) // we only want one brief
+	                                              // description even if multiple
+	                                              // are given...
+      {
+        pOutputString = &current->brief;
+      }
+      else
+      {
+        pOutputString = &current->doc;
+	inContext = OutputDoc; // need to switch to detailed docs, see bug 631380
+      }
+      break;
+    case OutputXRef:
+      pOutputString = &outputXRef;
+      // first item found, so can't append to previous
+      //xrefAppendFlag = FALSE;
+      break;
+    case OutputInbody:
+      pOutputString = &current->inbodyDocs;
+      break;
+  }
+}
+
+
+static void addAnchor(const char *anchor)
+{
+  SectionInfo *si = Doxygen::sectionDict->find(anchor);
+  if (si)
+  {
+    if (si->lineNr != -1)
+    {
+      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding anchor, (first occurrence: %s, line %d)",anchor,si->fileName.data(),si->lineNr);
+    }
+    else
+    {
+      warn(yyFileName,yyLineNr,"multiple use of section label '%s' while adding anchor, (first occurrence: %s)",anchor,si->fileName.data());
+    }
+  }
+  else
+  {
+    si = new SectionInfo(yyFileName,yyLineNr,anchor,0,SectionInfo::Anchor,0);
+    Doxygen::sectionDict->append(anchor,si);
+    current->anchors->append(si);
+  }
+}
+
+// add a string to the output
+static inline void addOutput(const char *s)
+{
+  //printf("addOutput(%s)\n",s);
+  *pOutputString+=s;
+}
+
+// add a character to the output
+static inline void addOutput(char c)
+{
+  *pOutputString+=c;
+}
+
+static void endBrief(bool addToOutput)
+{
+  if (!current->brief.stripWhiteSpace().isEmpty())
+  { // only go to the detailed description if we have
+    // found some brief description and not just whitespace
+    briefEndsAtDot=FALSE;
+    setOutput(OutputDoc);
+    if (addToOutput) addOutput(yytext);
+  }
+}
+
+static int yyread(char *buf,int max_size)
+{
+    prevPosition=inputPosition;
+    int c=0;
+    while( c < max_size && inputString[inputPosition] )
+    {
+	*buf = inputString[inputPosition++] ;
+	//printf("%d (%c)\n",*buf,*buf);
+	c++; buf++;
+    }
+    return c;
+}
 
 //----------------------------------------------------------------------------
 
