@@ -15,6 +15,7 @@
 
 %option never-interactive
 %option prefix="commentscanYY"
+%option noyywrap
 
 %{
 
@@ -958,7 +959,6 @@ TMPLSPEC  "<"{BN}*[^>]+{BN}*">"
 MAILADDR   [a-z_A-Z0-9.+\-]+"@"[a-z_A-Z0-9\-]+("."[a-z_A-Z0-9\-]+)+[a-z_A-Z0-9\-]+ 
 RCSTAG    "$"{ID}":"[^\n$]+"$"
 
-%option noyywrap
 
   /* comment parsing states. */
 %x      Comment
