@@ -23,6 +23,7 @@
 
 %option never-interactive
 %option prefix="pyscannerYY"
+%option noyywrap
 
 %{
 
@@ -494,7 +495,6 @@ SCRIPTCOMMENT      "#!".*
 
 STARTDOCSYMS      "##"
 
-%option noyywrap
 
   /* Main start state */
 
