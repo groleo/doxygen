@@ -120,330 +120,29 @@ static bool             g_start_init = FALSE;
 static int              g_search_count = 0;
 
 //-----------------------------------------------------------------------------
-
-
-static void initParser()
-{
-  protection = Public;
-  mtype = Method;
-  gstat = FALSE;
-  virt = Normal;
-  previous = 0;
-  g_packageCommentAllowed = TRUE;
-  g_packageNameCache.setAutoDelete(TRUE);
-}
-
-static void initEntry()
-{
-  //current->python = TRUE;
-  current->protection = protection ;
-  current->mtype      = mtype;
-  current->virt       = virt;
-  current->stat       = gstat;
-  current->lang       = SrcLangExt_Python; 
-  current->setParent(current_root);
-  initGroupInfo(current);
-  gstat = FALSE;
-}
-
-static void newEntry()
-{
-  previous = current;
-  current_root->addSubEntry(current);
-  current = new Entry ;
-  initEntry();
-}
-
-static void newVariable()
-{
-  if (!current->name.isEmpty() && current->name.at(0)=='_') // mark as private
-  {
-    current->protection=Private;
-  }
-  if (current_root->section&Entry::COMPOUND_MASK) // mark as class variable
-  {
-    current->stat = TRUE;
-  }
-  newEntry();
-}
-
-static void newFunction()
-{
-  if (current->name.left(2)=="__" && current->name.right(2)=="__")
-  {
-    // special method name, see
-    // http://docs.python.org/ref/specialnames.html
-    current->protection=Public;
-  }
-  else if (current->name.at(0)=='_')
-  {
-    current->protection=Private;
-  }
-}
-
-static inline int computeIndent(const char *s)
-{
-  int col=0;
-  static int tabSize=Config_getInt(TAB_SIZE);
-  const char *p=s;
-  char c;
-  while ((c=*p++))
-  {
-    if (c==' ') col++;
-    else if (c=='\t') col+=tabSize-(col%tabSize);
-    else break;
-  }
-  return col;
-}
-
-static QCString findPackageScopeFromPath(const QCString &path)
-{
-  QCString *pScope = g_packageNameCache.find(path);
-  if (pScope)
-  {
-    return *pScope;
-  }
-  QFileInfo pf(path+"/__init__.py"); // found package initialization file
-  if (pf.exists())
-  {
-    int i=path.findRev('/');
-    if (i!=-1)
-    {
-      QCString scope = findPackageScopeFromPath(path.left(i));
-      if (!scope.isEmpty())
-      {
-	scope+="::";
-      }
-      scope+=path.mid(i+1);
-      g_packageNameCache.insert(path,new QCString(scope));
-      return scope;
-    }
-  }
-  return "";
-}
-  
-static QCString findPackageScope(const char *fileName)
-{
-  if (fileName==0) return "";
-  QFileInfo fi(fileName);
-  return findPackageScopeFromPath(fi.dirPath(TRUE).data());
-}
-
-//-----------------------------------------------------------------------------
-
-static void lineCount()
-{
-  DBG_CTX((stderr,"yyLineNr=%d\n",yyLineNr));
-  for (const char *p = yytext; *p; ++p)
-  {
-    yyLineNr += (*p == '\n') ;
-  }
-}
-
-static void incLineNr()
-{
-  DBG_CTX((stderr,"yyLineNr=%d\n",yyLineNr));
-  yyLineNr++;
-}
-
-#if 0
-// Appends the current-name to current-type;
-// Destroys current-name.
-// Destroys current->args and current->argList
-static void addType( Entry* current )
-{
-    uint tl=current->type.length();
-    if ( tl>0 && !current->name.isEmpty() && current->type.at(tl-1)!='.') 
-    {
-      current->type += ' ' ;
-    }
-    current->type += current->name ;
-    current->name.resize(0) ;
-    tl=current->type.length();
-    if ( tl>0 && !current->args.isEmpty() && current->type.at(tl-1)!='.') 
-    {
-      current->type += ' ' ;
-    }
-    current->type += current->args ;
-    current->args.resize(0) ;
-    current->argList->clear();
-}
-
-static QCString stripQuotes(const char *s)
-{
-  QCString name;
-  if (s==0 || *s==0) return name;
-  name=s;
-  if (name.at(0)=='"' && name.at(name.length()-1)=='"')
-  {
-    name=name.mid(1,name.length()-2);
-  }
-  return name;
-}
-#endif
-//-----------------------------------------------------------------
-
-//-----------------------------------------------------------------
-static void startCommentBlock(bool brief)
-{
-  if (brief)
-  {
-    current->briefFile = yyFileName;
-    current->briefLine = yyLineNr;
-  }
-  else
-  {
-    current->docFile = yyFileName;
-    current->docLine = yyLineNr;
-  }
-}
-
-/*
-static void appendDocBlock() {
-  previous = current;
-  current_root->addSubEntry(current);
-  current = new Entry;
-  initEntry();
-}
-*/
-
-static void handleCommentBlock(const QCString &doc,bool brief)
-{
-  //printf("handleCommentBlock(doc=[%s] brief=%d docBlockInBody=%d docBlockJavaStyle=%d\n",
-  //    doc.data(),brief,docBlockInBody,docBlockJavaStyle);
-
-  // TODO: Fix me
-  docBlockInBody=FALSE;
-  
-  if (docBlockInBody && previous && !previous->doc.isEmpty())
-  {
-    previous->doc=previous->doc.stripWhiteSpace()+"\n\n";
-  }
-
-  int position = 0;
-  bool needsEntry;
-  int lineNr = brief ? current->briefLine : current->docLine;
-  while (parseCommentBlock(
-	g_thisParser,
-	(docBlockInBody && previous) ? previous : current,
-	doc,     // text
-	yyFileName, // file
-	lineNr,
-	docBlockInBody ? FALSE : brief, 
-    docBlockJavaStyle, // javadoc style // or FALSE,
-	docBlockInBody,
-	protection,
-        position,
-        needsEntry)
-     ) // need to start a new entry
-  {
-    if (needsEntry)
-    {
-      newEntry();
-    }
-  }
-  if (needsEntry)
-  {
-    newEntry();
-  }
-
-}
-
-static void endOfDef(int correction=0)
-{
-  //printf("endOfDef at=%d\n",yyLineNr);
-  if (bodyEntry)
-  {
-    bodyEntry->endBodyLine  = yyLineNr-correction;
-    bodyEntry = 0;
-  }
-  newEntry();
-  //g_insideConstructor = FALSE;
-}
-
-static inline void addToString(const char *s)
-{
-  if (g_copyString) (*g_copyString)+=s;
-}
-
-static void initTriDoubleQuoteBlock()
-{
-  docBlockContext   = YY_START;
-  docBlockInBody    = FALSE;
-  docBlockJavaStyle = TRUE;
-  docBlockSpecial   = yytext[strlen(yytext) - 1]=='!';
-  docBlock.resize(0);
-  g_doubleQuote = TRUE;
-  startCommentBlock(FALSE);
-}
-
-static void initTriSingleQuoteBlock()
-{
-  docBlockContext   = YY_START;
-  docBlockInBody    = FALSE;
-  docBlockJavaStyle = TRUE;
-  docBlockSpecial   = yytext[strlen(yytext) - 1]=='!';
-  docBlock.resize(0);
-  g_doubleQuote = FALSE;
-  startCommentBlock(FALSE);
-}
-
-static void initSpecialBlock()
-{
-  docBlockContext   = YY_START;
-  docBlockInBody    = FALSE;
-  docBlockJavaStyle = TRUE;
-  docBrief = TRUE;
-  docBlock.resize(0);
-  startCommentBlock(TRUE);
-}
-
-static void searchFoundDef()
-{
-  current->fileName  = yyFileName;
-  current->startLine = yyLineNr;
-  current->bodyLine  = yyLineNr;
-  current->section = Entry::FUNCTION_SEC;
-  current->lang = SrcLangExt_Python;
-  current->virt = Normal;
-  current->stat = gstat;
-  current->mtype = mtype = Method;
-  current->type.resize(0);
-  current->name.resize(0);
-  current->args.resize(0);
-  current->argList->clear();
-  g_packageCommentAllowed = FALSE;
-  gstat=FALSE;
-  //printf("searchFoundDef at=%d\n",yyLineNr);
-}
-
-static void searchFoundClass()
-{
-  current->section = Entry::CLASS_SEC;
-  current->argList->clear();
-  current->type += "class" ;
-  current->fileName  = yyFileName;
-  current->startLine  = yyLineNr;
-  current->bodyLine  = yyLineNr;
-  g_packageCommentAllowed = FALSE;
-}
-
-//-----------------------------------------------------------------------------
-/* ----------------------------------------------------------------- */
-#undef	YY_INPUT
-#define	YY_INPUT(buf,result,max_size) result=yyread(buf,max_size);
-
-static int yyread(char *buf,int max_size)
-{
-  int c=0;
-  while ( c < max_size && inputString[inputPosition] )
-  {
-    *buf = inputString[inputPosition++] ;
-    //printf("%d (%c)\n",*buf,*buf);
-    c++; buf++;
-  }
-  return c;
-}
+static void initParser();
+static void initEntry();
+static void newEntry();
+static void newVariable();
+static void newFunction();
+static inline int computeIndent(const char *s);
+static QCString findPackageScopeFromPath(const QCString &path);
+static QCString findPackageScope(const char *fileName);
+static void lineCount();
+static void incLineNr();
+static void startCommentBlock(bool brief);
+static void handleCommentBlock(const QCString &doc,bool brief);
+static void endOfDef(int correction=0);
+static inline void addToString(const char *s);
+static void initTriDoubleQuoteBlock();
+static void initTriSingleQuoteBlock();
+static void initSpecialBlock();
+static void searchFoundDef();
+static void searchFoundClass();
+static int yyread(char *buf,int max_size);
+static void parseCompounds(Entry *rt);
+static void parseMain(const char *fileName,const char *fileBuf,Entry *rt);
+static void parsePrototype(const QCString &text);
 
 %}
 
@@ -1581,6 +1280,331 @@ STARTDOCSYMS      "##"
 %%
 
 //----------------------------------------------------------------------------
+static void initParser()
+{
+  protection = Public;
+  mtype = Method;
+  gstat = FALSE;
+  virt = Normal;
+  previous = 0;
+  g_packageCommentAllowed = TRUE;
+  g_packageNameCache.setAutoDelete(TRUE);
+}
+
+static void initEntry()
+{
+  //current->python = TRUE;
+  current->protection = protection ;
+  current->mtype      = mtype;
+  current->virt       = virt;
+  current->stat       = gstat;
+  current->lang       = SrcLangExt_Python; 
+  current->setParent(current_root);
+  initGroupInfo(current);
+  gstat = FALSE;
+}
+
+static void newEntry()
+{
+  previous = current;
+  current_root->addSubEntry(current);
+  current = new Entry ;
+  initEntry();
+}
+
+static void newVariable()
+{
+  if (!current->name.isEmpty() && current->name.at(0)=='_') // mark as private
+  {
+    current->protection=Private;
+  }
+  if (current_root->section&Entry::COMPOUND_MASK) // mark as class variable
+  {
+    current->stat = TRUE;
+  }
+  newEntry();
+}
+
+static void newFunction()
+{
+  if (current->name.left(2)=="__" && current->name.right(2)=="__")
+  {
+    // special method name, see
+    // http://docs.python.org/ref/specialnames.html
+    current->protection=Public;
+  }
+  else if (current->name.at(0)=='_')
+  {
+    current->protection=Private;
+  }
+}
+
+static inline int computeIndent(const char *s)
+{
+  int col=0;
+  static int tabSize=Config_getInt(TAB_SIZE);
+  const char *p=s;
+  char c;
+  while ((c=*p++))
+  {
+    if (c==' ') col++;
+    else if (c=='\t') col+=tabSize-(col%tabSize);
+    else break;
+  }
+  return col;
+}
+
+static QCString findPackageScopeFromPath(const QCString &path)
+{
+  QCString *pScope = g_packageNameCache.find(path);
+  if (pScope)
+  {
+    return *pScope;
+  }
+  QFileInfo pf(path+"/__init__.py"); // found package initialization file
+  if (pf.exists())
+  {
+    int i=path.findRev('/');
+    if (i!=-1)
+    {
+      QCString scope = findPackageScopeFromPath(path.left(i));
+      if (!scope.isEmpty())
+      {
+	scope+="::";
+      }
+      scope+=path.mid(i+1);
+      g_packageNameCache.insert(path,new QCString(scope));
+      return scope;
+    }
+  }
+  return "";
+}
+  
+static QCString findPackageScope(const char *fileName)
+{
+  if (fileName==0) return "";
+  QFileInfo fi(fileName);
+  return findPackageScopeFromPath(fi.dirPath(TRUE).data());
+}
+
+//-----------------------------------------------------------------------------
+
+static void lineCount()
+{
+  DBG_CTX((stderr,"yyLineNr=%d\n",yyLineNr));
+  for (const char *p = yytext; *p; ++p)
+  {
+    yyLineNr += (*p == '\n') ;
+  }
+}
+
+static void incLineNr()
+{
+  DBG_CTX((stderr,"yyLineNr=%d\n",yyLineNr));
+  yyLineNr++;
+}
+
+#if 0
+// Appends the current-name to current-type;
+// Destroys current-name.
+// Destroys current->args and current->argList
+static void addType( Entry* current )
+{
+    uint tl=current->type.length();
+    if ( tl>0 && !current->name.isEmpty() && current->type.at(tl-1)!='.') 
+    {
+      current->type += ' ' ;
+    }
+    current->type += current->name ;
+    current->name.resize(0) ;
+    tl=current->type.length();
+    if ( tl>0 && !current->args.isEmpty() && current->type.at(tl-1)!='.') 
+    {
+      current->type += ' ' ;
+    }
+    current->type += current->args ;
+    current->args.resize(0) ;
+    current->argList->clear();
+}
+
+static QCString stripQuotes(const char *s)
+{
+  QCString name;
+  if (s==0 || *s==0) return name;
+  name=s;
+  if (name.at(0)=='"' && name.at(name.length()-1)=='"')
+  {
+    name=name.mid(1,name.length()-2);
+  }
+  return name;
+}
+#endif
+//-----------------------------------------------------------------
+
+//-----------------------------------------------------------------
+static void startCommentBlock(bool brief)
+{
+  if (brief)
+  {
+    current->briefFile = yyFileName;
+    current->briefLine = yyLineNr;
+  }
+  else
+  {
+    current->docFile = yyFileName;
+    current->docLine = yyLineNr;
+  }
+}
+
+/*
+static void appendDocBlock() {
+  previous = current;
+  current_root->addSubEntry(current);
+  current = new Entry;
+  initEntry();
+}
+*/
+
+static void handleCommentBlock(const QCString &doc,bool brief)
+{
+  //printf("handleCommentBlock(doc=[%s] brief=%d docBlockInBody=%d docBlockJavaStyle=%d\n",
+  //    doc.data(),brief,docBlockInBody,docBlockJavaStyle);
+
+  // TODO: Fix me
+  docBlockInBody=FALSE;
+  
+  if (docBlockInBody && previous && !previous->doc.isEmpty())
+  {
+    previous->doc=previous->doc.stripWhiteSpace()+"\n\n";
+  }
+
+  int position = 0;
+  bool needsEntry;
+  int lineNr = brief ? current->briefLine : current->docLine;
+  while (parseCommentBlock(
+	g_thisParser,
+	(docBlockInBody && previous) ? previous : current,
+	doc,     // text
+	yyFileName, // file
+	lineNr,
+	docBlockInBody ? FALSE : brief, 
+    docBlockJavaStyle, // javadoc style // or FALSE,
+	docBlockInBody,
+	protection,
+        position,
+        needsEntry)
+     ) // need to start a new entry
+  {
+    if (needsEntry)
+    {
+      newEntry();
+    }
+  }
+  if (needsEntry)
+  {
+    newEntry();
+  }
+
+}
+
+static void endOfDef(int correction)
+{
+  //printf("endOfDef at=%d\n",yyLineNr);
+  if (bodyEntry)
+  {
+    bodyEntry->endBodyLine  = yyLineNr-correction;
+    bodyEntry = 0;
+  }
+  newEntry();
+  //g_insideConstructor = FALSE;
+}
+
+static inline void addToString(const char *s)
+{
+  if (g_copyString) (*g_copyString)+=s;
+}
+
+static void initTriDoubleQuoteBlock()
+{
+  docBlockContext   = YY_START;
+  docBlockInBody    = FALSE;
+  docBlockJavaStyle = TRUE;
+  docBlockSpecial   = yytext[strlen(yytext) - 1]=='!';
+  docBlock.resize(0);
+  g_doubleQuote = TRUE;
+  startCommentBlock(FALSE);
+}
+
+static void initTriSingleQuoteBlock()
+{
+  docBlockContext   = YY_START;
+  docBlockInBody    = FALSE;
+  docBlockJavaStyle = TRUE;
+  docBlockSpecial   = yytext[strlen(yytext) - 1]=='!';
+  docBlock.resize(0);
+  g_doubleQuote = FALSE;
+  startCommentBlock(FALSE);
+}
+
+static void initSpecialBlock()
+{
+  docBlockContext   = YY_START;
+  docBlockInBody    = FALSE;
+  docBlockJavaStyle = TRUE;
+  docBrief = TRUE;
+  docBlock.resize(0);
+  startCommentBlock(TRUE);
+}
+
+static void searchFoundDef()
+{
+  current->fileName  = yyFileName;
+  current->startLine = yyLineNr;
+  current->bodyLine  = yyLineNr;
+  current->section = Entry::FUNCTION_SEC;
+  current->lang = SrcLangExt_Python;
+  current->virt = Normal;
+  current->stat = gstat;
+  current->mtype = mtype = Method;
+  current->type.resize(0);
+  current->name.resize(0);
+  current->args.resize(0);
+  current->argList->clear();
+  g_packageCommentAllowed = FALSE;
+  gstat=FALSE;
+  //printf("searchFoundDef at=%d\n",yyLineNr);
+}
+
+static void searchFoundClass()
+{
+  current->section = Entry::CLASS_SEC;
+  current->argList->clear();
+  current->type += "class" ;
+  current->fileName  = yyFileName;
+  current->startLine  = yyLineNr;
+  current->bodyLine  = yyLineNr;
+  g_packageCommentAllowed = FALSE;
+}
+
+//-----------------------------------------------------------------------------
+/* ----------------------------------------------------------------- */
+#undef	YY_INPUT
+#define	YY_INPUT(buf,result,max_size) result=yyread(buf,max_size);
+
+static int yyread(char *buf,int max_size)
+{
+  int c=0;
+  while ( c < max_size && inputString[inputPosition] )
+  {
+    *buf = inputString[inputPosition++] ;
+    //printf("%d (%c)\n",*buf,*buf);
+    c++; buf++;
+  }
+  return c;
+}
+
+
+
 
 static void parseCompounds(Entry *rt)
 {
@@ -1753,6 +1777,7 @@ static void parsePrototype(const QCString &text)
   //printf("**** parsePrototype end\n");
 }
 
+// public interface ----------------------------------------------------------
 void pyscanFreeScanner()
 {
 #if defined(YY_FLEX_SUBMINOR_VERSION) 
