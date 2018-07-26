@@ -16,6 +16,7 @@
  */
 %option never-interactive
 %option prefix="commentcnvYY"
+%option noyywrap
 
 %{
 
@@ -237,7 +238,6 @@ void replaceComment(int offset);
 
 %}
 
-%option noyywrap
 
 %x Scan
 %x SkipString
