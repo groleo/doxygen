@@ -95,145 +95,14 @@ static bool     g_vhdl; // for VHDL old style --! comment
 static SrcLangExt g_lang;
 static bool       isFixedForm; // For Fortran
 
-static void replaceCommentMarker(const char *s,int len)
-{
-  const char *p=s;
-  char c;
-  // copy leading blanks
-  while ((c=*p) && (c==' ' || c=='\t' || c=='\n')) 
-  {
-    ADDCHAR(c);
-    g_lineNr += c=='\n';
-    p++;
-  }
-  // replace start of comment marker by blanks and the last character by a *
-  int blanks=0;
-  while ((c=*p) && (c=='/' || c=='!' || c=='#')) 
-  {
-    blanks++;
-    p++;
-    if (*p=='<') // comment-after-item marker 
-    { 
-      blanks++;
-      p++; 
-    }
-    if (c=='!') // end after first !
-    {
-      break;
-    }
-  }
-  if (blanks>0)
-  {
-    while (blanks>2)
-    {
-      ADDCHAR(' ');
-      blanks--;
-    }
-    if (blanks>1) ADDCHAR('*');
-    ADDCHAR(' ');
-  }
-  // copy comment line to output
-  ADDARRAY(p,len-(int)(p-s));
-}
-
-static inline int computeIndent(const char *s)
-{
-  int col=0;
-  static int tabSize=Config_getInt(TAB_SIZE);
-  const char *p=s;
-  char c;
-  while ((c=*p++))
-  {
-    if (c==' ') col++;
-    else if (c=='\t') col+=tabSize-(col%tabSize); 
-    else break;
-  }
-  return col;
-}
-
-static inline void copyToOutput(const char *s,int len)
-{
-  int i;
-  if (g_skip) // only add newlines.
-  {
-    for (i=0;i<len;i++) 
-    {
-      if (s[i]=='\n') 
-      {
-	ADDCHAR('\n');
-	//fprintf(stderr,"---> skip %d\n",g_lineNr);
-	g_lineNr++;
-      }
-    }
-  }
-  else if (len>0)
-  {
-    ADDARRAY(s,len);
-    static int tabSize=Config_getInt(TAB_SIZE);
-    for (i=0;i<len;i++) 
-    {
-      switch (s[i])
-      {
-	case '\n': g_col=0; 
-	           //fprintf(stderr,"---> copy %d\n",g_lineNr);
-		   g_lineNr++; break;
-	case '\t': g_col+=tabSize-(g_col%tabSize); break;
-	default:   g_col++; break;
-      }
-    }
-  }
-}
-
-static void startCondSection(const char *sectId)
-{
-  //printf("startCondSection: skip=%d stack=%d\n",g_skip,g_condStack.count());
-  CondParser prs;
-  bool expResult = prs.parse(g_fileName,g_lineNr,sectId);
-  g_condStack.push(new CondCtx(g_lineNr,sectId,g_skip));
-  if (!expResult) // not enabled
-  {
-    g_skip=TRUE;
-  }
-}
-
-static void endCondSection()
-{
-  if (g_condStack.isEmpty())
-  {
-    warn(g_fileName,g_lineNr,"Found \\endcond command without matching \\cond");
-    g_skip=FALSE;
-  }
-  else
-  {
-    CondCtx *ctx = g_condStack.pop();
-    g_skip=ctx->skip;
-  }
-  //printf("endCondSection: skip=%d stack=%d\n",g_skip,g_condStack.count());
-}
-
-/** copies string \a s with length \a len to the output, while 
- *  replacing any alias commands found in the string.
- */
-static void replaceAliases(const char *s)
-{
-  QCString result = resolveAliasCmd(s);
-  //printf("replaceAliases(%s)->'%s'\n",s,result.data());
-  copyToOutput(result,result.length());
-}
-
-
-#undef  YY_INPUT
-#define YY_INPUT(buf,result,max_size) result=yyread(buf,max_size);
-
-static int yyread(char *buf,int max_size)
-{
-  int bytesInBuf = g_inBuf->curPos()-g_inBufPos;
-  int bytesToCopy = QMIN(max_size,bytesInBuf);
-  memcpy(buf,g_inBuf->data()+g_inBufPos,bytesToCopy);
-  g_inBufPos+=bytesToCopy;
-  return bytesToCopy;
-}
-
+//-----------------------------------------------------------------------------
+static void replaceCommentMarker(const char *s,int len);
+static inline int computeIndent(const char *s);
+static inline void copyToOutput(const char *s,int len);
+static void startCondSection(const char *sectId);
+static void endCondSection();
+static void replaceAliases(const char *s);
+static int yyread(char *buf,int max_size);
 void replaceComment(int offset);
 
 %}
@@ -957,6 +826,144 @@ void replaceComment(int offset);
   				   }
 
 %%
+
+static void replaceCommentMarker(const char *s,int len)
+{
+  const char *p=s;
+  char c;
+  // copy leading blanks
+  while ((c=*p) && (c==' ' || c=='\t' || c=='\n')) 
+  {
+    ADDCHAR(c);
+    g_lineNr += c=='\n';
+    p++;
+  }
+  // replace start of comment marker by blanks and the last character by a *
+  int blanks=0;
+  while ((c=*p) && (c=='/' || c=='!' || c=='#')) 
+  {
+    blanks++;
+    p++;
+    if (*p=='<') // comment-after-item marker 
+    { 
+      blanks++;
+      p++; 
+    }
+    if (c=='!') // end after first !
+    {
+      break;
+    }
+  }
+  if (blanks>0)
+  {
+    while (blanks>2)
+    {
+      ADDCHAR(' ');
+      blanks--;
+    }
+    if (blanks>1) ADDCHAR('*');
+    ADDCHAR(' ');
+  }
+  // copy comment line to output
+  ADDARRAY(p,len-(int)(p-s));
+}
+
+static inline int computeIndent(const char *s)
+{
+  int col=0;
+  static int tabSize=Config_getInt(TAB_SIZE);
+  const char *p=s;
+  char c;
+  while ((c=*p++))
+  {
+    if (c==' ') col++;
+    else if (c=='\t') col+=tabSize-(col%tabSize); 
+    else break;
+  }
+  return col;
+}
+
+static inline void copyToOutput(const char *s,int len)
+{
+  int i;
+  if (g_skip) // only add newlines.
+  {
+    for (i=0;i<len;i++) 
+    {
+      if (s[i]=='\n') 
+      {
+	ADDCHAR('\n');
+	//fprintf(stderr,"---> skip %d\n",g_lineNr);
+	g_lineNr++;
+      }
+    }
+  }
+  else if (len>0)
+  {
+    ADDARRAY(s,len);
+    static int tabSize=Config_getInt(TAB_SIZE);
+    for (i=0;i<len;i++) 
+    {
+      switch (s[i])
+      {
+	case '\n': g_col=0; 
+	           //fprintf(stderr,"---> copy %d\n",g_lineNr);
+		   g_lineNr++; break;
+	case '\t': g_col+=tabSize-(g_col%tabSize); break;
+	default:   g_col++; break;
+      }
+    }
+  }
+}
+
+static void startCondSection(const char *sectId)
+{
+  //printf("startCondSection: skip=%d stack=%d\n",g_skip,g_condStack.count());
+  CondParser prs;
+  bool expResult = prs.parse(g_fileName,g_lineNr,sectId);
+  g_condStack.push(new CondCtx(g_lineNr,sectId,g_skip));
+  if (!expResult) // not enabled
+  {
+    g_skip=TRUE;
+  }
+}
+
+static void endCondSection()
+{
+  if (g_condStack.isEmpty())
+  {
+    warn(g_fileName,g_lineNr,"Found \\endcond command without matching \\cond");
+    g_skip=FALSE;
+  }
+  else
+  {
+    CondCtx *ctx = g_condStack.pop();
+    g_skip=ctx->skip;
+  }
+  //printf("endCondSection: skip=%d stack=%d\n",g_skip,g_condStack.count());
+}
+
+/** copies string \a s with length \a len to the output, while 
+ *  replacing any alias commands found in the string.
+ */
+static void replaceAliases(const char *s)
+{
+  QCString result = resolveAliasCmd(s);
+  //printf("replaceAliases(%s)->'%s'\n",s,result.data());
+  copyToOutput(result,result.length());
+}
+
+#undef  YY_INPUT
+#define YY_INPUT(buf,result,max_size) result=yyread(buf,max_size);
+
+static int yyread(char *buf,int max_size)
+{
+  int bytesInBuf = g_inBuf->curPos()-g_inBufPos;
+  int bytesToCopy = QMIN(max_size,bytesInBuf);
+  memcpy(buf,g_inBuf->data()+g_inBufPos,bytesToCopy);
+  g_inBufPos+=bytesToCopy;
+  return bytesToCopy;
+}
 
 void replaceComment(int offset)
 {
