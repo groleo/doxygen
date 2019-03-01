@@ -23,6 +23,8 @@
 
 %option never-interactive
 %option prefix="pycodeYY"
+%option noyywrap
+%option stack
 
 %{
 
@@ -963,9 +965,6 @@ ASSIGNMENT_STMT     ({TARGET_LIST}"=")+{EXPRESSION_LIST}
 TARGET_LIST             {TARGET}(","{TARGET})*","?
 TARGET           ({IDENTIFIER}|"("{TARGET_LIST}")"|"["{TARGET_LIST}"]"|{ATTRIBUTEREF}|{SUBSCRIPTION}|{SLICING})
 
-
-%option noyywrap
-%option stack
 
 %x Body
 
