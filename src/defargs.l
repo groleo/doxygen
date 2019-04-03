@@ -87,21 +87,12 @@ static int              g_lastDocChar;
 static int              g_lastExtendsContext;
 static QCString         g_delimiter;
 
+static int yyread(char *buf,int max_size);
+
 /* -----------------------------------------------------------------
  */
 #undef	YY_INPUT
 #define	YY_INPUT(buf,result,max_size) result=yyread(buf,max_size);
-
-static int yyread(char *buf,int max_size)
-{
-    int c=0;
-    while( c < max_size && g_inputString[g_inputPosition] )
-    {
-	*buf = g_inputString[g_inputPosition++] ;
-	c++; buf++;
-    }
-    return c;
-}
 
 %}
 
@@ -542,6 +533,16 @@ RAWEND    ")"[^ \t\(\)\\]{0,16}\"
 
 %%
 
+static int yyread(char *buf,int max_size)
+{
+    int c=0;
+    while( c < max_size && g_inputString[g_inputPosition] )
+    {
+	*buf = g_inputString[g_inputPosition++] ;
+	c++; buf++;
+    }
+    return c;
+}
 /* ----------------------------------------------------------------------------
  */
 
