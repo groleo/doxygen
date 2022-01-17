@@ -298,6 +298,7 @@ add_library(doxymain STATIC
     rtfstyle.cpp
     searchindex.cpp
     sqlite3gen.cpp
+    jsonmldocvisitor.cpp
     stlsupport.cpp
     symbolresolver.cpp
     tagreader.cpp
