@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/python3
 
 # python script to search through doxygen_sqlite3.db
 #
@@ -7,23 +7,26 @@
 # granted. No representations are made about the suitability of this software
 # for any purpose. It is provided "as is" without express or implied warranty.
 # See the GNU General Public License for more details.
-#
+
 
 import sqlite3
 import sys
 import os
-import getopt
+import argparse
 import json
 import re
+
 
 class MemberType:
   Define="macro definition"
   Function="function"
   Variable="variable"
   Typedef="typedef"
+  Union="union"
   Enumeration="enumeration"
   EnumValue="enumvalue"
   Signal="signal"
+  Struct="struct"
   Slot="slot"
   Friend="friend"
   DCOP="dcop"
@@ -31,73 +34,140 @@ class MemberType:
   Event="event"
   File="file"
 
-class RequestType:
-  References="9901"
-  Struct="9902"
-  Includers="9903"
-  Includees="9904"
-  Members="9905"
-  BaseClasses="9906"
-  SubClasses="9907"
 
-g_use_regexp=False
-###############################################################################
-
-# case-insensitive sqlite regexp function
-def re_fn(expr, item):
-    reg = re.compile(expr, re.I)
-    return reg.search(item) is not None
-
-def openDb(dbname):
-    if dbname == None:
-        dbname = "doxygen_sqlite3.db"
-
-    if not os.path.isfile(dbname):
-        raise BaseException("No such file %s" % dbname )
-
-    conn = sqlite3.connect(dbname)
-    conn.execute('PRAGMA temp_store = MEMORY;')
-    conn.row_factory = sqlite3.Row
-    conn.create_function("REGEXP", 2, re_fn)
-    return conn
-###############################################################################
 class Finder:
-    def __init__(self,cn,name,row_type=str):
+    def __init__(self,cn,name,use_regexp,row_type=str):
         self.cn=cn
-        self.name=name
+        self.name=None
+        if name:
+          self.name=name[0]
+        self.use_regexp = use_regexp
         self.row_type=row_type
 
-    def match(self,row):
+    def __match(self,row):
         if self.row_type is int:
             return " rowid=?"
         else:
-            if g_use_regexp == True:
+            if self.use_regexp == True:
                 return " REGEXP (?,%s)" %row
             else:
                 return " %s=?" %row
 
-    def fileName(self,file_id):
-        if self.cn.execute("SELECT COUNT(*) FROM path WHERE rowid=?",[file_id]).fetchone()[0] > 1:
-            sys.stderr.write("WARNING: non-uniq fileid [%s]. Considering only the first match." % file_id)
+    def __file_name(self,deffile_id):
+        if self.cn.execute("SELECT COUNT(*) FROM path WHERE rowid=?",[deffile_id]).fetchone()[0] > 1:
+            sys.stderr.write("WARNING: non-uniq fileid [%s]. Considering only the first match." % deffile_id)
 
-        for r in self.cn.execute("SELECT * FROM path WHERE rowid=?",[file_id]).fetchall():
+        for r in self.cn.execute("SELECT name FROM path WHERE rowid=?",[deffile_id]).fetchall():
                 return r['name']
 
         return ""
 
-    def fileId(self,name):
-        if self.cn.execute("SELECT COUNT(*) FROM path WHERE"+self.match("name"),[name]).fetchone()[0] > 1:
+    def __file_id(self,name):
+        if self.cn.execute("SELECT COUNT(*) FROM path WHERE"+self.__match("name"),[name]).fetchone()[0] > 1:
             sys.stderr.write("WARNING: non-uniq file name [%s]. Considering only the first match." % name)
 
-        for r in self.cn.execute("SELECT rowid FROM path WHERE"+self.match("name"),[name]).fetchall():
+        for r in self.cn.execute("SELECT rowid FROM path WHERE"+self.__match("name"),[name]).fetchall():
                 return r[0]
 
         return -1
-###############################################################################
-    def references(self):
+
+    def base_class(self,fname):
+        o=[]
+        c=self.cn.execute('SELECT compounddef.name FROM compounddef JOIN compoundref ON compounddef.rowid=compoundref.base_rowid WHERE compoundref.derived_rowid IN (SELECT rowid FROM compounddef WHERE'+self.__match("name")+')',[self.name])
+        for r in c.fetchall():
+            item={}
+            item['name'] = r['name']
+            o.append(item)
+        return o
+
+    def compound_members(self,fname):
+        o=[]
+        c=self.cn.execute('SELECT * FROM memberdef WHERE'+self.__match("scope"),[self.name])
+        for r in c.fetchall():
+            item={}
+            item['name'] = r['name']
+            item['kind'] = r['kind']
+            item['definition'] = r['definition']
+            item['argsstring'] = r['argsstring']
+            item['detaileddescription'] = r['detaileddescription']
+            item['deffile'] = self.__file_name(r['deffile_id'])
+            item['defline'] = r['defline']
+            o.append(item)
+        return o
+
+    def file(self, fname):
+        o=[]
+        for r in self.cn.execute("SELECT rowid,name FROM local_file WHERE"+self.__match("name"),[self.name]).fetchall():
+            item={}
+            item['name'] = r['name']
+            item['id'] =   r['rowid']
+            o.append(item)
+        return o
+
+    def file_members(self, fname):
+        o=[]
+        fid=self.__file_id(self.name)
+        c=self.cn.execute('SELECT * FROM memberdef WHERE deffile_id=?',[fid])
+        for r in c.fetchall():
+            item={}
+            item['kind'] = r['kind']
+            item['name'] = r['name']
+            item['argsstring'] = r['argsstring']
+            item['detaileddescription'] = r['detaileddescription']
+            item['briefdescription'] = r['briefdescription']
+            item['deffile'] = self.__file_name(r['deffile_id'])
+            item['defline'] = r['defline']
+            o.append(item)
+        return o
+
+    def function(self, fname):
+        o=[]
+        ph='SELECT * FROM memberdef WHERE kind=? '
+        ar=[MemberType.Function]
+        if self.name:
+            ph = ph + ' AND ' + self.__match("name")
+            ar.append(self.name)
+        if fname:
+            ph = ph + ' AND deffile_id=?'
+            ar.append(self.__file_id(fname))
+
+        c=self.cn.execute(ph, ar)
+        for r in c.fetchall():
+            item={}
+            item['name'] = r['name']
+            item['type'] = r['type']
+            item['definition'] = r['definition']
+            item['argsstring'] = r['argsstring']
+            item['detaileddescription'] = r['detaileddescription']
+            item['deffile'] = self.__file_name(r['deffile_id'])
+            item['defline'] = r['defline']
+            o.append(item)
+        return o
+
+    def includees(self, fname):
+        o=[]
+        fid = self.__file_id(self.name)
+        c=self.cn.execute('SELECT * FROM includes WHERE src_id=?',[fid])
+        for r in c.fetchall():
+            item={}
+            item['name'] = self.__file_name(r['dst_id'])
+            o.append(item)
+        return o
+
+    def includers(self, fname):
+        o=[]
+        fid = self.__file_id(self.name)
+        c=self.cn.execute('SELECT * FROM includes WHERE dst_id=?',[fid])
+        for r in c.fetchall():
+            item={}
+            item['name'] = self.__file_name(r['src_id'])
+            o.append(item)
+        return o
+
+    def references(self, fname):
         o=[]
         cur = self.cn.cursor()
-        cur.execute("SELECT rowid FROM memberdef WHERE"+self.match("name"),[self.name])
+        cur.execute("SELECT rowid FROM memberdef WHERE"+self.__match("name"),[self.name])
         rowids = cur.fetchall()
 
         if len(rowids) == 0:
@@ -105,173 +175,259 @@ class Finder:
 
         rowid = rowids[0]['rowid']
         cur = self.cn.cursor()
+
         #TODO:SELECT rowid from refid where refid=refid
         for info in cur.execute("SELECT * FROM xrefs WHERE dst_rowid=?", [rowid]):
             item={}
             cur = self.cn.cursor()
             for i2 in cur.execute("SELECT * FROM memberdef WHERE rowid=?",[info['src_rowid']]):
+                item['file']=self.__file_name(i2['bodyfile_id'])
                 item['name']=i2['name']
-                item['src']=info['src_rowid']
-                # Below no longer directly supported on this entry; can be found from either memberdef
-                #item['file']=self.fileName(info['file_id'])
-                #item['line']=info['line']
+                item['bodystart']=i2['bodystart']
+                item['bodyend']=i2['bodyend']
+
+            o.append(item)
+
+        #for info in cur.execute("SELECT * FROM memberdef_param WHERE dst_rowid=?", [rowid]):
+        #    item={}
+        #    cur = self.cn.cursor()
+        #    for i2 in cur.execute("SELECT * FROM memberdef WHERE rowid=?",[info['src_rowid']]):
+        #        item['name'] = i2['name']
+        #        item['src'] = info['src_rowid']
 
             o.append(item)
         return o
-###############################################################################
-    def function(self):
-        o=[]
-        c=self.cn.execute('SELECT * FROM memberdef WHERE'+self.match("name")+' AND kind=?',[self.name,MemberType.Function])
-        for r in c.fetchall():
-            item={}
-            item['name'] = r['name']
-            item['definition'] = r['definition']
-            item['argsstring'] = r['argsstring']
-            item['file'] = self.fileName(r['file_id'])
-            item['line'] = r['line']
-            item['detaileddescription'] = r['detaileddescription']
-            o.append(item)
-        return o
-###############################################################################
-    def file(self):
-        o=[]
-        for r in self.cn.execute("SELECT rowid,name FROM local_file WHERE"+self.match("name"),[self.name]).fetchall():
-            item={}
-            item['name'] = r['name']
-            item['id'] =   r['rowid']
-            o.append(item)
-        return o
 
-###############################################################################
-    def macro(self):
+    def macro_definition(self, fname):
         o=[]
-        c=self.cn.execute('SELECT * FROM memberdef WHERE'+self.match("name")+' AND kind=?',[self.name,MemberType.Define])
+        ph='SELECT * FROM memberdef WHERE kind=? '
+        ar=[MemberType.Define]
+        if self.name:
+            ph = ph + self.__match("name")
+            ar.append(self.name)
+        if fname:
+            ph = ph + ' AND deffile_id=?'
+            ar.append(self.__file_id(fname))
+        c=self.cn.execute(ph,ar)
         for r in c.fetchall():
             item={}
             item['name'] = r['name']
             if r['argsstring']:
                 item['argsstring'] = r['argsstring']
             item['definition'] = r['initializer']
-            item['file'] = self.fileName(r['file_id'])
-            item['line'] = r['line']
+            item['deffile'] = self.__file_name(r['deffile_id'])
+            item['defline'] = r['defline']
             o.append(item)
         return o
-###############################################################################
-    def typedef(self):
+
+    def referenced_by(self, fname):
         o=[]
-        c=self.cn.execute('SELECT * FROM memberdef WHERE'+self.match("name")+' AND kind=?',[self.name,MemberType.Typedef])
+        cur = self.cn.cursor()
+        cur.execute("SELECT rowid FROM memberdef WHERE"+self.__match("name"),[self.name])
+        rowids = cur.fetchall()
+
+        if len(rowids) == 0:
+            return o
+
+        rowid = rowids[0]['rowid']
+        cur = self.cn.cursor()
+
+        #TODO:SELECT rowid from refid where refid=refid
+        for info in cur.execute("SELECT * FROM xrefs WHERE src_rowid=?", [rowid]):
+            item={}
+            cur = self.cn.cursor()
+            for i2 in cur.execute("SELECT * FROM memberdef WHERE rowid=?",[info['dst_rowid']]):
+                item['file']=self.__file_name(i2['bodyfile_id'])
+                item['name']=i2['name']
+                item['bodystart']=i2['bodystart']
+                item['bodyend']=i2['bodyend']
+
+            o.append(item)
+
+        #for info in cur.execute("SELECT * FROM memberdef_param WHERE dst_rowid=?", [rowid]):
+        #    item={}
+        #    cur = self.cn.cursor()
+        #    for i2 in cur.execute("SELECT * FROM memberdef WHERE rowid=?",[info['src_rowid']]):
+        #        item['name'] = i2['name']
+        #        item['src'] = info['src_rowid']
+
+            o.append(item)
+        return o
+
+    def sub_class(self, fname):
+        o=[]
+        c=self.cn.execute('SELECT compounddef.name FROM compounddef JOIN compoundref ON compounddef.rowid=compoundref.derived_rowid WHERE compoundref.base_rowid IN (SELECT rowid FROM compounddef WHERE'+self.__match("name")+')',[self.name])
+        for r in c.fetchall():
+            item={}
+            item['name'] = r['name']
+            o.append(item)
+        return o
+
+    def typedef(self, fname):
+        o=[]
+        ph='SELECT * FROM memberdef WHERE kind=? '
+        ar=[MemberType.Typedef]
+        if self.name:
+            ph = ph + self.__match("name")
+            ar.append(self.name)
+        if fname:
+            ph = ph + ' AND deffile_id=?'
+            ar.append(self.__file_id(fname))
+        c=self.cn.execute(ph,ar)
         for r in c.fetchall():
             item={}
             item['name'] = r['name']
             item['definition'] = r['definition']
-            item['file'] = self.fileName(r['file_id'])
-            item['line'] = r['line']
+            item['deffile'] = self.__file_name(r['deffile_id'])
+            item['defline'] = r['defline']
+            item['briefdescription'] = r['briefdescription']
+            item['detaileddescription'] = r['detaileddescription']
             o.append(item)
         return o
-###############################################################################
-    def variable(self):
+
+    def variable(self, fname):
         o=[]
-        c=self.cn.execute('SELECT * FROM memberdef WHERE'+self.match("name")+' AND kind=?',[self.name,MemberType.Variable])
+        ph='SELECT * FROM memberdef WHERE kind=? '
+        ar=[MemberType.Variable]
+        if self.name:
+            ph = ph + self.__match("name")
+            ar.append(self.name)
+        if fname:
+            ph = ph + ' AND deffile_id=?'
+            ar.append(self.__file_id(fname))
+        c=self.cn.execute(ph,ar)
         for r in c.fetchall():
             item={}
             item['name'] = r['name']
             item['definition'] = r['definition']
-            item['file'] = self.fileName(r['file_id'])
-            item['line'] = r['line']
+            item['deffile'] = self.__file_name(r['deffile_id'])
+            item['defline'] = r['defline']
+            item['rowid'] = r['rowid']
             o.append(item)
         return o
-###############################################################################
-    def params(self):
+
+    def params(self, fname):
         o=[]
-        c=self.cn.execute('SELECT rowid FROM memberdef WHERE'+self.match("name"),[self.name])
+        ph='SELECT rowid FROM memberdef WHERE'+self.__match("name")
+        ar=[self.name]
+        if fname:
+            ph = ph + ' AND deffile_id=?'
+            ar.append(self.__file_id(fname))
+        c=self.cn.execute(ph,ar)
         for r in c.fetchall():
             #a=("SELECT * FROM param where id=(SELECT param_id FROM memberdef_param where memberdef_id=?",[memberdef_id])
             item={}
             item['id'] = r['id']
             o.append(item)
         return o
-###############################################################################
-    def struct(self):
-        o=[]
-        c=self.cn.execute('SELECT * FROM compounddef WHERE'+self.match("name"),[self.name])
-        for r in c.fetchall():
-            item={}
-            item['name'] = r['name']
-            o.append(item)
-        return o
-###############################################################################
-    def includers(self):
-        o=[]
-        fid = self.fileId(self.name)
-        c=self.cn.execute('SELECT * FROM includes WHERE dst_id=?',[fid])
-        for r in c.fetchall():
-            item={}
-            item['name'] = self.fileName(r['src_id'])
-            o.append(item)
-        return o
-###############################################################################
-    def includees(self):
-        o=[]
-        fid = self.fileId(self.name)
-        c=self.cn.execute('SELECT * FROM includes WHERE src_id=?',[fid])
-        for r in c.fetchall():
-            item={}
-            item['name'] = self.fileName(r['dst_id'])
-            o.append(item)
-        return o
-###############################################################################
-    def members(self):
-        o=[]
-        c=self.cn.execute('SELECT * FROM memberdef WHERE'+self.match("scope"),[self.name])
-        for r in c.fetchall():
-            item={}
-            item['name'] = r['name']
-            item['definition'] = r['definition']
-            item['argsstring'] = r['argsstring']
-            item['file'] = self.fileName(r['file_id'])
-            item['line'] = r['line']
-            #item['documentation'] = r['documentation']
-            o.append(item)
-        return o
-###############################################################################
-    def baseClasses(self):
-        o=[]
-        c=self.cn.execute('SELECT compounddef.name FROM compounddef JOIN compoundref ON compounddef.rowid=compoundref.base_rowid WHERE compoundref.derived_rowid IN (SELECT rowid FROM compounddef WHERE'+self.match("name")+')',[self.name])
-        for r in c.fetchall():
-            item={}
-            item['name'] = r['name']
-            o.append(item)
-        return o
-###############################################################################
-    def subClasses(self):
-        o=[]
-        c=self.cn.execute('SELECT compounddef.name FROM compounddef JOIN compoundref ON compounddef.rowid=compoundref.derived_rowid WHERE compoundref.base_rowid IN (SELECT rowid FROM compounddef WHERE'+self.match("name")+')',[self.name])
-        for r in c.fetchall():
-            item={}
-            item['name'] = r['name']
-            o.append(item)
-        return o
-###############################################################################
-def process(f,kind):
-    request_processors = {
-        MemberType.Function: f.function,
-        MemberType.File: f.file,
-        MemberType.Define:   f.macro,
-        MemberType.Variable: f.variable,
-        MemberType.Typedef:  f.typedef,
-        RequestType.References: f.references,
-        RequestType.Struct: f.struct,
-        RequestType.Includers: f.includers,
-        RequestType.Includees: f.includees,
-        RequestType.Members: f.members,
-        RequestType.BaseClasses: f.baseClasses,
-        RequestType.SubClasses: f.subClasses
-    }
-    return request_processors[kind]()
-###############################################################################
 
-# the -H option isn't documented. It's one of the more recent additions, but it's treating refids as if they would be a string. I'm just taking a stab at updating it for now, converting to use rowid, and making other edits necessary to get it to run.
-def processHref(cn,ref):
+    def union(self, fname):
+        o=[]
+        ph='SELECT * FROM compounddef WHERE kind=? '
+        ar=[MemberType.Union]
+        if self.name:
+            ph = ph + self.__match("name")
+            ar.append(self.name)
+        if fname:
+            ph = ph + ' AND deffile_id=?'
+            ar.append(self.__file_id(fname))
+        c=self.cn.execute(ph,ar)
+        for r in c.fetchall():
+            item={}
+            item['name'] = r['name']
+            #item['definition'] = r['definition']
+            item['deffile'] = self.__file_name(r['deffile_id'])
+            item['defline'] = r['defline']
+            item['briefdescription'] = r['briefdescription']
+            item['detaileddescription'] = r['detaileddescription']
+            o.append(item)
+        return o
+
+    def struct(self, fname):
+        o=[]
+        ph='SELECT * FROM compounddef WHERE kind=?'
+        ar=[MemberType.Struct]
+        if self.name:
+            ph = ph + ' AND ' + self.__match("name")
+            ar.append(self.name)
+        if fname:
+            ph = ph + ' AND deffile_id=?'
+            ar.append(self.__file_id(fname))
+        print(f"{ph} ---- {ar}")
+        c=self.cn.execute(ph,ar)
+        for r in c.fetchall():
+            item={}
+            item['name'] = r['name']
+            item['deffile'] = self.__file_name(r['deffile_id'])
+            item['defline'] = r['defline']
+            item['rowid'] = r['rowid']
+            item['briefdescription'] = r['briefdescription']
+            item['detaileddescription'] = r['detaileddescription']
+            o.append(item)
+        return o
+
+    def any(self, fname):
+      o=[]
+
+      # is it in memberdef ?
+      if self.cn.execute('SELECT count(*) from memberdef WHERE'+self.__match("name"), [self.name]).fetchone()[0] > 0:
+          c = self.cn.execute('SELECT * FROM memberdef WHERE'+self.__match("name"),[self.name])
+          for r in c.fetchall():
+              item={}
+              item['kind'] = r['kind']
+              item['type'] = r['type']
+              item['name'] = r['name']
+              item['definition'] = r['definition']
+              item['argsstring'] = r['argsstring']
+              item['deffile'] = self.__file_name(r['deffile_id'])
+              item['defline'] = r['defline']
+              item['briefdescription'] = r['briefdescription']
+              item['detaileddescription'] = r['detaileddescription']
+              o.append(item)
+          return o
+
+      # is it in compounddef ?
+      if self.cn.execute('SELECT count(*) from compounddef WHERE'+self.__match("name"), [self.name]).fetchone()[0] > 0:
+          c = self.cn.execute('SELECT * FROM compounddef WHERE'+self.__match("name"),[self.name])
+          for r in c.fetchall():
+              print(">>>>> %s" % r)
+              item={}
+              item['name'] = r['name']
+              item['kind'] = r['kind']
+              item['deffile'] = self.__file_name(r['deffile_id'])
+              item['defline'] = r['defline']
+              item['briefdescription'] = r['briefdescription']
+              item['detaileddescription'] = r['detaileddescription']
+              o.append(item)
+          return o
+
+      return o
+
+
+    def find(self,str_kind, file=None):
+        request_processors = {
+            "base-class":       self.base_class,
+            "compound-members": self.compound_members,
+            "file":             self.file,
+            "file-members":     self.file_members,
+            "function":         self.function,
+            "includees":        self.includees,
+            "includers":        self.includers,
+            "references":       self.references,
+            "macro-definition": self.macro_definition,
+            "referenced-by":    self.referenced_by,
+            "sub-class":        self.sub_class,
+            "typedef":          self.typedef,
+            "union":            self.union,
+            "variable":         self.variable,
+            "params":           self.params,
+            "struct":           self.struct,
+            "any":              self.any,
+        }
+        return request_processors[str_kind](file)
+
+
+def find_href(cn,ref):
     j={}
 
     # is it in memberdef ?
@@ -279,18 +435,43 @@ def processHref(cn,ref):
     if ( cn.execute("SELECT count(*) from %s WHERE rowid=?"%table,[ref] ).fetchone()[0] > 0 ):
         for r in cn.execute("SELECT kind,rowid FROM %s WHERE rowid=?" % table,[ref]).fetchall():
             f=Finder(cn,r['rowid'],int)
-            j=process(f,str(r['kind']))
+            j=f.find(r['kind'])
 
     # is it in compounddef ?
     table="compounddef"
     if ( cn.execute("SELECT count(*) from %s WHERE rowid=?"%table,[ref]).fetchone()[0] > 0 ):
         for r in cn.execute("SELECT rowid FROM %s WHERE rowid=?"%table,[ref] ).fetchall():
             f=Finder(cn,r[0],int)
-            j=process(f,RequestType.Struct)
+            j=f.find('struct')
 
     return j
-###############################################################################
-def serveCgi():
+
+
+def open_db(dbname=None):
+    # case-insensitive sqlite regexp function
+    def re_fn(expr, item):
+      if item is None:
+        return None
+      reg = re.compile(expr, re.I)
+      return reg.search(item) is not None
+
+    if dbname == None:
+        dbname = os.path.dirname(os.path.realpath(__file__)) + '/doxygen_sqlite3.db'
+
+    if not os.path.isfile(dbname):
+        print("failed to open %s" % dbname, file=sys.stderr)
+        return None
+
+    conn = sqlite3.connect(dbname)
+    conn.execute('PRAGMA temp_store = MEMORY;')
+    conn.row_factory = sqlite3.Row
+    # I've used this because bitfield column was wrong
+    #conn.text_factory = lambda b: b.decode(errors = 'ignore')
+    conn.create_function("REGEXP", 2, re_fn)
+    return conn
+
+
+def serve_cgi():
     import cgi
 
     print('Content-Type: application/json\n')
@@ -304,94 +485,90 @@ def serveCgi():
         print('{"result": null, "error": "no refid given"}')
         sys.exit(0)
 
-    cn=openDb('doxygen_sqlite3.db')
+    dbname = os.path.dirname(os.path.realpath(__file__)) + '/doxygen_sqlite3.db'
+    cn=open_db(dbname)
+    if not cn:
+        print(json.dumps({"result":None,"error":"failed to open doxygen_sqlite3.db"}))
+        return
 
-    j = processHref(cn,ref)
+
+    j = find_href(cn,ref)
 
     print(json.dumps({"result":j,"error":None}))
-###############################################################################
-def usage():
-  sys.stderr.write("""Usage: search.py [Options]
-Options:
-    -h, --help
-    -d <D>    Use database <D> for queries.
-    -f <F>    Search for definition of function <F>.
-    -m <M>    Search for definition of macro <M>.
-    -r <F>    Search for references to function <F>.
-    -t <T>    Search for definition of type <T>.
-    -v <V>    Search for definition of variable <V>.
-    -I <I>    What files are including <I>.
-    -i <i>    What files are included by <i>.
-    -B <C>    Get the base classes of class <C>.
-    -M <C>    Get all members of class <C>.
-    -S <C>    Get the sub classes of class <C>.
-    -R        Consider the search <term> to be a regex.
-""")
-###############################################################################
-def serveCli(argv):
-    try:
-        opts, args = getopt.getopt(argv, "hr:RI:i:d:f:m:t:v:H:M:B:S:F:",["help"])
-    except getopt.GetoptError:
-        usage()
-        sys.exit(1)
 
-    ref=None
-    dbname=None
+
+def serve_cli():
+    identifier=None
     j={}
-    global g_use_regexp
 
-    for a, o in opts:
-        if a in ('-h', '--help'):
-            usage()
-            sys.exit(0)
-        elif a in ('-d'):
-            dbname=o
-            continue
-        elif a in ('-r'):
-            kind=RequestType.References
-        elif a in ('-R'):
-            g_use_regexp=True
-            continue
-        elif a in ('-I'):
-            kind=RequestType.Includers
-        elif a in ('-i'):
-            kind=RequestType.Includees
-        elif a in ('-M'):
-            kind=RequestType.Members
-        elif a in ('-B'):
-            kind=RequestType.BaseClasses
-        elif a in ('-S'):
-            kind=RequestType.SubClasses
-        elif a in ('-f'):
-            kind=MemberType.Function
-        elif a in ('-F'):
-            # undocumented
-            # seems to fit with the lower case "search" patterns?
-            kind=MemberType.File
-        elif a in ('-m'):
-            kind=MemberType.Define
-        elif a in ('-t'):
-            kind=MemberType.Typedef
-        elif a in ('-v'):
-            kind=MemberType.Variable
-        elif a in ('-H'):
-            # undocumented
-            ref = o
+    parser = argparse.ArgumentParser()
+    parser.add_argument('-d'
+                        , '--dbname'
+                        , action='store'
+                        , help='Use database <D> for queries.'
+                       )
+    parser.add_argument('-f'
+                        , '--fname'
+                        , action='store'
+                        , help='Process only this file.'
+                       )
+    parser.add_argument('-H'
+                       , '--href'
+                       , action='store'
+                       , help='Show info about this href.'
+                       )
+    parser.add_argument('-r'
+                       , '--regex'
+                       , action='store_true'
+                       , help='Treat <identifier> as a regular expression.'
+                       )
+    parser.add_argument('-k'
+                       , '--kind'
+                       , choices=[
+                                   'base-class'
+                                  ,'compound-members'
+                                  ,'file'
+                                  ,'file-members'
+                                  ,'function'
+                                  ,'includees'
+                                  ,'includers'
+                                  ,'references'
+                                  ,'macro-definition'
+                                  ,'referenced-by'
+                                  ,'sub-class'
+                                  ,'typedef'
+                                  ,'union'
+                                  ,'variable'
+                                  ,'params'
+                                  ,'struct'
+                                  ,'any'
+                                 ]
+                       , action='store'
+                       , default='any'
+                       , help='Do a search for this kind of <indentifier>.'
+                       )
+    (args,identifier) = parser.parse_known_args()
 
-        cn=openDb(dbname)
-        f=Finder(cn,o)
-        if ref != None:
-          j=processHref(cn,ref)
-        else:
-          j=process(f,kind)
-        print(json.dumps(j,indent=4))
+    cn=open_db(args.dbname)
+    if not cn:
+      return
 
-
-def main(argv):
-    if 'REQUEST_METHOD' in os.environ:
-        serveCgi()
+    if args.href != None:
+      j=find_href(cn,args.href)
+    elif args.kind:
+      j=Finder(cn,identifier,args.regex).find(args.kind, args.fname)
     else:
-        serveCli(argv)
+      parser.print_help()
+
+    print(json.dumps(j,indent=4))
+
+
+def main():
+    if 'REQUEST_METHOD' in os.environ:
+        serve_cgi()
+    else:
+        serve_cli()
+
 
 if __name__ == '__main__':
-    main(sys.argv[1:])
+    main()
