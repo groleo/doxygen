@@ -462,7 +462,8 @@ void writeXMLCodeBlock(TextStream &t,FileDef *fd)
   delete xmlGen;
 }
 
-static void writeMemberReference(TextStream &t,const Definition *def,const MemberDef *rmd,const QCString &tagName)
+static void writeMemberReference(TextStream &t,const Definition *def,
+    const MemberDef *rmd,const QCString &tagName)
 {
   QCString scope = rmd->getScopeString();
   QCString name = rmd->name();

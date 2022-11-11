@@ -71,6 +71,55 @@ static void sqlLog(void *dbName, const char *sql){
 }
 # endif
 
+static const std::map<MemberListType,std::string> g_sectionMap =
+{
+  { MemberListType_pubTypes,"public-type" },
+  { MemberListType_pubMethods,"public-func" },
+  { MemberListType_pubAttribs,"public-attrib" },
+  { MemberListType_pubSlots,"public-slot" },
+  { MemberListType_signals,"signal" },
+  { MemberListType_dcopMethods,"dcop-func" },
+  { MemberListType_properties,"property" },
+  { MemberListType_events,"event" },
+  { MemberListType_interfaces,"interfaces" },
+  { MemberListType_services,"services" },
+  { MemberListType_pubStaticMethods,"public-static-func" },
+  { MemberListType_pubStaticAttribs,"public-static-attrib" },
+  { MemberListType_proTypes,"protected-type" },
+  { MemberListType_proMethods,"protected-func" },
+  { MemberListType_proAttribs,"protected-attrib" },
+  { MemberListType_proSlots,"protected-slot" },
+  { MemberListType_proStaticMethods,"protected-static-func" },
+  { MemberListType_proStaticAttribs,"protected-static-attrib" },
+  { MemberListType_pacTypes,"package-type" },
+  { MemberListType_pacMethods,"package-func" },
+  { MemberListType_pacAttribs,"package-attrib" },
+  { MemberListType_pacStaticMethods,"package-static-func" },
+  { MemberListType_pacStaticAttribs,"package-static-attrib" },
+  { MemberListType_priTypes,"private-type" },
+  { MemberListType_priMethods,"private-func" },
+  { MemberListType_priAttribs,"private-attrib" },
+  { MemberListType_priSlots,"private-slot" },
+  { MemberListType_priStaticMethods,"private-static-func" },
+  { MemberListType_priStaticAttribs,"private-static-attrib" },
+  { MemberListType_friends,"friend" },
+  { MemberListType_related,"related" },
+  { MemberListType_decDefineMembers,"define" },
+  { MemberListType_decProtoMembers,"prototype" },
+  { MemberListType_decTypedefMembers,"typedef" },
+  { MemberListType_decSequenceMembers,"sequence" },
+  { MemberListType_decDictionaryMembers,"dictionary" },
+  { MemberListType_decEnumMembers,"enum" },
+  { MemberListType_decFuncMembers,"func" },
+  { MemberListType_decVarMembers,"var" },
+};
+
+static const char *sectionMapper(MemberListType ml)
+{
+  auto it = g_sectionMap.find(ml);
+  return it!=g_sectionMap.end() ? it->second.c_str() : "";
+}
+
 const char * table_schema[][2] = {
   /* TABLES */
   { "meta",
@@ -158,9 +207,9 @@ const char * table_schema[][2] = {
       "\trowid        INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,\n"
       "\tsrc_rowid    INTEGER NOT NULL REFERENCES refid, -- referrer id.\n"
       "\tdst_rowid    INTEGER NOT NULL REFERENCES refid, -- referee id.\n"
-      "\tcontext      TEXT NOT NULL, -- inline, argument, initializer\n"
+      "\tkind      TEXT NOT NULL, -- inline, argument, initializer\n"
       "\t-- Just need to know they link; ignore duplicates.\n"
-      "\tUNIQUE(src_rowid, dst_rowid, context) ON CONFLICT IGNORE\n"
+      "\tUNIQUE(src_rowid, dst_rowid, kind) ON CONFLICT IGNORE\n"
     ");\n"
   },
   { "memberdef",
@@ -236,6 +285,15 @@ const char * table_schema[][2] = {
       "\tUNIQUE(memberdef_rowid, reimplemented_rowid) ON CONFLICT IGNORE\n"
     ");\n"
   },
+  { "sectiondef",
+    "CREATE TABLE IF NOT EXISTS sectiondef (\n"
+      "\t-- Section definitions.\n"
+      "\trowid          INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,\n"
+      "\tkind           TEXT NOT NULL, -- 'public-func' ''\n"
+      "\theader         JSON, -- ??? ''\n"
+      "\tdescription    JSON  -- ??? ''\n"
+    ");"
+  },
   { "compoundmembers",
     "CREATE TABLE IF NOT EXISTS compoundmembers (\n"
       "\t-- Aggregates all members of a compound.\n"
@@ -257,11 +315,11 @@ const char * table_schema[][2] = {
       // probably won't be empty '' or unknown, but the source *could* return them...
       "\tkind                 TEXT NOT NULL, -- 'category' 'class' 'constants' 'dir' 'enum' 'example' 'exception' 'file' 'group' 'interface' 'library' 'module' 'namespace' 'package' 'page' 'protocol' 'service' 'singleton' 'struct' 'type' 'union' 'unknown' ''\n"
       "\tlanguage             TEXT,\n"
-      "\tprot                 INTEGER,\n"
+      "\tprot                 INTEGER DEFAULT 0, -- 0:public 1:protected 2:private 3:package\n"
       "\tdeffile_id           INTEGER NOT NULL REFERENCES path,\n"
       "\tdefline              INTEGER NOT NULL,\n"
       "\tdefcolumn            INTEGER NOT NULL,\n"
-      "\theader_id            INTEGER REFERENCES path,\n"
+      "\theaderfile_id        INTEGER REFERENCES path,\n"
       "\tdetaileddescription  JSON,\n"
       "\tbriefdescription     JSON,\n"
       "\tFOREIGN KEY (rowid) REFERENCES refid (rowid)\n"
@@ -276,15 +334,6 @@ const char * table_schema[][2] = {
       "\tprot           INTEGER NOT NULL,\n"
       "\tvirt           INTEGER NOT NULL,\n"
       "\tUNIQUE(base_rowid, derived_rowid)\n"
-    ");"
-  },
-  { "sectiondef",
-    "CREATE TABLE IF NOT EXISTS sectiondef (\n"
-      "\t-- Section definitions.\n"
-      "\trowid          INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,\n"
-      "\tkind           TEXT NOT NULL, -- 'public-func' ''\n"
-      "\theader         TEXT, -- ??? ''\n"
-      "\tdescription    TEXT  -- ??? ''\n"
     ");"
   },
   { "param",
@@ -311,7 +360,8 @@ const char * table_schema[][2] = {
     ");"
   },
 };
-  const char * view_schema[][2] = {
+
+const char * view_schema[][2] = {
   /* VIEWS *
   We'll set these up AFTER we build the database, so that they can be indexed,
   but so we don't have to pay a performance penalty for inserts as we build.
@@ -321,7 +371,7 @@ const char * table_schema[][2] = {
     Makes all reference/relation tables easier to use. For example:
     1. query xrefs and join this view on either xrefs.dst_rowid=def.rowid or
        xrefs.src_rowid=def.rowid
-    2. get everything you need to output a list of references to/from an entity
+    2. get everything you need to output as a list of references to/from an entity
 
     Also supports simple name search/lookup for both compound and member types.
 
@@ -333,8 +383,8 @@ const char * table_schema[][2] = {
       distance-driven lookup/search, but I'm avoiding these for now as it
       takes some effort to enable them.
     */
-    "def",
-    "CREATE VIEW IF NOT EXISTS def (\n"
+    "def_view",
+    "CREATE VIEW IF NOT EXISTS def_view (\n"
       "\t-- Combined summary of all -def types for easier joins.\n"
       "\trowid,\n"
       "\trefid,\n"
@@ -365,8 +415,23 @@ const char * table_schema[][2] = {
     "JOIN compounddef ON refid.rowid=compounddef.rowid;"
   },
   {
-    "local_file",
-    "CREATE VIEW IF NOT EXISTS local_file (\n"
+    "memberdef_param_view",
+    "CREATE VIEW IF NOT EXISTS memberdef_param_view (\n"
+      "\t-- Crossrefs from member params.\n"
+      "\trowid,\n"
+      "\ttype,\n"
+      "\tdeclname\n"
+    ")\n"
+    "as SELECT \n"
+      "\tmemberdef_param.memberdef_id,\n"
+      "\tparam.type,\n"
+      "\tparam.declname\n"
+    "FROM memberdef_param\n"
+    "JOIN param ON param.rowid=memberdef_param.param_id;\n"
+  },
+  {
+    "local_file_view",
+    "CREATE VIEW IF NOT EXISTS local_file_view (\n"
       "\t-- File paths found within the project.\n"
       "\trowid,\n"
       "\tfound,\n"
@@ -379,8 +444,8 @@ const char * table_schema[][2] = {
     "FROM path WHERE path.type=1 AND path.local=1 AND path.found=1;\n"
   },
   {
-    "external_file",
-    "CREATE VIEW IF NOT EXISTS external_file (\n"
+    "external_file_view",
+    "CREATE VIEW IF NOT EXISTS external_file_view (\n"
       "\t-- File paths outside the project (found or not).\n"
       "\trowid,\n"
       "\tfound,\n"
@@ -393,8 +458,8 @@ const char * table_schema[][2] = {
     "FROM path WHERE path.type=1 AND path.local=0;\n"
   },
   {
-    "inline_xrefs",
-    "CREATE VIEW IF NOT EXISTS inline_xrefs (\n"
+    "inline_xrefs_view",
+    "CREATE VIEW IF NOT EXISTS inline_xrefs_view (\n"
       "\t-- Crossrefs from inline member source.\n"
       "\trowid,\n"
       "\tsrc_rowid,\n"
@@ -404,11 +469,11 @@ const char * table_schema[][2] = {
       "\txrefs.rowid,\n"
       "\txrefs.src_rowid,\n"
       "\txrefs.dst_rowid\n"
-    "FROM xrefs WHERE xrefs.context='inline';\n"
+    "FROM xrefs WHERE xrefs.kind='inline';\n"
   },
   {
-    "argument_xrefs",
-    "CREATE VIEW IF NOT EXISTS argument_xrefs (\n"
+    "argument_xrefs_view",
+    "CREATE VIEW IF NOT EXISTS argument_xrefs_view (\n"
       "\t-- Crossrefs from member def/decl arguments\n"
       "\trowid,\n"
       "\tsrc_rowid,\n"
@@ -418,11 +483,11 @@ const char * table_schema[][2] = {
       "\txrefs.rowid,\n"
       "\txrefs.src_rowid,\n"
       "\txrefs.dst_rowid\n"
-    "FROM xrefs WHERE xrefs.context='argument';\n"
+    "FROM xrefs WHERE xrefs.kind='argument';\n"
   },
   {
-    "initializer_xrefs",
-    "CREATE VIEW IF NOT EXISTS initializer_xrefs (\n"
+    "initializer_xrefs_view",
+    "CREATE VIEW IF NOT EXISTS initializer_xrefs_view (\n"
       "\t-- Crossrefs from member initializers\n"
       "\trowid,\n"
       "\tsrc_rowid,\n"
@@ -432,22 +497,22 @@ const char * table_schema[][2] = {
       "\txrefs.rowid,\n"
       "\txrefs.src_rowid,\n"
       "\txrefs.dst_rowid\n"
-    "FROM xrefs WHERE xrefs.context='initializer';\n"
+    "FROM xrefs WHERE xrefs.kind='initializer';\n"
   },
   {
-    "inner_outer",
-    "CREATE VIEW IF NOT EXISTS inner_outer\n"
+    "inner_outer_view",
+    "CREATE VIEW IF NOT EXISTS inner_outer_view\n"
     "\t-- Joins 'contains' relations to simplify inner/outer 'rel' queries.\n"
     "as SELECT \n"
       "\tinner.*,\n"
       "\touter.*\n"
-    "FROM def as inner\n"
+    "FROM def_view as inner\n"
       "\tJOIN contains ON inner.rowid=contains.inner_rowid\n"
-      "\tJOIN def AS outer ON outer.rowid=contains.outer_rowid;\n"
+      "\tJOIN def_view AS outer ON outer.rowid=contains.outer_rowid;\n"
   },
   {
-    "rel",
-    "CREATE VIEW IF NOT EXISTS rel (\n"
+    "rel_view",
+    "CREATE VIEW IF NOT EXISTS rel_view (\n"
       "\t-- Boolean indicator of relations available for a given entity.\n"
       "\t-- Join to (compound-|member-)def to find fetch-worthy relations.\n"
       "\trowid,\n"
@@ -479,41 +544,41 @@ const char * table_schema[][2] = {
       "\tinitializer_links_out\n"
     ")\n"
     "as SELECT \n"
-      "\tdef.rowid,\n"
-      "\tEXISTS (SELECT rowid FROM reimplements WHERE reimplemented_rowid=def.rowid),\n"
-      "\tEXISTS (SELECT rowid FROM reimplements WHERE memberdef_rowid=def.rowid),\n"
+      "\tdef_view.rowid,\n"
+      "\tEXISTS (SELECT rowid FROM reimplements WHERE reimplemented_rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT rowid FROM reimplements WHERE memberdef_rowid=def_view.rowid),\n"
       "\t-- rowid/kind for inner, [rowid:1/kind:1] for outer\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE [rowid:1]=def.rowid),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE rowid=def.rowid),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE [rowid:1]=def.rowid AND kind='page'),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE rowid=def.rowid AND [kind:1]='page'),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE [rowid:1]=def.rowid AND kind='dir'),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE rowid=def.rowid AND [kind:1]='dir'),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE [rowid:1]=def.rowid AND kind='file'),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE rowid=def.rowid AND [kind:1]='file'),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE [rowid:1]=def.rowid AND kind in (\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE [rowid:1]=def_view.rowid),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE [rowid:1]=def_view.rowid AND kind='page'),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE rowid=def_view.rowid AND [kind:1]='page'),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE [rowid:1]=def_view.rowid AND kind='dir'),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE rowid=def_view.rowid AND [kind:1]='dir'),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE [rowid:1]=def_view.rowid AND kind='file'),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE rowid=def_view.rowid AND [kind:1]='file'),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE [rowid:1]=def_view.rowid AND kind in (\n"
         "'category','class','enum','exception','interface','module','protocol',\n"
         "'service','singleton','struct','type','union'\n"
       ")),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE rowid=def.rowid AND [kind:1] in (\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE rowid=def_view.rowid AND [kind:1] in (\n"
         "'category','class','enum','exception','interface','module','protocol',\n"
         "'service','singleton','struct','type','union'\n"
       ")),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE [rowid:1]=def.rowid AND kind='namespace'),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE rowid=def.rowid AND [kind:1]='namespace'),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE [rowid:1]=def.rowid AND kind='group'),\n"
-      "\tEXISTS (SELECT * FROM inner_outer WHERE rowid=def.rowid AND [kind:1]='group'),\n"
-      "\tEXISTS (SELECT rowid FROM compoundmembers WHERE compounddef_rowid=def.rowid),\n"
-      "\tEXISTS (SELECT rowid FROM compoundmembers WHERE memberdef_rowid=def.rowid),\n"
-      "\tEXISTS (SELECT rowid FROM compoundref WHERE base_rowid=def.rowid),\n"
-      "\tEXISTS (SELECT rowid FROM compoundref WHERE derived_rowid=def.rowid),\n"
-      "\tEXISTS (SELECT rowid FROM inline_xrefs WHERE dst_rowid=def.rowid),\n"
-      "\tEXISTS (SELECT rowid FROM inline_xrefs WHERE src_rowid=def.rowid),\n"
-      "\tEXISTS (SELECT rowid FROM argument_xrefs WHERE dst_rowid=def.rowid),\n"
-      "\tEXISTS (SELECT rowid FROM argument_xrefs WHERE src_rowid=def.rowid),\n"
-      "\tEXISTS (SELECT rowid FROM initializer_xrefs WHERE dst_rowid=def.rowid),\n"
-      "\tEXISTS (SELECT rowid FROM initializer_xrefs WHERE src_rowid=def.rowid)\n"
-    "FROM def ORDER BY def.rowid;"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE [rowid:1]=def_view.rowid AND kind='namespace'),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE rowid=def_view.rowid AND [kind:1]='namespace'),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE [rowid:1]=def_view.rowid AND kind='group'),\n"
+      "\tEXISTS (SELECT * FROM inner_outer_view WHERE rowid=def_view.rowid AND [kind:1]='group'),\n"
+      "\tEXISTS (SELECT rowid FROM compoundmembers WHERE compounddef_rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT rowid FROM compoundmembers WHERE memberdef_rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT rowid FROM compoundref WHERE base_rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT rowid FROM compoundref WHERE derived_rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT rowid FROM inline_xrefs_view WHERE dst_rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT rowid FROM inline_xrefs_view WHERE src_rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT rowid FROM argument_xrefs_view WHERE dst_rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT rowid FROM argument_xrefs_view WHERE src_rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT rowid FROM initializer_xrefs_view WHERE dst_rowid=def_view.rowid),\n"
+      "\tEXISTS (SELECT rowid FROM initializer_xrefs_view WHERE src_rowid=def_view.rowid)\n"
+    "FROM def_view ORDER BY def_view.rowid;"
   }
 };
 
@@ -589,13 +654,21 @@ SqlStmt refid_insert = {
   ,NULL
 };
 //////////////////////////////////////////////////////
+SqlStmt xrefs_select= {
+  "SELECT rowid FROM xrefs WHERE "
+    "( src_rowid=:src_rowid) AND "
+    "( dst_rowid=:dst_rowid) AND "
+    "( kind=:kind)"
+  ,NULL
+};
 SqlStmt xrefs_insert= {
   "INSERT INTO xrefs "
-    "( src_rowid, dst_rowid, context )"
+    "( src_rowid, dst_rowid, kind )"
   "VALUES "
-    "(:src_rowid,:dst_rowid,:context )"
+    "(:src_rowid,:dst_rowid,:kind )"
   ,NULL
-};//////////////////////////////////////////////////////
+};
+//////////////////////////////////////////////////////
 SqlStmt reimplements_insert= {
   "INSERT INTO reimplements "
     "( memberdef_rowid, reimplemented_rowid )"
@@ -604,7 +677,7 @@ SqlStmt reimplements_insert= {
   ,NULL
 };
 //////////////////////////////////////////////////////
-SqlStmt memberdef_exists={
+SqlStmt memberdef_select={
   "SELECT EXISTS (SELECT * FROM memberdef WHERE rowid = :rowid)"
   ,NULL
 };
@@ -753,6 +826,12 @@ SqlStmt memberdef_update={
   ,NULL
 };
 //////////////////////////////////////////////////////
+SqlStmt compoundmembers_select={
+  "SELECT rowid FROM compoundmembers WHERE "
+    "( compounddef_rowid=:compounddef_rowid ) AND "
+    "( memberdef_rowid=:memberdef_rowid )"
+  ,NULL
+};
 SqlStmt compoundmembers_insert={
   "INSERT INTO compoundmembers "
     "( compounddef_rowid, memberdef_rowid, prot, virt ) "
@@ -773,7 +852,7 @@ SqlStmt compounddef_insert={
     "deffile_id,"
     "defline,"
     "defcolumn,"
-    "header_id,"
+    "headerfile_id,"
     "briefdescription,"
     "detaileddescription"
   ")"
@@ -788,15 +867,37 @@ SqlStmt compounddef_insert={
     ":deffile_id,"
     ":defline,"
     ":defcolumn,"
-    ":header_id,"
+    ":headerfile_id,"
     ":briefdescription,"
     ":detaileddescription"
   ")"
   ,NULL
 };
-SqlStmt compounddef_exists={
+SqlStmt compounddef_select={
   "SELECT EXISTS ("
     "SELECT * FROM compounddef WHERE rowid = :rowid"
+  ")"
+  ,NULL
+};
+//////////////////////////////////////////////////////
+SqlStmt sectiondef_insert={
+  "INSERT INTO sectiondef "
+  "("
+    "kind,"
+    "header,"
+    "description"
+  ")"
+  "VALUES "
+  "("
+    ":kind,"
+    ":header,"
+    ":description"
+  ")"
+  ,NULL
+};
+SqlStmt sectiondef_exists={
+  "SELECT EXISTS ("
+    "SELECT * FROM sectiondef WHERE rowid = :rowid"
   ")"
   ,NULL
 };
@@ -806,14 +907,6 @@ SqlStmt compoundref_insert={
     "( base_rowid, derived_rowid, prot, virt ) "
   "VALUES "
     "(:base_rowid,:derived_rowid,:prot,:virt )"
-  ,NULL
-};
-//////////////////////////////////////////////////////
-SqlStmt sectiondef_insert={
-  "INSERT INTO sectiondef "
-    "( kind, header, description ) "
-  "VALUES "
-    "(:kind,:header,:description )"
   ,NULL
 };
 //////////////////////////////////////////////////////
@@ -844,11 +937,16 @@ SqlStmt memberdef_param_insert={
   ,NULL
 };
 //////////////////////////////////////////////////////
-typedef struct Refid_r {
+SqlStmt memberdef_param_view_select={
+  "SELECT * FROM memberdef_param_view WHERE rowid = :rowid"
+  ,NULL
+};
+//////////////////////////////////////////////////////
+struct Refid {
   int rowid;
   QCString refid;
-  bool created;
-} Refid;
+  bool isNew;
+};
 
 class TextGeneratorSqlite3Impl : public TextGeneratorIntf
 {
@@ -1011,32 +1109,33 @@ static bool bindTextParameter(SqlStmt &s,const char *name,const QCString &value,
   return true;
 }
 static QCString getJsonDoc( const Definition *def,
-                            const QCString &doc)
+                            const QCString &in_text)
 {
-  if (doc.isEmpty())
-    return NULL;
+  QCString stext = in_text.stripWhiteSpace();
+  if (stext.isEmpty()) return NULL;
 
-  QCString t;
+  QCString out_text;
   std::unique_ptr<IDocParser> parser { createDocParser() };
-  std::unique_ptr<DocRoot>    root   {
-                                validatingParseDoc(
-                                    *parser.get(),
-                                    def->docFile(),
-                                    def->docLine(),
-                                    const_cast<Definition*>(def->getOuterScope()),
-                                    toMemberDef(def),
-                                    doc,
-                                    FALSE,
-                                    FALSE,
-                                    0,
-                                    FALSE,
-                                    FALSE,
-                                    Config_getBool(MARKDOWN_SUPPORT)
-                                    )
-                                    };
-  auto visitor = std::make_unique<JsonMLDocVisitor>(t);
+  std::unique_ptr<DocRoot>    root   { validatingParseDoc(
+                                          *parser.get(),
+                                          def->docFile(),
+                                          def->docLine(),
+                                          const_cast<Definition*>(def->getOuterScope()),
+                                          toMemberDef(def),
+                                          stext,
+                                          FALSE,
+                                          FALSE,
+                                          QCString(),
+                                          FALSE,
+                                          FALSE,
+                                          Config_getBool(MARKDOWN_SUPPORT)
+                                       )
+                                     };
+  // create a parse tree visitor for JsonML
+  auto visitor = std::make_unique<JsonMLDocVisitor>(out_text);
+  // visit all nodes
   root->accept(visitor.get());
-  return t.stripWhiteSpace();
+  return out_text;
 }
 
 static bool bindJsonParameter(SqlStmt &s, const char *name, const Definition *def, QCString value, bool _static=TRUE)
@@ -1129,8 +1228,9 @@ static int prepareStatements(sqlite3 *db)
   if (
   -1==prepareStatement(db, meta_insert) ||
   -1==prepareStatement(db, project_insert) ||
-  -1==prepareStatement(db, memberdef_exists) ||
+  -1==prepareStatement(db, memberdef_select) ||
   -1==prepareStatement(db, memberdef_insert) ||
+  -1==prepareStatement(db, compoundmembers_select) ||
   -1==prepareStatement(db, compoundmembers_insert) ||
   -1==prepareStatement(db, path_insert) ||
   -1==prepareStatement(db, path_select) ||
@@ -1139,15 +1239,18 @@ static int prepareStatements(sqlite3 *db)
   -1==prepareStatement(db, incl_insert)||
   -1==prepareStatement(db, incl_select)||
   -1==prepareStatement(db, param_insert) ||
-  -1==prepareStatement(db, sectiondef_insert) ||
   -1==prepareStatement(db, param_select) ||
+  -1==prepareStatement(db, xrefs_select) ||
   -1==prepareStatement(db, xrefs_insert) ||
   -1==prepareStatement(db, reimplements_insert) ||
   -1==prepareStatement(db, contains_insert) ||
-  -1==prepareStatement(db, compounddef_exists) ||
+  -1==prepareStatement(db, compounddef_select) ||
   -1==prepareStatement(db, compounddef_insert) ||
+  -1==prepareStatement(db, sectiondef_exists) ||
+  -1==prepareStatement(db, sectiondef_insert) ||
   -1==prepareStatement(db, compoundref_insert) ||
-  -1==prepareStatement(db, memberdef_param_insert)
+  -1==prepareStatement(db, memberdef_param_insert) ||
+  -1==prepareStatement(db, memberdef_param_view_select)
   )
   {
     return -1;
@@ -1192,16 +1295,16 @@ static void stripQualifiers(QCString &typeStr)
 ///////////////////////////////////////////////////////////////////////////////
 static bool existsMemberDef(Refid refid)
 {
-  bindIntParameter(memberdef_exists,":rowid",refid.rowid);
-  int test = stepRowid(memberdef_exists,TRUE);
-  return test ? true : false;
+  bindIntParameter(memberdef_select,":rowid",refid.rowid);
+  int row = stepRowid(memberdef_select,TRUE);
+  return row>0 ? true : false;
 }
 
 static bool existsCompoundDef(Refid refid)
 {
-  bindIntParameter(compounddef_exists,":rowid",refid.rowid);
-  int test = stepRowid(compounddef_exists,TRUE);
-  return test ? true : false;
+  bindIntParameter(compounddef_select,":rowid",refid.rowid);
+  int row = stepRowid(compounddef_select,TRUE);
+  return row>0 ? true : false;
 }
 
 static int insertPath(QCString name, bool local=TRUE, bool found=TRUE, int type=PATH_TYPE_FILE)
@@ -1352,10 +1455,17 @@ static void bindMemberType(const MemberDef *md)
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
 ///////////////////////////////////////////////////////////////////////////////
-static void insertClassMember(const MemberDef *md, const Refid member_refid, Refid compounddef_refid)
+static void insertClassMember(const MemberDef *md,
+                              const Refid member_refid,
+                              Refid compounddef_refid)
 {
-  // skip anonymous members
-  if (md->name().at(0)=='@')
+  if (md->isAnonymous())
+    return;
+
+  bindIntParameter(compoundmembers_select, ":compounddef_rowid", compounddef_refid.rowid);
+  bindIntParameter(compoundmembers_select, ":memberdef_rowid", member_refid.rowid);
+  int row = stepRowid(compoundmembers_select,TRUE);
+  if (row>0)
     return;
 
   bindIntParameter(compoundmembers_insert, ":compounddef_rowid", compounddef_refid.rowid);
@@ -1371,7 +1481,7 @@ static Refid insertRefid(const QCString &refid)
   Refid ret;
   ret.rowid=-1;
   ret.refid=refid;
-  ret.created = FALSE;
+  ret.isNew = FALSE;
 
   bindTextParameter(refid_select,":refid",refid);
   ret.rowid=stepRowid(refid_select,TRUE);
@@ -1379,38 +1489,45 @@ static Refid insertRefid(const QCString &refid)
   {
     bindTextParameter(refid_insert,":refid",refid);
     ret.rowid=stepRowid(refid_insert);
-    ret.created = TRUE;
+    ret.isNew = TRUE;
   }
 
   return ret;
 }
 
-static bool insertMemberReference(Refid src_refid, Refid dst_refid, const char *context)
+static bool insertMemberReference(Refid src_refid, Refid dst_refid, const char *kind)
 {
   if (src_refid.rowid==-1||dst_refid.rowid==-1)
     return false;
 
+  bindIntParameter(xrefs_select,":src_rowid",src_refid.rowid);
+  bindIntParameter(xrefs_select,":dst_rowid",dst_refid.rowid);
+  bindTextParameter(xrefs_select,":kind",kind);
+  int row = stepRowid(xrefs_select,TRUE);
+  if (row>0)
+    return true;
+
   if (
      !bindIntParameter(xrefs_insert,":src_rowid",src_refid.rowid) ||
-     !bindIntParameter(xrefs_insert,":dst_rowid",dst_refid.rowid)
+     !bindIntParameter(xrefs_insert,":dst_rowid",dst_refid.rowid) ||
+     !bindTextParameter(xrefs_insert,":kind",kind)
      )
   {
     return false;
   }
 
-  bindTextParameter(xrefs_insert,":context",context);
   step(xrefs_insert);
   return true;
 }
 
-static void insertMemberReference(const MemberDef *src, const MemberDef *dst, const char *context)
+static void insertMemberReference(const MemberDef *src, const MemberDef *dst, const char *kind)
 {
   QCString qdst_refid = dst->getOutputFileBase() + "_1" + dst->anchor();
   QCString qsrc_refid = src->getOutputFileBase() + "_1" + src->anchor();
 
   Refid src_refid = insertRefid(qsrc_refid);
   Refid dst_refid = insertRefid(qdst_refid);
-  insertMemberReference(src_refid,dst_refid,context);
+  insertMemberReference(src_refid,dst_refid,kind);
 }
 
 static void insertMemberReferences(const MemberDef *md)
@@ -1419,7 +1536,7 @@ static void insertMemberReferences(const MemberDef *md)
   auto refList = md->getReferencesMembers();
   for (const auto &rmd : refList)
   {
-   insertMemberReference(md,rmd, "inline");
+    insertMemberReference(md,rmd, "inline");
   }
   // + source referenced by
   auto refByList = md->getReferencedByMembers();
@@ -1809,7 +1926,9 @@ member and compound using the interface or service kind.
 // + template arguments
 //     (templateArguments(), definitionTemplateParameterLists())
 // - call graph
-static void insertMember(const MemberDef *md, Refid compounddef_refid, const Definition *def)
+static void insertMember(const MemberDef *md,
+                         Refid compounddef_refid,
+                         const Definition *def)
 {
   // Skip EnumValues which are written by insertEnum()
   if (md->memberType()==MemberType_EnumValue)
@@ -1823,7 +1942,11 @@ static void insertMember(const MemberDef *md, Refid compounddef_refid, const Def
   QCString qrefid = md->getOutputFileBase() + "_1" + md->anchor();
   Refid refid = insertRefid(qrefid);
 
-  insertClassMember(md, refid, compounddef_refid);
+  if(compounddef_refid.isNew || !existsCompoundDef(compounddef_refid))
+    insertClassMember(md, refid, compounddef_refid);
+
+  if(!refid.isNew && existsMemberDef(refid))
+    return;
 
   bindIntParameter(memberdef_insert,":rowid", refid.rowid);
   bindTextParameter(memberdef_insert,":kind",md->memberTypeName(),FALSE);
@@ -1916,25 +2039,47 @@ static void insertMember(const MemberDef *md, Refid compounddef_refid, const Def
 
   insertMemberReferences(md);
 }
+static bool memberVisible(const Definition *d,const MemberDef *md)
+{
+    return Config_getBool(XML_NS_MEMB_FILE_SCOPE) ||
+           d->definitionType()!=Definition::TypeFile ||
+           md->getNamespaceDef()==0;
+}
 
 static void insertSection(const Definition *d,
                           const MemberList *ml,
                           Refid compounddef_refid,
-                          const char * /*kind*/,
-                          const QCString & /*header*/=QCString(),
-                          const QCString & /*documentation*/=QCString())
+                          const QCString &kind,
+                          const QCString &header=QCString(),
+                          const QCString &documentation=QCString())
 {
-  if (!ml)
-    return;
-
+  if (ml==0) return;
+  int count=0;
   for (const auto &md : *ml)
   {
-    // TODO: necessary? just tracking what xmlgen does; xmlgen says:
-    // namespace members are also inserted in the file scope, but
-    // to prevent this duplication in the XML output, we filter those here.
-    if (d->definitionType()!=Definition::TypeFile || md->getNamespaceDef()==0)
+    if (memberVisible(d,md) && (md->memberType()!=MemberType_EnumValue) &&
+        !md->isHidden())
     {
-      insertMember(md, compounddef_refid, d);
+      count++;
+    }
+  }
+  if (count==0) return; // empty list
+
+  bindTextParameter(sectiondef_insert,":kind", kind,FALSE);
+  if (!header.isEmpty())
+  {
+    bindJsonParameter(sectiondef_insert, ":header", d, header, FALSE);
+  }
+  if (!documentation.isEmpty())
+  {
+    bindJsonParameter(sectiondef_insert, ":description", d, documentation, FALSE);
+  }
+  int rowid = stepRowid(sectiondef_insert);
+  for (const auto &md : *ml)
+  {
+    if (memberVisible(d,md))
+    {
+      insertMember(md,compounddef_refid, d);
     }
   }
 }
@@ -1949,6 +2094,71 @@ static void insertClassMembers(const ClassDef *cd, Refid compounddef_refid)
       QCString qrefid = md->getOutputFileBase() + "_1" + md->anchor();
       insertClassMember(md, insertRefid(qrefid), compounddef_refid);
     }
+  }
+}
+static void insertIncludeInfo(int src_id, const IncludeInfo *ii)
+{
+  if (!ii)
+    return;
+
+  QCString nm = ii->includeName;
+  if (nm.isEmpty() && ii->fileDef)
+    nm = ii->fileDef->docName();
+  if (nm.isEmpty())
+    return;
+
+  int dst_id=-1;
+  if (ii->fileDef)
+  {
+    dst_id = insertPath(ii->fileDef->absFilePath(),!ii->fileDef->isReference());
+    DBG_CTX(("-----> ClassDef IncludeInfo for %s\n", qPrint(nm)));
+    DBG_CTX(("header: %s\n", ii->fileDef->absFilePath().data()));
+    DBG_CTX(("       local    : %d\n", ii->local));
+    DBG_CTX(("       imported : %d\n", ii->imported));
+    DBG_CTX(("       deffile_id  : %d\n", src_id));
+    DBG_CTX(("       dst_id: %d\n", dst_id));
+  }
+
+  bindIntParameter(incl_select,":local",ii->local);
+  bindIntParameter(incl_select,":src_id",src_id);
+  bindIntParameter(incl_select,":dst_id",dst_id);
+  if (stepRowid(incl_select,TRUE)==0)
+  {
+    bindIntParameter(incl_insert,":local",ii->local);
+    bindIntParameter(incl_insert,":src_id",src_id);
+    bindIntParameter(incl_insert,":dst_id",dst_id);
+    step(incl_insert);
+  }
+}
+static  void bindDefinitionHeader(SqlStmt &s, const IncludeInfo *ii)
+{
+  if (!ii)
+    return;
+
+  QCString nm = ii->includeName;
+  if (nm.isEmpty() && ii->fileDef)
+    nm = ii->fileDef->docName();
+
+  if (nm.isEmpty())
+    return;
+
+  int headerfile_id=-1;
+  if (ii->fileDef)
+  {
+    headerfile_id = insertPath(ii->fileDef->absFilePath(),!ii->fileDef->isReference());
+  }
+  DBG_CTX(("-----> ClassDef includeInfo for %s\n", qPrint(nm)));
+  DBG_CTX(("       local    : %d\n", ii->local));
+  DBG_CTX(("       imported : %d\n", ii->imported));
+  if (ii->fileDef)
+  {
+    DBG_CTX(("header: %s\n", qPrint(ii->fileDef->absFilePath())));
+  }
+  DBG_CTX(("       headerfile_id: %d\n", headerfile_id));
+
+  if(headerfile_id!=-1)
+  {
+    bindIntParameter(s,":headerfile_id",headerfile_id);
   }
 }
 
@@ -1982,7 +2192,7 @@ static void insertClass(const ClassDef *cd)
   Refid refid = insertRefid(cd->getOutputFileBase());
 
   // skip class that already has a refid
-  if(!refid.created && existsCompoundDef(refid))
+  if(!refid.isNew && existsCompoundDef(refid))
     return;
 
   bindIntParameter(compounddef_insert,":rowid",refid.rowid);
@@ -1997,32 +2207,7 @@ static void insertClass(const ClassDef *cd)
   bindIntParameter(compounddef_insert,":defline",cd->getDefLine());
   bindIntParameter(compounddef_insert,":defcolumn",cd->getDefColumn());
 
-  // + include file
-  const IncludeInfo *ii=cd->includeInfo();
-  if (ii)
-  {
-    QCString nm = ii->includeName;
-    if (nm.isEmpty() && ii->fileDef) nm = ii->fileDef->docName();
-    if (!nm.isEmpty())
-    {
-      int header_id=-1;
-      if (ii->fileDef)
-      {
-        insertPath(ii->fileDef->absFilePath(),!ii->fileDef->isReference());
-      }
-      DBG_CTX(("-----> ClassDef IncludeInfo for %s\n", qPrint(nm)));
-      DBG_CTX(("header: %s\n", ii->fileDef->absFilePath().data()));
-      DBG_CTX(("       local    : %d\n", ii->local));
-      DBG_CTX(("       imported : %d\n", ii->imported));
-      DBG_CTX(("       deffile_id  : %d\n", deffile_id));
-      DBG_CTX(("       header_id: %d\n", header_id));
-
-      if(header_id!=-1)
-      {
-        bindIntParameter(compounddef_insert,":header_id",header_id);
-      }
-    }
-  }
+  bindDefinitionHeader(compounddef_insert, cd->includeInfo());
 
   bindJsonParameter(compounddef_insert, ":briefdescription", cd, cd->briefDescription(), FALSE);
   bindJsonParameter(compounddef_insert, ":detaileddescription", cd, cd->documentation(), FALSE);
@@ -2068,7 +2253,7 @@ static void insertClass(const ClassDef *cd)
   {
     if ((ml->listType()&MemberListType_detailedLists)==0)
     {
-      insertSection(cd,ml.get(),refid,"user-defined");
+      insertSection(cd,ml.get(),refid,sectionMapper(ml->listType()));
     }
   }
 
@@ -2080,7 +2265,8 @@ static void insertConcept(const ConceptDef *cd)
   if (cd->isReference() || cd->isHidden()) return; // skip external references
 
   Refid refid = insertRefid(cd->getOutputFileBase());
-  if(!refid.created && existsCompoundDef(refid)){return;}
+  if(!refid.isNew && existsCompoundDef(refid))
+    return;
   bindIntParameter(compounddef_insert,":rowid", refid.rowid);
   bindTextParameter(compounddef_insert,":name",cd->name());
   bindTextParameter(compounddef_insert,":kind","concept");
@@ -2115,7 +2301,7 @@ static void insertNamespace(const NamespaceDef *nd)
     return;
 
   Refid refid = insertRefid(nd->getOutputFileBase());
-  if(!refid.created && existsCompoundDef(refid))
+  if(!refid.isNew && existsCompoundDef(refid))
     return;
 
   bindIntParameter(compounddef_insert,":rowid",refid.rowid);
@@ -2149,7 +2335,7 @@ static void insertNamespace(const NamespaceDef *nd)
   {
     if ((ml->listType()&MemberListType_declarationLists)!=0)
     {
-      insertSection(nd,ml.get(),refid,"user-defined");
+      insertSection(nd,ml.get(),refid,sectionMapper(ml->listType()));
     }
   }
 }
@@ -2174,7 +2360,7 @@ static void insertFile(const FileDef *fd)
     return;
 
   Refid refid = insertRefid(fd->getOutputFileBase());
-  if(!refid.created && existsCompoundDef(refid))
+  if(!refid.isNew && existsCompoundDef(refid))
   {
     return;
   }
@@ -2202,48 +2388,48 @@ static void insertFile(const FileDef *fd)
   printf("FILE insert [%s]\n", fd->getOutputFileBase().data());
 
   // + includes files
-  for (const auto &inc : fd->includeFileList())
+  for (const auto &ii : fd->includeFileList())
   {
     int src_id=insertPath(fd->absFilePath(),!fd->isReference());
     int dst_id;
     QCString dst_path;
 
-    if(inc.fileDef) // found file
+    if(ii.fileDef) // found file
     {
-      if(inc.fileDef->isReference())
+      if(ii.fileDef->isReference())
       {
         // strip tagfile from path
-        QCString tagfile = inc.fileDef->getReference();
-        dst_path = inc.fileDef->absFilePath();
+        QCString tagfile = ii.fileDef->getReference();
+        dst_path = ii.fileDef->absFilePath();
         dst_path.stripPrefix(tagfile+":");
       }
       else
       {
-        dst_path = inc.fileDef->absFilePath();
+        dst_path = ii.fileDef->absFilePath();
       }
-      dst_id = insertPath(dst_path,inc.local);
+      dst_id = insertPath(dst_path,ii.local);
     }
     else // can't find file
     {
-      dst_id = insertPath(inc.includeName,inc.local,FALSE);
+      dst_id = insertPath(ii.includeName,ii.local,FALSE);
     }
 
-    DBG_CTX(("-----> FileDef includeInfo for %s\n", inc.includeName.data()));
-    DBG_CTX(("       local:    %d\n", inc.local));
-    DBG_CTX(("       imported: %d\n", inc.imported));
-    if(inc.fileDef)
+    DBG_CTX(("-----> FileDef includeInfo for %s\n", ii.includeName.data()));
+    DBG_CTX(("       local:    %d\n", ii.local));
+    DBG_CTX(("       imported: %d\n", ii.imported));
+    if(ii.fileDef)
     {
-      DBG_CTX(("include: %s\n", inc.fileDef->absFilePath().data()));
+      DBG_CTX(("include: %s\n", ii.fileDef->absFilePath().data()));
     }
     DBG_CTX(("       src_id: %d\n", src_id));
     DBG_CTX(("       dst_id: %d\n", dst_id));
 
-    bindIntParameter(incl_select,":local",inc.local);
+    bindIntParameter(incl_select,":local",ii.local);
     bindIntParameter(incl_select,":src_id",src_id);
     bindIntParameter(incl_select,":dst_id",dst_id);
     if (stepRowid(incl_select,TRUE)==0)
     {
-      bindIntParameter(incl_insert,":local",inc.local);
+      bindIntParameter(incl_insert,":local",ii.local);
       bindIntParameter(incl_insert,":src_id",src_id);
       bindIntParameter(incl_insert,":dst_id",dst_id);
       step(incl_insert);
@@ -2251,38 +2437,38 @@ static void insertFile(const FileDef *fd)
   }
 
   // + includedby files
-  for (const auto &inc : fd->includedByFileList())
+  for (const auto &ii : fd->includedByFileList())
   {
     int dst_id=insertPath(fd->absFilePath(),!fd->isReference());
     int src_id;
     QCString src_path;
 
-    if(inc.fileDef) // found file
+    if(ii.fileDef) // found file
     {
-      if(inc.fileDef->isReference())
+      if(ii.fileDef->isReference())
       {
         // strip tagfile from path
-        QCString tagfile = inc.fileDef->getReference();
-        src_path = inc.fileDef->absFilePath();
+        QCString tagfile = ii.fileDef->getReference();
+        src_path = ii.fileDef->absFilePath();
         src_path.stripPrefix(tagfile+":");
       }
       else
       {
-        src_path = inc.fileDef->absFilePath();
+        src_path = ii.fileDef->absFilePath();
       }
-      src_id = insertPath(src_path,inc.local);
+      src_id = insertPath(src_path,ii.local);
     }
     else // can't find file
     {
-      src_id = insertPath(inc.includeName,inc.local,FALSE);
+      src_id = insertPath(ii.includeName,ii.local,FALSE);
     }
 
-    bindIntParameter(incl_select,":local",inc.local);
+    bindIntParameter(incl_select,":local",ii.local);
     bindIntParameter(incl_select,":src_id",src_id);
     bindIntParameter(incl_select,":dst_id",dst_id);
     if (stepRowid(incl_select,TRUE)==0)
     {
-      bindIntParameter(incl_insert,":local",inc.local);
+      bindIntParameter(incl_insert,":local",ii.local);
       bindIntParameter(incl_insert,":src_id",src_id);
       bindIntParameter(incl_insert,":dst_id",dst_id);
       step(incl_insert);
@@ -2305,7 +2491,7 @@ static void insertFile(const FileDef *fd)
   {
     if ((ml->listType()&MemberListType_declarationLists)!=0)
     {
-      insertSection(fd,ml.get(),refid,"user-defined");
+      insertSection(fd,ml.get(),refid,sectionMapper(ml->listType()));
     }
   }
 }
@@ -2328,7 +2514,7 @@ static void insertGroup(const GroupDef *gd)
     return;
 
   Refid refid = insertRefid(gd->getOutputFileBase());
-  if(!refid.created && existsCompoundDef(refid))
+  if(!refid.isNew && existsCompoundDef(refid))
     return;
 
   bindIntParameter(compounddef_insert,":rowid",refid.rowid);
@@ -2364,7 +2550,7 @@ static void insertGroup(const GroupDef *gd)
   {
     if ((ml->listType()&MemberListType_declarationLists)!=0)
     {
-      insertSection(gd,ml.get(),refid,"user-defined");
+      insertSection(gd,ml.get(),refid,sectionMapper(ml->listType()));
     }
   }
 }
@@ -2376,7 +2562,7 @@ static void insertDir(const DirDef *dd)
     return;
 
   Refid refid = insertRefid(dd->getOutputFileBase());
-  if(!refid.created && existsCompoundDef(refid))
+  if(!refid.isNew && existsCompoundDef(refid))
     return;
 // kinds: page, example
 
@@ -2427,7 +2613,7 @@ static void insertPage(const PageDef *pd,bool isExample)
   Refid refid = insertRefid(qrefid);
 
   // can omit a page that already has a refid
-  if(!refid.created && existsCompoundDef(refid))
+  if(!refid.isNew && existsCompoundDef(refid))
     return;
 
   bindIntParameter(compounddef_insert,":rowid",refid.rowid);
@@ -2599,6 +2785,12 @@ void generateSqlite3(void)
     return;
   }
 
+  if (-1==initializeViews(db))
+  {
+    err("sqlite3: initializeViews failed!");
+    return;
+  }
+
   if (-1==prepareStatements(db) )
   {
     err("sqlite3: prepareStatements failed!");
@@ -2616,12 +2808,6 @@ void generateSqlite3(void)
   insertDirs();
   insertExamples();
   insertMainPage();
-
-  if (-1==initializeViews(db))
-  {
-    err("sqlite3: initializeViews failed!");
-    return;
-  }
 
   endTransaction(db);
 }
